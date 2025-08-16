@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificar Dados Salvos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .item {
+            background: #f9f9f9;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            border-left: 3px solid #007bff;
+        }
+        .empty {
+            color: #666;
+            font-style: italic;
+        }
+        .count {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Verificação de Dados Salvos</h1>
+        <p>Esta página verifica se os dados que você salvou ainda estão disponíveis no localStorage.</p>
+        
+        <div id="resultados"></div>
+    </div>
+
+    <script>
+        function verificarDados() {
+            const prefix = 'pravoceapp_';
+            const colecoes = [
+                'clientes',
+                'produtos', 
+                'fornecedores',
+                'pedidos',
+                'ordensCompra',
+                'colaboradores',
+                'cargos',
+                'locais',
+                'assistencias'
+            ];
+
+            let html = '';
+
+            colecoes.forEach(colecao => {
+                const chave = prefix + colecao;
+                const dados = localStorage.getItem(chave);
+                
+                let conteudo = '';
+                let contador = 0;
+
+                if (dados) {
+                    try {
+                        const items = JSON.parse(dados);
+                        contador = items.length;
+                        
+                        if (items.length > 0) {
+                            items.forEach(item => {
+                                let nome = item.nome || item.titulo || item.descricao || `ID: ${item.id}`;
+                                let data = new Date(item.dataCriacao).toLocaleDateString('pt-BR');
+                                conteudo += `
+                                    <div class="item">
+                                        <strong>${nome}</strong><br>
+                                        <small>Criado em: ${data}</small>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            conteudo = '<div class="empty">Nenhum item encontrado</div>';
+                        }
+                    } catch (error) {
+                        conteudo = '<div class="empty">Erro ao ler dados</div>';
+                    }
+                } else {
+                    conteudo = '<div class="empty">Nenhum dado encontrado</div>';
+                }
+
+                html += `
+                    <div class="section">
+                        <h3>${colecao.charAt(0).toUpperCase() + colecao.slice(1)} 
+                            <span class="count">(${contador} itens)</span>
+                        </h3>
+                        ${conteudo}
+                    </div>
+                `;
+            });
+
+            document.getElementById('resultados').innerHTML = html;
+        }
+
+        // Executar verificação quando a página carregar
+        window.onload = verificarDados;
+    </script>
+</body>
+</html> 

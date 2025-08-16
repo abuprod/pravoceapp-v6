@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Lançamentos de Pedido de Venda</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .card { border: 1px solid #ddd; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-warning { background-color: #ffc107; color: black; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        pre { background-color: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .produto-item { background-color: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 4px; }
+        .local-se { background-color: #fff3cd; }
+        .local-normal { background-color: #d1ecf1; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Teste - Lançamentos de Pedido de Venda</h1>
+    
+    <div class="card info">
+        <h3>📋 Objetivo do Teste</h3>
+        <p>Verificar por que apenas um produto está sendo registrado no histórico de lançamentos quando um pedido de venda é salvo com múltiplos produtos.</p>
+    </div>
+
+    <div class="card">
+        <h3>🚀 Simular Pedido de Venda</h3>
+        <button class="btn-primary" onclick="simularPedidoVenda()">Simular Pedido com 2 Produtos</button>
+        <button class="btn-warning" onclick="verificarHistorico()">Verificar Histórico</button>
+        <button class="btn-danger" onclick="limparDados()">Limpar Dados</button>
+    </div>
+
+    <div class="card">
+        <h3>📊 Dados do Pedido Simulado</h3>
+        <div id="dadosPedido"></div>
+    </div>
+
+    <div class="card">
+        <h3>📝 Histórico de Lançamentos</h3>
+        <div id="historicoLancamentos"></div>
+    </div>
+
+    <div class="card">
+        <h3>🔍 Logs de Debug</h3>
+        <div id="logsDebug"></div>
+    </div>
+
+    <script>
+        // Dados de teste
+        const produtosTeste = [
+            {
+                id: 1,
+                descricao: "Produto A - Teste",
+                fornecedor: "Fornecedor Teste",
+                estoque: {
+                    "DEP": { quantidade: 100, observacao: "" },
+                    "LOJA": { quantidade: 50, observacao: "" }
+                },
+                estoqueDisponivel: 150,
+                estoqueFisico: 150
+            },
+            {
+                id: 2,
+                descricao: "Produto B - Teste",
+                fornecedor: "Fornecedor Teste",
+                estoque: {
+                    "DEP": { quantidade: 75, observacao: "" },
+                    "LOJA": { quantidade: 25, observacao: "" }
+                },
+                estoqueDisponivel: 100,
+                estoqueFisico: 100
+            }
+        ];
+
+        let pedidoTeste = {
+            numeroPedido: "PV001",
+            produtos: [
+                {
+                    produtoId: 1,
+                    produto: "Produto A - Teste",
+                    sl: "DEP",
+                    quantidade: 10
+                },
+                {
+                    produtoId: 2,
+                    produto: "Produto B - Teste",
+                    sl: "LOJA",
+                    quantidade: 5
+                }
+            ]
+        };
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logsDebug');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-${type}`;
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function simularPedidoVenda() {
+            log('🚀 Iniciando simulação de pedido de venda...');
+            
+            // Limpar logs anteriores
+            document.getElementById('logsDebug').innerHTML = '';
+            
+            // Simular função darBaixaEstoque
+            const resultado = darBaixaEstoque(pedidoTeste.produtos, false, []);
+            
+            if (resultado) {
+                log('✅ Baixa no estoque realizada com sucesso!', 'success');
+                mostrarDadosPedido();
+                verificarHistorico();
+            } else {
+                log('❌ Erro ao realizar baixa no estoque', 'error');
+            }
+        }
+
+        function darBaixaEstoque(produtos, isEdicao = false, produtosAnteriores = []) {
+            try {
+                log('🔍 Iniciando darBaixaEstoque...');
+                log(`📊 Produtos recebidos: ${produtos.length}`);
+                log(`🔄 É edição: ${isEdicao}`);
+                
+                // Carregar produtos cadastrados
+                const produtosCadastrados = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+                if (produtosCadastrados.length === 0) {
+                    // Inicializar com produtos de teste
+                    localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosTeste));
+                    log('📝 Produtos de teste inicializados no localStorage');
+                }
+                
+                const produtosAtualizados = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+                log(`📊 Produtos cadastrados carregados: ${produtosAtualizados.length}`);
+                
+                // Array para armazenar as baixas realizadas
+                const baixasRealizadas = [];
+                
+                if (isEdicao && produtosAnteriores.length > 0) {
+                    log('🔄 Processando edição - calculando diferenças...');
+                    // Lógica de edição (não aplicável neste teste)
+                } else {
+                    log('🆕 Processando pedido novo...');
+                    
+                    for (const produtoPedido of produtos) {
+                        log(`🔍 Processando produto: ${produtoPedido.produto} - Local: ${produtoPedido.sl} - ID: ${produtoPedido.produtoId}`);
+                        
+                        // Pular produtos "SE" (sob encomenda)
+                        if (produtoPedido.sl === 'SE') {
+                            log(`⏭️ Pulando produto SE: ${produtoPedido.produto}`);
+                            continue;
+                        }
+                        
+                        // Verificar se o produto tem ID válido
+                        if (!produtoPedido.produtoId) {
+                            log(`⚠️ Produto sem ID válido: ${produtoPedido.produto} - Local: ${produtoPedido.sl}`, 'warning');
+                            continue;
+                        }
+                        
+                        // Verificar se o produto tem local válido
+                        if (!produtoPedido.sl) {
+                            log(`⚠️ Produto sem local válido: ${produtoPedido.produto} - ID: ${produtoPedido.produtoId}`, 'warning');
+                            continue;
+                        }
+                        
+                        // Encontrar o produto cadastrado correspondente
+                        const produtoCadastrado = produtosAtualizados.find(p => p.id === produtoPedido.produtoId);
+                        
+                        if (!produtoCadastrado) {
+                            log(`⚠️ Produto não encontrado no cadastro: ${produtoPedido.produto} - ID: ${produtoPedido.produtoId}`, 'warning');
+                            continue;
+                        }
+                        
+                        log(`✅ Produto encontrado: ${produtoCadastrado.descricao} - Estoque atual: ${produtoCadastrado.estoque?.[produtoPedido.sl]?.quantidade || 0}`);
+                        
+                        const quantidadeVendida = parseInt(produtoPedido.quantidade) || 0;
+                        const estoqueAtual = produtoCadastrado.estoque?.[produtoPedido.sl]?.quantidade || 0;
+                        
+                        // Calcular nova quantidade
+                        const novaQuantidade = Math.max(0, estoqueAtual - quantidadeVendida);
+                        
+                        // Atualizar estoque do produto
+                        if (!produtoCadastrado.estoque) {
+                            produtoCadastrado.estoque = {};
+                        }
+                        
+                        produtoCadastrado.estoque[produtoPedido.sl] = {
+                            quantidade: novaQuantidade,
+                            observacao: produtoCadastrado.estoque[produtoPedido.sl]?.observacao || ''
+                        };
+                        
+                        // Calcular estoque total disponível
+                        const estoqueTotal = Object.values(produtoCadastrado.estoque).reduce((total, local) => {
+                            return total + (local.quantidade || 0);
+                        }, 0);
+                        
+                        // Atualizar campos de estoque total
+                        produtoCadastrado.estoqueDisponivel = estoqueTotal;
+                        produtoCadastrado.estoqueFisico = estoqueTotal;
+                        
+                        // Registrar a baixa realizada
+                        baixasRealizadas.push({
+                            produto: produtoPedido.produto,
+                            local: produtoPedido.sl,
+                            quantidadeVendida,
+                            tipo: 'Nova venda',
+                            estoqueAnterior: estoqueAtual,
+                            estoqueAtual: novaQuantidade
+                        });
+                        
+                        log(`✅ Baixa realizada: ${produtoPedido.produto} - ${quantidadeVendida} unidades de ${produtoPedido.sl}`);
+                    }
+                }
+                
+                log(`📊 Total de baixas realizadas: ${baixasRealizadas.length}`);
+                
+                // Salvar produtos atualizados no localStorage
+                localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosAtualizados));
+                
+                // Criar lançamento no histórico de estoque
+                const historicoExistente = JSON.parse(localStorage.getItem('historicoLancamentos') || '[]');
+                const dataAtual = new Date().toISOString().split('T')[0];
+                const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                
+                log(`📝 Criando ${baixasRealizadas.length} lançamentos no histórico...`);
+                
+                // Criar lançamentos de saída para cada produto
+                const novosLancamentos = baixasRealizadas.map(baixa => {
+                    const lancamento = {
+                        id: Date.now() + Math.random(),
+                        data: dataAtual,
+                        hora: horaAtual,
+                        tipo: 'Saída',
+                        fornecedor: 'Venda',
+                        descricao: baixa.produto,
+                        quantidade: -baixa.quantidadeVendida,
+                        observacao: `${baixa.tipo} - Pedido ${pedidoTeste.numeroPedido}`,
+                        usuario: 'Sistema',
+                        local: baixa.local
+                    };
+                    log(`📝 Criando lançamento: ${baixa.produto} - ${baixa.quantidadeVendida} unidades de ${baixa.local}`);
+                    return lancamento;
+                });
+                
+                // Adicionar novos lançamentos ao histórico
+                const novoHistorico = [...historicoExistente, ...novosLancamentos];
+                localStorage.setItem('historicoLancamentos', JSON.stringify(novoHistorico));
+                
+                log(`✅ ${novosLancamentos.length} lançamentos adicionados ao histórico`);
+                log('✅ Baixa no estoque realizada com sucesso:', baixasRealizadas);
+                
+                return true;
+            } catch (error) {
+                log(`❌ Erro ao dar baixa no estoque: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        function verificarHistorico() {
+            const historico = JSON.parse(localStorage.getItem('historicoLancamentos') || '[]');
+            const historicoDiv = document.getElementById('historicoLancamentos');
+            
+            if (historico.length === 0) {
+                historicoDiv.innerHTML = '<p>Nenhum lançamento encontrado no histórico.</p>';
+                return;
+            }
+            
+            let html = `<h4>Total de lançamentos: ${historico.length}</h4>`;
+            html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+            html += '<tr style="background-color: #f8f9fa;">';
+            html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Data</th>';
+            html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Hora</th>';
+            html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Tipo</th>';
+            html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Produto</th>';
+            html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Quantidade</th>';
+            html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Local</th>';
+            html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Observação</th>';
+            html += '</tr>';
+            
+            historico.forEach(lancamento => {
+                html += '<tr>';
+                html += `<td style="border: 1px solid #ddd; padding: 8px;">${lancamento.data}</td>`;
+                html += `<td style="border: 1px solid #ddd; padding: 8px;">${lancamento.hora}</td>`;
+                html += `<td style="border: 1px solid #ddd; padding: 8px;">${lancamento.tipo}</td>`;
+                html += `<td style="border: 1px solid #ddd; padding: 8px;">${lancamento.descricao}</td>`;
+                html += `<td style="border: 1px solid #ddd; padding: 8px;">${lancamento.quantidade}</td>`;
+                html += `<td style="border: 1px solid #ddd; padding: 8px;">${lancamento.local}</td>`;
+                html += `<td style="border: 1px solid #ddd; padding: 8px;">${lancamento.observacao}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            historicoDiv.innerHTML = html;
+        }
+
+        function mostrarDadosPedido() {
+            const dadosDiv = document.getElementById('dadosPedido');
+            let html = '<h4>Produtos do Pedido:</h4>';
+            
+            pedidoTeste.produtos.forEach((produto, index) => {
+                const classeLocal = produto.sl === 'SE' ? 'local-se' : 'local-normal';
+                html += `<div class="produto-item ${classeLocal}">`;
+                html += `<strong>Produto ${index + 1}:</strong> ${produto.produto}<br>`;
+                html += `<strong>Local:</strong> ${produto.sl}<br>`;
+                html += `<strong>Quantidade:</strong> ${produto.quantidade}<br>`;
+                html += `<strong>ID:</strong> ${produto.produtoId}`;
+                html += '</div>';
+            });
+            
+            dadosDiv.innerHTML = html;
+        }
+
+        function limparDados() {
+            localStorage.removeItem('historicoLancamentos');
+            localStorage.removeItem('produtos_cadastrados');
+            document.getElementById('historicoLancamentos').innerHTML = '<p>Dados limpos.</p>';
+            document.getElementById('dadosPedido').innerHTML = '<p>Dados limpos.</p>';
+            document.getElementById('logsDebug').innerHTML = '';
+            log('🧹 Dados limpos com sucesso');
+        }
+
+        // Inicializar
+        window.onload = function() {
+            log('🚀 Teste de Lançamentos de Pedido de Venda iniciado');
+            mostrarDadosPedido();
+            verificarHistorico();
+        };
+    </script>
+</body>
+</html>

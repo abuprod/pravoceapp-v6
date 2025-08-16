@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Reversão de Estoque</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #ddd;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .warning {
+            border-left-color: #ffc107;
+            background-color: #fff3cd;
+        }
+        .info {
+            border-left-color: #17a2b8;
+            background-color: #d1ecf1;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            font-weight: bold;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .step {
+            background: #e9ecef;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste - Reversão de Estoque</h1>
+        <p>Este teste demonstra a funcionalidade de reversão de estoque quando pedidos são excluídos ou cancelados.</p>
+        
+        <div class="section">
+            <h2>📋 Como Funciona a Reversão</h2>
+            <div class="step">
+                <strong>1. Exclusão de Pedido:</strong> Quando um pedido é excluído, o estoque é revertido automaticamente
+            </div>
+            <div class="step">
+                <strong>2. Cancelamento de Pedido:</strong> Quando a situação muda para "Cancelado", o estoque é revertido
+            </div>
+            <div class="step">
+                <strong>3. Histórico de Lançamentos:</strong> Todas as reversões são registradas no histórico
+            </div>
+            <div class="step">
+                <strong>4. Produtos SE:</strong> Produtos "Sob Encomenda" não são afetados pela reversão
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔧 Preparação do Teste</h2>
+            <button onclick="criarProdutosTeste()">Criar Produtos de Teste</button>
+            <button onclick="verificarEstoque()">Verificar Estoque Atual</button>
+            <div id="resultado"></div>
+        </div>
+
+        <div class="section">
+            <h2>📦 Teste de Pedidos</h2>
+            <button onclick="criarPedidoTeste()">Criar Pedido de Venda</button>
+            <button onclick="excluirPedidoTeste()">Excluir Pedido (Reverter Estoque)</button>
+            <button onclick="cancelarPedidoTeste()">Cancelar Pedido (Reverter Estoque)</button>
+            <button onclick="verificarPedidos()">Verificar Pedidos Salvos</button>
+        </div>
+
+        <div class="section">
+            <h2>📊 Histórico de Lançamentos</h2>
+            <button onclick="verificarHistorico()">Verificar Histórico</button>
+        </div>
+    </div>
+
+    <script>
+        function criarProdutosTeste() {
+            const produtos = [
+                {
+                    id: 'produto1',
+                    descricao: 'Sofá 3 lugares',
+                    fornecedor: 'Móveis ABC',
+                    estoqueDisponivel: 10,
+                    estoqueFisico: 10,
+                    estoque: {
+                        'SL': { quantidade: 5, observacao: '' },
+                        'DP': { quantidade: 3, observacao: '' },
+                        'LOJA': { quantidade: 2, observacao: '' }
+                    }
+                },
+                {
+                    id: 'produto2',
+                    descricao: 'Mesa de Jantar',
+                    fornecedor: 'Móveis XYZ',
+                    estoqueDisponivel: 8,
+                    estoqueFisico: 8,
+                    estoque: {
+                        'SL': { quantidade: 4, observacao: '' },
+                        'DP': { quantidade: 2, observacao: '' },
+                        'LOJA': { quantidade: 2, observacao: '' }
+                    }
+                }
+            ];
+
+            localStorage.setItem('produtos_cadastrados', JSON.stringify(produtos));
+            
+            document.getElementById('resultado').innerHTML = `
+                <div class="card success">
+                    <h4>✅ Produtos de teste criados com sucesso!</h4>
+                    <p><strong>Produtos criados:</strong></p>
+                    <ul>
+                        <li>Sofá 3 lugares - 10 unidades disponíveis</li>
+                        <li>Mesa de Jantar - 8 unidades disponíveis</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        function verificarEstoque() {
+            const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            
+            if (produtos.length === 0) {
+                document.getElementById('resultado').innerHTML = `
+                    <div class="card error">
+                        <h4>❌ Nenhum produto encontrado!</h4>
+                        <p>Execute primeiro "Criar Produtos de Teste"</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="card info">
+                    <h4>📊 Estoque Atual</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Fornecedor</th>
+                                <th>SL</th>
+                                <th>DP</th>
+                                <th>LOJA</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            produtos.forEach(produto => {
+                const sl = produto.estoque?.SL?.quantidade || 0;
+                const dp = produto.estoque?.DP?.quantidade || 0;
+                const loja = produto.estoque?.LOJA?.quantidade || 0;
+                const total = sl + dp + loja;
+
+                html += `
+                    <tr>
+                        <td>${produto.descricao}</td>
+                        <td>${produto.fornecedor}</td>
+                        <td>${sl}</td>
+                        <td>${dp}</td>
+                        <td>${loja}</td>
+                        <td><strong>${total}</strong></td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('resultado').innerHTML = html;
+        }
+
+        function criarPedidoTeste() {
+            const pedido = {
+                id: Date.now().toString(),
+                numeroPedido: '00001',
+                situacao: 'Em aberto',
+                vendedor: 'João Silva',
+                cliente: 'Maria Santos',
+                clienteId: 'cliente123',
+                valor: 4300.00,
+                dataCriacao: new Date().toISOString(),
+                produtos: [
+                    {
+                        produto: 'Sofá 3 lugares',
+                        quantidade: 2,
+                        produtoId: 'produto1',
+                        sl: 'SL',
+                        fabrica: 'Móveis ABC',
+                        precoLista: 1500.00,
+                        precoFinal: 1500.00
+                    },
+                    {
+                        produto: 'Mesa de Jantar',
+                        quantidade: 1,
+                        produtoId: 'produto2',
+                        sl: 'DP',
+                        fabrica: 'Móveis XYZ',
+                        precoLista: 2000.00,
+                        precoFinal: 2000.00
+                    }
+                ]
+            };
+
+            const pedidosExistentes = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+            pedidosExistentes.push(pedido);
+            localStorage.setItem('pravoceapp_pedidosVenda', JSON.stringify(pedidosExistentes));
+            
+            // Simular baixa imediata
+            simularBaixaImediata(pedido.produtos);
+            
+            document.getElementById('resultado').innerHTML = `
+                <div class="card success">
+                    <h4>✅ Pedido de teste criado com sucesso!</h4>
+                    <p><strong>Pedido:</strong> ${pedido.numeroPedido}</p>
+                    <p><strong>Cliente:</strong> ${pedido.cliente}</p>
+                    <p><strong>Valor:</strong> R$ ${pedido.valor.toFixed(2)}</p>
+                    <p><strong>Produtos:</strong></p>
+                    <ul>
+                        ${pedido.produtos.map(p => `<li>${p.produto} - ${p.quantidade} un. (${p.sl})</li>`).join('')}
+                    </ul>
+                    <p class="highlight">💡 Baixa imediata aplicada automaticamente!</p>
+                </div>
+            `;
+        }
+
+        function excluirPedidoTeste() {
+            const pedidos = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+            
+            if (pedidos.length === 0) {
+                document.getElementById('resultado').innerHTML = `
+                    <div class="card error">
+                        <h4>❌ Nenhum pedido encontrado!</h4>
+                        <p>Execute primeiro "Criar Pedido de Venda"</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const pedido = pedidos[0];
+            
+            // Simular reversão de estoque
+            simularReversaoEstoque(pedido);
+            
+            // Remover pedido
+            const novosPedidos = pedidos.filter(p => p.id !== pedido.id);
+            localStorage.setItem('pravoceapp_pedidosVenda', JSON.stringify(novosPedidos));
+            
+            document.getElementById('resultado').innerHTML = `
+                <div class="card warning">
+                    <h4>🗑️ Pedido excluído com sucesso!</h4>
+                    <p><strong>Pedido excluído:</strong> ${pedido.numeroPedido}</p>
+                    <p class="highlight">💡 Estoque foi revertido automaticamente!</p>
+                </div>
+            `;
+        }
+
+        function cancelarPedidoTeste() {
+            const pedidos = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+            
+            if (pedidos.length === 0) {
+                document.getElementById('resultado').innerHTML = `
+                    <div class="card error">
+                        <h4>❌ Nenhum pedido encontrado!</h4>
+                        <p>Execute primeiro "Criar Pedido de Venda"</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const pedido = pedidos[0];
+            
+            // Simular reversão de estoque
+            simularReversaoEstoque(pedido);
+            
+            // Atualizar situação para cancelado
+            pedido.situacao = 'Cancelado';
+            localStorage.setItem('pravoceapp_pedidosVenda', JSON.stringify(pedidos));
+            
+            document.getElementById('resultado').innerHTML = `
+                <div class="card warning">
+                    <h4>🚫 Pedido cancelado com sucesso!</h4>
+                    <p><strong>Pedido:</strong> ${pedido.numeroPedido} - Situação: ${pedido.situacao}</p>
+                    <p class="highlight">💡 Estoque foi revertido automaticamente!</p>
+                </div>
+            `;
+        }
+
+        function simularBaixaImediata(produtos) {
+            const produtosCadastrados = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            const produtosAtualizados = [...produtosCadastrados];
+            
+            produtos.forEach(produtoPedido => {
+                if (produtoPedido.sl === 'SE') return;
+                
+                const produtoCadastrado = produtosAtualizados.find(p => p.id === produtoPedido.produtoId);
+                
+                if (produtoCadastrado && produtoPedido.sl) {
+                    const quantidadeVendida = parseInt(produtoPedido.quantidade) || 0;
+                    const estoqueAtual = produtoCadastrado.estoque?.[produtoPedido.sl]?.quantidade || 0;
+                    const novaQuantidade = Math.max(0, estoqueAtual - quantidadeVendida);
+                    
+                    produtoCadastrado.estoque[produtoPedido.sl] = {
+                        quantidade: novaQuantidade,
+                        observacao: produtoCadastrado.estoque[produtoPedido.sl]?.observacao || ''
+                    };
+                    
+                    const estoqueTotal = Object.values(produtoCadastrado.estoque).reduce((total, local) => {
+                        return total + (local.quantidade || 0);
+                    }, 0);
+                    
+                    produtoCadastrado.estoqueDisponivel = estoqueTotal;
+                    produtoCadastrado.estoqueFisico = estoqueTotal;
+                }
+            });
+            
+            localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosAtualizados));
+            
+            // Criar histórico
+            const historicoExistente = JSON.parse(localStorage.getItem('historicoLancamentos') || '[]');
+            const dataAtual = new Date().toISOString().split('T')[0];
+            const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            
+            const novosLancamentos = produtos.filter(p => p.sl !== 'SE').map(produto => ({
+                id: Date.now() + Math.random(),
+                data: dataAtual,
+                hora: horaAtual,
+                tipo: 'Saída',
+                fornecedor: 'Venda',
+                descricao: produto.produto,
+                quantidade: -parseInt(produto.quantidade),
+                observacao: 'Baixa imediata - Pedido 00001',
+                usuario: 'Sistema',
+                local: produto.sl
+            }));
+            
+            const novoHistorico = [...historicoExistente, ...novosLancamentos];
+            localStorage.setItem('historicoLancamentos', JSON.stringify(novoHistorico));
+        }
+
+        function simularReversaoEstoque(pedido) {
+            const produtosCadastrados = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            const produtosAtualizados = [...produtosCadastrados];
+            
+            const reversoesRealizadas = [];
+            
+            pedido.produtos.forEach(produtoPedido => {
+                if (produtoPedido.sl === 'SE') return;
+                
+                const produtoCadastrado = produtosAtualizados.find(p => p.id === produtoPedido.produtoId);
+                
+                if (produtoCadastrado && produtoPedido.sl) {
+                    const quantidadeVendida = parseInt(produtoPedido.quantidade) || 0;
+                    const estoqueAtual = produtoCadastrado.estoque?.[produtoPedido.sl]?.quantidade || 0;
+                    const novaQuantidade = estoqueAtual + quantidadeVendida;
+                    
+                    produtoCadastrado.estoque[produtoPedido.sl] = {
+                        quantidade: novaQuantidade,
+                        observacao: produtoCadastrado.estoque[produtoPedido.sl]?.observacao || ''
+                    };
+                    
+                    const estoqueTotal = Object.values(produtoCadastrado.estoque).reduce((total, local) => {
+                        return total + (local.quantidade || 0);
+                    }, 0);
+                    
+                    produtoCadastrado.estoqueDisponivel = estoqueTotal;
+                    produtoCadastrado.estoqueFisico = estoqueTotal;
+                    
+                    reversoesRealizadas.push({
+                        produto: produtoPedido.produto,
+                        local: produtoPedido.sl,
+                        quantidadeReversao: quantidadeVendida
+                    });
+                }
+            });
+            
+            localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosAtualizados));
+            
+            // Criar histórico
+            const historicoExistente = JSON.parse(localStorage.getItem('historicoLancamentos') || '[]');
+            const dataAtual = new Date().toISOString().split('T')[0];
+            const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            
+            const novosLancamentos = reversoesRealizadas.map(reversao => ({
+                id: Date.now() + Math.random(),
+                data: dataAtual,
+                hora: horaAtual,
+                tipo: 'Entrada',
+                fornecedor: 'Venda',
+                descricao: reversao.produto,
+                quantidade: reversao.quantidadeReversao,
+                observacao: `Reversão - Pedido ${pedido.numeroPedido} ${pedido.situacao === 'Cancelado' ? 'cancelado' : 'excluído'}`,
+                usuario: 'Sistema',
+                local: reversao.local
+            }));
+            
+            const novoHistorico = [...historicoExistente, ...novosLancamentos];
+            localStorage.setItem('historicoLancamentos', JSON.stringify(novoHistorico));
+        }
+
+        function verificarPedidos() {
+            const pedidos = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+            
+            if (pedidos.length === 0) {
+                document.getElementById('resultado').innerHTML = `
+                    <div class="card error">
+                        <h4>❌ Nenhum pedido encontrado!</h4>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="card info">
+                    <h4>📋 Pedidos Salvos</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Pedido</th>
+                                <th>Cliente</th>
+                                <th>Situação</th>
+                                <th>Valor</th>
+                                <th>Produtos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            pedidos.forEach(pedido => {
+                html += `
+                    <tr>
+                        <td>${pedido.numeroPedido}</td>
+                        <td>${pedido.cliente}</td>
+                        <td>${pedido.situacao}</td>
+                        <td>R$ ${pedido.valor.toFixed(2)}</td>
+                        <td>${pedido.produtos.map(p => `${p.produto} (${p.quantidade})`).join(', ')}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('resultado').innerHTML = html;
+        }
+
+        function verificarHistorico() {
+            const historico = JSON.parse(localStorage.getItem('historicoLancamentos') || '[]');
+            
+            if (historico.length === 0) {
+                document.getElementById('resultado').innerHTML = `
+                    <div class="card error">
+                        <h4>❌ Nenhum lançamento encontrado!</h4>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="card info">
+                    <h4>📊 Histórico de Lançamentos</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Hora</th>
+                                <th>Tipo</th>
+                                <th>Produto</th>
+                                <th>Quantidade</th>
+                                <th>Local</th>
+                                <th>Observação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            historico.forEach(lancamento => {
+                const tipoClass = lancamento.tipo === 'Saída' ? 'error' : 'success';
+                html += `
+                    <tr class="${tipoClass}">
+                        <td>${lancamento.data}</td>
+                        <td>${lancamento.hora}</td>
+                        <td><strong>${lancamento.tipo}</strong></td>
+                        <td>${lancamento.descricao}</td>
+                        <td>${lancamento.quantidade}</td>
+                        <td>${lancamento.local}</td>
+                        <td>${lancamento.observacao}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('resultado').innerHTML = html;
+        }
+    </script>
+</body>
+</html> 

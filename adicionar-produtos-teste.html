@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Adicionar Produtos de Teste</title>
+</head>
+<body>
+    <h1>Adicionar Produtos de Teste</h1>
+    <button onclick="adicionarProdutosTeste()">Adicionar Produtos de Teste</button>
+    <button onclick="verProdutos()">Ver Produtos Atuais</button>
+    <div id="resultado"></div>
+    
+    <script>
+        function adicionarProdutosTeste() {
+            const produtosTeste = [
+                {
+                    id: 1,
+                    sku: "MESA001",
+                    descricao: "Mesa de Jantar 6 Lugares",
+                    nome: "Mesa de Jantar 6 Lugares",
+                    produto: "Mesa de Jantar 6 Lugares",
+                    precoLista: 1200.00,
+                    categoria: "Móveis",
+                    fornecedor: "Fornecedor A"
+                },
+                {
+                    id: 2,
+                    sku: "SOFA002",
+                    descricao: "Sofá 3 Lugares",
+                    nome: "Sofá 3 Lugares",
+                    produto: "Sofá 3 Lugares",
+                    precoLista: 2500.00,
+                    categoria: "Móveis",
+                    fornecedor: "Fornecedor B"
+                },
+                {
+                    id: 3,
+                    sku: "CADEIRA003",
+                    descricao: "Cadeira de Escritório",
+                    nome: "Cadeira de Escritório",
+                    produto: "Cadeira de Escritório",
+                    precoLista: 450.00,
+                    categoria: "Móveis",
+                    fornecedor: "Fornecedor C"
+                },
+                {
+                    id: 4,
+                    sku: "ARMARIO004",
+                    descricao: "Armário de Cozinha",
+                    nome: "Armário de Cozinha",
+                    produto: "Armário de Cozinha",
+                    precoLista: 1800.00,
+                    categoria: "Móveis",
+                    fornecedor: "Fornecedor A"
+                },
+                {
+                    id: 5,
+                    sku: "CAMA005",
+                    descricao: "Cama Box Casal",
+                    nome: "Cama Box Casal",
+                    produto: "Cama Box Casal",
+                    precoLista: 950.00,
+                    categoria: "Móveis",
+                    fornecedor: "Fornecedor B"
+                }
+            ];
+
+            const produtosAtuais = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            const produtosCombinados = [...produtosAtuais, ...produtosTeste];
+            localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosCombinados));
+            
+            document.getElementById('resultado').innerHTML = `
+                <h2>✅ Produtos de teste adicionados!</h2>
+                <p>Total de produtos: ${produtosCombinados.length}</p>
+            `;
+        }
+
+        function verProdutos() {
+            const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            document.getElementById('resultado').innerHTML = `
+                <h2>Produtos cadastrados: ${produtos.length}</h2>
+                <pre>${JSON.stringify(produtos, null, 2)}</pre>
+            `;
+        }
+    </script>
+</body>
+</html> 

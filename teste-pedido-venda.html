@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Pedido Venda</title>
+</head>
+<body>
+    <h1>Teste - Criar Pedido de Venda</h1>
+    <button onclick="criarPedidoTeste()">Criar Pedido de Teste</button>
+    <button onclick="verificarPedidos()">Verificar Pedidos</button>
+    <button onclick="limparPedidos()">Limpar Pedidos</button>
+    <div id="resultado"></div>
+
+    <script>
+        function criarPedidoTeste() {
+            const pedidoTeste = {
+                id: Date.now().toString(),
+                numeroPedido: '00001',
+                situacao: 'Em aberto',
+                vendedor: 'João Silva',
+                cliente: 'Maria Santos',
+                clienteId: 'cliente123',
+                clienteCpfCnpj: '123.456.789-00',
+                clienteEmail: 'maria@email.com',
+                clienteTelefone: '(11) 99999-9999',
+                valor: 1500.00,
+                dataCriacao: new Date().toISOString(),
+                produtos: [
+                    {
+                        produto: 'Sofá 3 lugares',
+                        quantidade: 1,
+                        precoLista: 1500.00,
+                        precoFinal: 1500.00
+                    }
+                ]
+            };
+
+            const pedidosExistentes = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+            pedidosExistentes.push(pedidoTeste);
+            localStorage.setItem('pravoceapp_pedidosVenda', JSON.stringify(pedidosExistentes));
+            
+            document.getElementById('resultado').innerHTML = '<p style="color: green;">Pedido de teste criado com sucesso!</p>';
+        }
+
+        function verificarPedidos() {
+            const pedidos = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+            document.getElementById('resultado').innerHTML = `
+                <h3>Pedidos encontrados: ${pedidos.length}</h3>
+                <pre>${JSON.stringify(pedidos, null, 2)}</pre>
+            `;
+        }
+
+        function limparPedidos() {
+            localStorage.removeItem('pravoceapp_pedidosVenda');
+            document.getElementById('resultado').innerHTML = '<p style="color: blue;">Pedidos limpos!</p>';
+        }
+    </script>
+</body>
+</html> 

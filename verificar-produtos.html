@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verificar Produtos</title>
+</head>
+<body>
+    <h1>Verificar Produtos Cadastrados</h1>
+    <div id="resultado"></div>
+    
+    <script>
+        const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+        document.getElementById('resultado').innerHTML = `
+            <h2>Produtos encontrados: ${produtos.length}</h2>
+            <pre>${JSON.stringify(produtos, null, 2)}</pre>
+        `;
+    </script>
+</body>
+</html> 

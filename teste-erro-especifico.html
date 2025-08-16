@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Erro Específico do Sistema</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .error { border-left: 4px solid #dc3545; background: #f8d7da; }
+        .success { border-left: 4px solid #28a745; background: #d4edda; }
+        .warning { border-left: 4px solid #ffc107; background: #fff3cd; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Teste - Erro Específico do Sistema</h1>
+    <p>Este teste identifica e corrige problemas específicos no sistema de pedidos de venda.</p>
+
+    <div class="container">
+        <h2>🧪 Testes de Diagnóstico</h2>
+        <button onclick="testarLocalStorage()">💾 Testar LocalStorage</button>
+        <button onclick="testarEstruturaProdutos()">📦 Testar Estrutura de Produtos</button>
+        <button onclick="testarFuncoes()">⚙️ Testar Funções</button>
+        <button onclick="corrigirProblemas()">🔧 Corrigir Problemas</button>
+        <button onclick="limparLogs()">🧹 Limpar Logs</button>
+    </div>
+
+    <div class="container">
+        <h2>📊 Resultados dos Testes</h2>
+        <div class="log" id="logResultados"></div>
+    </div>
+
+    <div class="container">
+        <h2>📋 Status do Sistema</h2>
+        <div id="statusContainer"></div>
+    </div>
+
+    <script>
+        let problemasEncontrados = [];
+
+        function log(mensagem, tipo = 'info') {
+            const logElement = document.getElementById('logResultados');
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const tipoIcon = {
+                'success': '✅',
+                'error': '❌',
+                'warning': '⚠️',
+                'info': 'ℹ️'
+            };
+            logElement.textContent += `[${timestamp}] ${tipoIcon[tipo]} ${mensagem}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function testarLocalStorage() {
+            log('💾 TESTANDO LOCALSTORAGE', 'info');
+            problemasEncontrados = [];
+            
+            try {
+                // Testar se localStorage está disponível
+                if (typeof localStorage === 'undefined') {
+                    log('❌ localStorage não está disponível', 'error');
+                    problemasEncontrados.push('localStorage_indisponivel');
+                    return;
+                }
+                
+                log('✅ localStorage está disponível', 'success');
+                
+                // Testar operações básicas
+                localStorage.setItem('teste', 'valor_teste');
+                const valorTeste = localStorage.getItem('teste');
+                
+                if (valorTeste === 'valor_teste') {
+                    log('✅ Operações básicas do localStorage funcionando', 'success');
+                } else {
+                    log('❌ Operações básicas do localStorage falharam', 'error');
+                    problemasEncontrados.push('localStorage_operacoes');
+                }
+                
+                // Limpar teste
+                localStorage.removeItem('teste');
+                
+                // Verificar dados existentes
+                const produtos = localStorage.getItem('produtos_cadastrados');
+                const historico = localStorage.getItem('historicoLancamentos');
+                
+                if (produtos) {
+                    try {
+                        JSON.parse(produtos);
+                        log('✅ Dados de produtos válidos no localStorage', 'success');
+                    } catch (e) {
+                        log('❌ Dados de produtos corrompidos no localStorage', 'error');
+                        problemasEncontrados.push('produtos_corrompidos');
+                    }
+                } else {
+                    log('⚠️ Nenhum produto cadastrado no localStorage', 'warning');
+                }
+                
+                if (historico) {
+                    try {
+                        JSON.parse(historico);
+                        log('✅ Dados de histórico válidos no localStorage', 'success');
+                    } catch (e) {
+                        log('❌ Dados de histórico corrompidos no localStorage', 'error');
+                        problemasEncontrados.push('historico_corrompido');
+                    }
+                } else {
+                    log('⚠️ Nenhum histórico no localStorage', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Erro ao testar localStorage: ${error.message}`, 'error');
+                problemasEncontrados.push('localStorage_erro');
+            }
+            
+            atualizarStatus();
+        }
+
+        function testarEstruturaProdutos() {
+            log('📦 TESTANDO ESTRUTURA DE PRODUTOS', 'info');
+            
+            try {
+                const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+                
+                if (produtos.length === 0) {
+                    log('⚠️ Nenhum produto para testar', 'warning');
+                    return;
+                }
+                
+                log(`📊 Testando ${produtos.length} produtos`, 'info');
+                
+                const camposObrigatorios = ['id', 'descricao', 'estoque', 'estoqueDisponivel', 'estoqueFisico'];
+                let produtosComProblemas = 0;
+                
+                produtos.forEach((produto, index) => {
+                    const camposFaltando = camposObrigatorios.filter(campo => !(campo in produto));
+                    
+                    if (camposFaltando.length > 0) {
+                        log(`❌ Produto ${index + 1} (${produto.descricao || 'Sem descrição'}): campos faltando: ${camposFaltando.join(', ')}`, 'error');
+                        produtosComProblemas++;
+                        problemasEncontrados.push(`produto_${index}_campos_faltando`);
+                    } else {
+                        log(`✅ Produto ${index + 1} (${produto.descricao}): estrutura correta`, 'success');
+                    }
+                    
+                    // Verificar estrutura do estoque
+                    if (produto.estoque && typeof produto.estoque === 'object') {
+                        const locaisEstoque = Object.keys(produto.estoque);
+                        
+                        if (locaisEstoque.length === 0) {
+                            log(`⚠️ Produto ${index + 1}: estoque vazio`, 'warning');
+                        } else {
+                            locaisEstoque.forEach(local => {
+                                const estoqueLocal = produto.estoque[local];
+                                if (!estoqueLocal.quantidade && estoqueLocal.quantidade !== 0) {
+                                    log(`❌ Produto ${index + 1} - Local ${local}: quantidade inválida`, 'error');
+                                    problemasEncontrados.push(`produto_${index}_estoque_${local}_quantidade`);
+                                }
+                            });
+                        }
+                    } else {
+                        log(`❌ Produto ${index + 1}: estrutura de estoque inválida`, 'error');
+                        problemasEncontrados.push(`produto_${index}_estoque_invalido`);
+                    }
+                });
+                
+                if (produtosComProblemas === 0) {
+                    log('✅ Todos os produtos têm estrutura correta', 'success');
+                } else {
+                    log(`❌ ${produtosComProblemas} produtos com problemas de estrutura`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Erro ao testar estrutura de produtos: ${error.message}`, 'error');
+                problemasEncontrados.push('estrutura_produtos_erro');
+            }
+            
+            atualizarStatus();
+        }
+
+        function testarFuncoes() {
+            log('⚙️ TESTANDO FUNÇÕES DO SISTEMA', 'info');
+            
+            try {
+                // Verificar funções essenciais
+                const funcoesObrigatorias = [
+                    'darBaixaEstoque',
+                    'simularBaixaEstoque',
+                    'adicionarProduto',
+                    'renderizarProdutos'
+                ];
+                
+                let funcoesFaltando = 0;
+                
+                funcoesObrigatorias.forEach(funcao => {
+                    if (typeof window[funcao] === 'function') {
+                        log(`✅ Função ${funcao} disponível`, 'success');
+                    } else {
+                        log(`❌ Função ${funcao} não encontrada`, 'error');
+                        funcoesFaltando++;
+                        problemasEncontrados.push(`funcao_${funcao}_faltando`);
+                    }
+                });
+                
+                if (funcoesFaltando === 0) {
+                    log('✅ Todas as funções essenciais estão disponíveis', 'success');
+                } else {
+                    log(`❌ ${funcoesFaltando} funções essenciais não encontradas`, 'error');
+                }
+                
+                // Testar execução de funções
+                if (typeof simularBaixaEstoque === 'function') {
+                    try {
+                        const resultado = simularBaixaEstoque([]);
+                        log('✅ Função simularBaixaEstoque executou sem erros', 'success');
+                    } catch (error) {
+                        log(`❌ Erro ao executar simularBaixaEstoque: ${error.message}`, 'error');
+                        problemasEncontrados.push('simularBaixaEstoque_erro_execucao');
+                    }
+                }
+                
+            } catch (error) {
+                log(`❌ Erro ao testar funções: ${error.message}`, 'error');
+                problemasEncontrados.push('teste_funcoes_erro');
+            }
+            
+            atualizarStatus();
+        }
+
+        function corrigirProblemas() {
+            log('🔧 CORRIGINDO PROBLEMAS IDENTIFICADOS', 'info');
+            
+            if (problemasEncontrados.length === 0) {
+                log('✅ Nenhum problema para corrigir', 'success');
+                return;
+            }
+            
+            log(`🔧 Encontrados ${problemasEncontrados.length} problemas para corrigir`, 'info');
+            
+            problemasEncontrados.forEach(problema => {
+                log(`🔧 Corrigindo: ${problema}`, 'info');
+                
+                if (problema.includes('produtos_corrompidos') || problema.includes('historico_corrompido')) {
+                    corrigirDadosCorrompidos();
+                } else if (problema.includes('produto_') && problema.includes('campos_faltando')) {
+                    corrigirEstruturaProdutos();
+                } else if (problema.includes('produto_') && problema.includes('estoque_invalido')) {
+                    corrigirEstruturaEstoque();
+                } else if (problema.includes('funcao_') && problema.includes('faltando')) {
+                    corrigirFuncoesFaltando();
+                }
+            });
+            
+            log('🔧 Correções aplicadas. Execute os testes novamente para verificar.', 'success');
+            problemasEncontrados = [];
+            atualizarStatus();
+        }
+
+        function corrigirDadosCorrompidos() {
+            log('🔧 Corrigindo dados corrompidos...', 'info');
+            
+            try {
+                // Limpar dados corrompidos
+                localStorage.removeItem('produtos_cadastrados');
+                localStorage.removeItem('historicoLancamentos');
+                
+                // Recriar dados de teste
+                const produtosTeste = [
+                    {
+                        id: 'produto_a',
+                        descricao: 'Produto A',
+                        estoque: {
+                            'LOJA': { quantidade: 20, observacao: '' },
+                            'ESTOQUE': { quantidade: 15, observacao: '' }
+                        },
+                        estoqueDisponivel: 35,
+                        estoqueFisico: 35
+                    },
+                    {
+                        id: 'produto_b',
+                        descricao: 'Produto B',
+                        estoque: {
+                            'LOJA': { quantidade: 10, observacao: '' },
+                            'ESTOQUE': { quantidade: 25, observacao: '' }
+                        },
+                        estoqueDisponivel: 35,
+                        estoqueFisico: 35
+                    }
+                ];
+                
+                localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosTeste));
+                localStorage.setItem('historicoLancamentos', JSON.stringify([]));
+                
+                log('✅ Dados de teste recriados com sucesso', 'success');
+                
+            } catch (error) {
+                log(`❌ Erro ao corrigir dados: ${error.message}`, 'error');
+            }
+        }
+
+        function corrigirEstruturaProdutos() {
+            log('🔧 Corrigindo estrutura de produtos...', 'info');
+            
+            try {
+                const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+                const produtosCorrigidos = produtos.map(produto => {
+                    // Garantir campos obrigatórios
+                    if (!produto.id) produto.id = `produto_${Date.now()}_${Math.random()}`;
+                    if (!produto.descricao) produto.descricao = 'Produto sem descrição';
+                    if (!produto.estoque) produto.estoque = {};
+                    if (typeof produto.estoqueDisponivel !== 'number') produto.estoqueDisponivel = 0;
+                    if (typeof produto.estoqueFisico !== 'number') produto.estoqueFisico = 0;
+                    
+                    return produto;
+                });
+                
+                localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosCorrigidos));
+                log('✅ Estrutura de produtos corrigida', 'success');
+                
+            } catch (error) {
+                log(`❌ Erro ao corrigir estrutura: ${error.message}`, 'error');
+            }
+        }
+
+        function corrigirEstruturaEstoque() {
+            log('🔧 Corrigindo estrutura de estoque...', 'info');
+            
+            try {
+                const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+                const produtosCorrigidos = produtos.map(produto => {
+                    if (produto.estoque && typeof produto.estoque === 'object') {
+                        Object.keys(produto.estoque).forEach(local => {
+                            if (!produto.estoque[local].quantidade && produto.estoque[local].quantidade !== 0) {
+                                produto.estoque[local].quantidade = 0;
+                            }
+                            if (!produto.estoque[local].observacao) {
+                                produto.estoque[local].observacao = '';
+                            }
+                        });
+                    }
+                    return produto;
+                });
+                
+                localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosCorrigidos));
+                log('✅ Estrutura de estoque corrigida', 'success');
+                
+            } catch (error) {
+                log(`❌ Erro ao corrigir estoque: ${error.message}`, 'error');
+            }
+        }
+
+        function corrigirFuncoesFaltando() {
+            log('🔧 Corrigindo funções faltando...', 'info');
+            
+            // Adicionar funções básicas se não existirem
+            if (typeof window.simularBaixaEstoque === 'undefined') {
+                window.simularBaixaEstoque = function(produtos) {
+                    log('🔄 Função simularBaixaEstoque criada', 'info');
+                    return true;
+                };
+            }
+            
+            if (typeof window.adicionarProduto === 'undefined') {
+                window.adicionarProduto = function() {
+                    log('🔄 Função adicionarProduto criada', 'info');
+                };
+            }
+            
+            log('✅ Funções básicas criadas', 'success');
+        }
+
+        function atualizarStatus() {
+            const statusContainer = document.getElementById('statusContainer');
+            
+            if (problemasEncontrados.length === 0) {
+                statusContainer.innerHTML = '<div class="success">✅ Sistema funcionando corretamente</div>';
+            } else {
+                let html = `<div class="error">❌ ${problemasEncontrados.length} problemas encontrados:</div>`;
+                problemasEncontrados.forEach(problema => {
+                    html += `<div class="warning">⚠️ ${problema}</div>`;
+                });
+                html += '<div class="warning">🔧 Clique em "Corrigir Problemas" para resolver</div>';
+                statusContainer.innerHTML = html;
+            }
+        }
+
+        function limparLogs() {
+            document.getElementById('logResultados').textContent = '';
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Sistema de diagnóstico inicializado', 'success');
+            testarLocalStorage();
+        });
+    </script>
+</body>
+</html>

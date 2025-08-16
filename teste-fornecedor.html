@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Fornecedor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de Fornecedor</h1>
+    
+    <div class="test-section">
+        <h3>1. Teste de Conversão de Números</h3>
+        <button onclick="testarConversao()">Testar Conversão</button>
+        <div id="resultadoConversao"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. Teste de Cálculo de Custo Líquido</h3>
+        <button onclick="testarCalculoCustoLiquido()">Testar Cálculo</button>
+        <div id="resultadoCustoLiquido"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. Teste de Cálculo de TABC</h3>
+        <button onclick="testarCalculoTABC()">Testar TABC</button>
+        <div id="resultadoTABC"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>4. Teste de Salvamento de Fornecedor</h3>
+        <button onclick="testarSalvamento()">Testar Salvamento</button>
+        <div id="resultadoSalvamento"></div>
+    </div>
+
+    <script>
+        // Função de conversão de números (cópia da função do componente)
+        const converterParaNumero = (valor) => {
+            try {
+                if (!valor || valor === '') return 0;
+                
+                if (typeof valor === 'number') return valor;
+                
+                const valorLimpo = valor.toString()
+                    .replace(/[R$\s]/g, '')
+                    .replace(/\./g, '')
+                    .replace(',', '.');
+                
+                const numero = parseFloat(valorLimpo);
+                
+                if (isNaN(numero)) {
+                    console.warn('⚠️ Valor inválido para conversão:', valor);
+                    return 0;
+                }
+                
+                return numero;
+            } catch (error) {
+                console.error('❌ Erro ao converter valor para número:', valor, error);
+                return 0;
+            }
+        };
+
+        // Função de cálculo de custo líquido
+        const calcularCustoLiquido = (custoBruto, descontos, frete, ipi) => {
+            try {
+                console.log('🔢 Calculando custo líquido com:', { custoBruto, descontos, frete, ipi });
+                
+                let custo = converterParaNumero(custoBruto) || 0;
+                console.log('   Custo bruto convertido:', custo);
+                
+                if (descontos && descontos.trim()) {
+                    const descontosArray = descontos.split('+').map(d => converterParaNumero(d.trim())).filter(d => !isNaN(d));
+                    console.log('   Descontos aplicados:', descontosArray);
+                    descontosArray.forEach(desconto => {
+                        custo = custo * (1 - desconto / 100);
+                    });
+                }
+
+                if (frete) {
+                    const valorFrete = converterParaNumero(frete) || 0;
+                    console.log('   Frete aplicado:', valorFrete);
+                    custo += custo * (valorFrete / 100);
+                }
+
+                if (ipi) {
+                    const valorIpi = converterParaNumero(ipi) || 0;
+                    console.log('   IPI aplicado:', valorIpi);
+                    custo += custo * (valorIpi / 100);
+                }
+
+                console.log('   Custo líquido final:', custo);
+                return custo;
+            } catch (error) {
+                console.error('❌ Erro ao calcular custo líquido:', error);
+                return 0;
+            }
+        };
+
+        // Função de cálculo de TABC
+        const calcularTABC = (custoLiquido, markupSelecionado, markups) => {
+            try {
+                console.log('💰 Calculando TABC com:', { custoLiquido, markupSelecionado, markups });
+                
+                if (!markupSelecionado || !custoLiquido || custoLiquido <= 0) {
+                    console.log('   Valores inválidos, retornando 0');
+                    return 0;
+                }
+                
+                const markup = markups.find(m => m.id === parseInt(markupSelecionado));
+                if (!markup) {
+                    console.log('   Markup não encontrado, retornando 0');
+                    return 0;
+                }
+                
+                console.log('   Markup encontrado:', markup);
+                const valorMarkup = parseFloat(markup.valor.replace('%', '')) || 0;
+                console.log('   Valor do markup:', valorMarkup);
+                
+                const valorAdicional = custoLiquido * (valorMarkup / 100);
+                const tabc = custoLiquido + valorAdicional;
+                
+                console.log('   TABC calculado:', tabc);
+                return tabc;
+            } catch (error) {
+                console.error('❌ Erro ao calcular TABC:', error);
+                return 0;
+            }
+        };
+
+        function testarConversao() {
+            const valores = [
+                'R$ 1.234,56',
+                '2.500,00',
+                '100',
+                '0',
+                '',
+                null,
+                undefined,
+                'abc',
+                'R$ 0,00'
+            ];
+
+            let resultado = '<h4>Resultados da Conversão:</h4>';
+            
+            valores.forEach(valor => {
+                const convertido = converterParaNumero(valor);
+                resultado += `<p><strong>${valor}</strong> → <strong>${convertido}</strong></p>`;
+            });
+
+            document.getElementById('resultadoConversao').innerHTML = resultado;
+            document.getElementById('resultadoConversao').className = 'result success';
+        }
+
+        function testarCalculoCustoLiquido() {
+            const testes = [
+                {
+                    custoBruto: 'R$ 1.000,00',
+                    descontos: '5+3',
+                    frete: '10',
+                    ipi: '5'
+                },
+                {
+                    custoBruto: '500,00',
+                    descontos: '',
+                    frete: '0',
+                    ipi: '0'
+                },
+                {
+                    custoBruto: '2.000,00',
+                    descontos: '10',
+                    frete: '15',
+                    ipi: '8'
+                }
+            ];
+
+            let resultado = '<h4>Resultados do Cálculo de Custo Líquido:</h4>';
+            
+            testes.forEach((teste, index) => {
+                const custoLiquido = calcularCustoLiquido(
+                    teste.custoBruto,
+                    teste.descontos,
+                    teste.frete,
+                    teste.ipi
+                );
+                
+                resultado += `
+                    <div style="margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                        <strong>Teste ${index + 1}:</strong><br>
+                        Custo Bruto: ${teste.custoBruto}<br>
+                        Descontos: ${teste.descontos || 'Nenhum'}<br>
+                        Frete: ${teste.frete}%<br>
+                        IPI: ${teste.ipi}%<br>
+                        <strong>Custo Líquido: R$ ${custoLiquido.toFixed(2)}</strong>
+                    </div>
+                `;
+            });
+
+            document.getElementById('resultadoCustoLiquido').innerHTML = resultado;
+            document.getElementById('resultadoCustoLiquido').className = 'result success';
+        }
+
+        function testarCalculoTABC() {
+            const markups = [
+                { id: 1, valor: '30%' },
+                { id: 2, valor: '50%' },
+                { id: 3, valor: '100%' }
+            ];
+
+            const testes = [
+                { custoLiquido: 1000, markupSelecionado: 1 },
+                { custoLiquido: 500, markupSelecionado: 2 },
+                { custoLiquido: 2000, markupSelecionado: 3 },
+                { custoLiquido: 0, markupSelecionado: 1 },
+                { custoLiquido: 1000, markupSelecionado: 999 }
+            ];
+
+            let resultado = '<h4>Resultados do Cálculo de TABC:</h4>';
+            
+            testes.forEach((teste, index) => {
+                const tabc = calcularTABC(
+                    teste.custoLiquido,
+                    teste.markupSelecionado,
+                    markups
+                );
+                
+                resultado += `
+                    <div style="margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                        <strong>Teste ${index + 1}:</strong><br>
+                        Custo Líquido: R$ ${teste.custoLiquido.toFixed(2)}<br>
+                        Markup ID: ${teste.markupSelecionado}<br>
+                        <strong>TABC: R$ ${tabc.toFixed(2)}</strong>
+                    </div>
+                `;
+            });
+
+            document.getElementById('resultadoTABC').innerHTML = resultado;
+            document.getElementById('resultadoTABC').className = 'result success';
+        }
+
+        function testarSalvamento() {
+            try {
+                // Criar dados de teste
+                const fornecedorTeste = {
+                    id: 999,
+                    nomeFantasia: 'Fornecedor Teste',
+                    razaoSocial: 'Razão Social Teste',
+                    cnpj: '12.345.678/0001-90',
+                    contatos: [
+                        { nome: 'João', telefone: '(11) 99999-9999', email: 'joao@teste.com' }
+                    ],
+                    tributosDescontos: [
+                        {
+                            id: 1,
+                            nome: 'Tributo Teste',
+                            frete: '10',
+                            ipi: '5',
+                            descontos: [
+                                { id: 1, valor: '5', observacao: 'Desconto teste' }
+                            ]
+                        }
+                    ]
+                };
+
+                // Salvar no localStorage
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                fornecedores.push(fornecedorTeste);
+                localStorage.setItem('fornecedores', JSON.stringify(fornecedores));
+
+                // Verificar se foi salvo
+                const fornecedoresSalvos = JSON.parse(localStorage.getItem('fornecedores'));
+                const fornecedorSalvo = fornecedoresSalvos.find(f => f.id === 999);
+
+                if (fornecedorSalvo) {
+                    document.getElementById('resultadoSalvamento').innerHTML = `
+                        <div class="success">
+                            <h4>✅ Salvamento bem-sucedido!</h4>
+                            <p><strong>Fornecedor salvo:</strong> ${fornecedorSalvo.nomeFantasia}</p>
+                            <p><strong>CNPJ:</strong> ${fornecedorSalvo.cnpj}</p>
+                            <p><strong>Contatos:</strong> ${fornecedorSalvo.contatos.length}</p>
+                            <p><strong>Tributos:</strong> ${fornecedorSalvo.tributosDescontos.length}</p>
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Fornecedor não foi encontrado após salvar');
+                }
+
+                // Limpar dados de teste
+                const fornecedoresLimpos = fornecedoresSalvos.filter(f => f.id !== 999);
+                localStorage.setItem('fornecedores', JSON.stringify(fornecedoresLimpos));
+
+            } catch (error) {
+                document.getElementById('resultadoSalvamento').innerHTML = `
+                    <div class="error">
+                        <h4>❌ Erro no salvamento:</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html> 

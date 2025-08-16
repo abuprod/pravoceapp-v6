@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Baixa no Estoque</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { border: 1px solid #ddd; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-warning { background-color: #ffc107; color: black; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste - Baixa no Estoque</h1>
+        <p>Este teste demonstra como funciona a baixa automática no estoque quando um pedido de venda é finalizado.</p>
+
+        <div class="card">
+            <h3>📋 Passos do Teste</h3>
+            <ol>
+                <li><strong>Criar produtos de teste</strong> - Adiciona produtos com estoque inicial</li>
+                <li><strong>Criar pedido de venda</strong> - Cria um pedido com produtos do estoque</li>
+                <li><strong>Verificar estoque antes</strong> - Mostra o estoque disponível</li>
+                <li><strong>Finalizar pedido</strong> - Simula a finalização do pedido</li>
+                <li><strong>Verificar estoque depois</strong> - Mostra o estoque após a baixa</li>
+            </ol>
+        </div>
+
+        <div class="card">
+            <h3>🎯 Ações</h3>
+            <button onclick="criarProdutosTeste()" class="btn-primary">1. Criar Produtos de Teste</button>
+            <button onclick="criarPedidoTeste()" class="btn-primary">2. Criar Pedido de Venda</button>
+            <button onclick="verificarEstoque()" class="btn-warning">3. Verificar Estoque</button>
+            <button onclick="finalizarPedido()" class="btn-success">4. Finalizar Pedido</button>
+            <button onclick="limparDados()" class="btn-danger">Limpar Dados</button>
+        </div>
+
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        function criarProdutosTeste() {
+            const produtos = [
+                {
+                    id: 'produto1',
+                    descricao: 'Sofá 3 lugares',
+                    fornecedor: 'Móveis ABC',
+                    sku: 'SOFA001',
+                    tabc: 1500.00,
+                    estoqueDisponivel: 10,
+                    estoqueFisico: 10,
+                    estoque: {
+                        'SL': { quantidade: 5, observacao: '' },
+                        'DP': { quantidade: 3, observacao: '' },
+                        'LOJA': { quantidade: 2, observacao: '' }
+                    }
+                },
+                {
+                    id: 'produto2',
+                    descricao: 'Mesa de Jantar',
+                    fornecedor: 'Móveis XYZ',
+                    sku: 'MESA001',
+                    tabc: 2000.00,
+                    estoqueDisponivel: 8,
+                    estoqueFisico: 8,
+                    estoque: {
+                        'SL': { quantidade: 3, observacao: '' },
+                        'DP': { quantidade: 3, observacao: '' },
+                        'LOJA': { quantidade: 2, observacao: '' }
+                    }
+                },
+                {
+                    id: 'produto3',
+                    descricao: 'Cadeira Escritório',
+                    fornecedor: 'Móveis ABC',
+                    sku: 'CADE001',
+                    tabc: 800.00,
+                    estoqueDisponivel: 15,
+                    estoqueFisico: 15,
+                    estoque: {
+                        'SL': { quantidade: 8, observacao: '' },
+                        'DP': { quantidade: 4, observacao: '' },
+                        'LOJA': { quantidade: 3, observacao: '' }
+                    }
+                }
+            ];
+
+            localStorage.setItem('produtos_cadastrados', JSON.stringify(produtos));
+            
+            document.getElementById('resultado').innerHTML = `
+                <div class="card success">
+                    <h4>✅ Produtos de teste criados com sucesso!</h4>
+                    <p>Foram criados ${produtos.length} produtos com estoque inicial:</p>
+                    <ul>
+                        ${produtos.map(p => `<li><strong>${p.descricao}</strong> - Estoque total: ${p.estoqueDisponivel} unidades</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        function criarPedidoTeste() {
+            const pedido = {
+                id: Date.now().toString(),
+                numeroPedido: '00001',
+                situacao: 'Em aberto',
+                vendedor: 'João Silva',
+                cliente: 'Maria Santos',
+                clienteId: 'cliente123',
+                valor: 4300.00,
+                dataCriacao: new Date().toISOString(),
+                produtos: [
+                    {
+                        produto: 'Sofá 3 lugares',
+                        quantidade: 2,
+                        produtoId: 'produto1',
+                        sl: 'SL',
+                        fabrica: 'Móveis ABC',
+                        precoLista: 1500.00,
+                        precoFinal: 1500.00
+                    },
+                    {
+                        produto: 'Mesa de Jantar',
+                        quantidade: 1,
+                        produtoId: 'produto2',
+                        sl: 'DP',
+                        fabrica: 'Móveis XYZ',
+                        precoLista: 2000.00,
+                        precoFinal: 2000.00
+                    },
+                    {
+                        produto: 'Cadeira Escritório',
+                        quantidade: 1,
+                        produtoId: 'produto3',
+                        sl: 'LOJA',
+                        fabrica: 'Móveis ABC',
+                        precoLista: 800.00,
+                        precoFinal: 800.00
+                    }
+                ]
+            };
+
+            const pedidosExistentes = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+            pedidosExistentes.push(pedido);
+            localStorage.setItem('pravoceapp_pedidosVenda', JSON.stringify(pedidosExistentes));
+            
+            document.getElementById('resultado').innerHTML = `
+                <div class="card success">
+                    <h4>✅ Pedido de teste criado com sucesso!</h4>
+                    <p><strong>Pedido:</strong> ${pedido.numeroPedido}</p>
+                    <p><strong>Cliente:</strong> ${pedido.cliente}</p>
+                    <p><strong>Valor:</strong> R$ ${pedido.valor.toFixed(2)}</p>
+                    <p><strong>Produtos:</strong></p>
+                    <ul>
+                        ${pedido.produtos.map(p => `<li>${p.produto} - ${p.quantidade} un. (${p.sl})</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        function verificarEstoque() {
+            const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            
+            if (produtos.length === 0) {
+                document.getElementById('resultado').innerHTML = `
+                    <div class="card error">
+                        <h4>❌ Nenhum produto encontrado!</h4>
+                        <p>Execute primeiro "Criar Produtos de Teste"</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="card warning">
+                    <h4>📊 Estoque Atual</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                        <thead>
+                            <tr style="background-color: #f8f9fa;">
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Produto</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">SL</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">DP</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">LOJA</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            produtos.forEach(produto => {
+                const sl = produto.estoque?.SL?.quantidade || 0;
+                const dp = produto.estoque?.DP?.quantidade || 0;
+                const loja = produto.estoque?.LOJA?.quantidade || 0;
+                const total = sl + dp + loja;
+
+                html += `
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${produto.descricao}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${sl}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${dp}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${loja}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;"><strong>${total}</strong></td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('resultado').innerHTML = html;
+        }
+
+        function finalizarPedido() {
+            const pedidos = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+            const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            
+            if (pedidos.length === 0) {
+                document.getElementById('resultado').innerHTML = `
+                    <div class="card error">
+                        <h4>❌ Nenhum pedido encontrado!</h4>
+                        <p>Execute primeiro "Criar Pedido de Venda"</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const pedido = pedidos[0]; // Pega o primeiro pedido
+            const produtosAtualizados = [...produtos];
+            const baixasRealizadas = [];
+
+            // Simular a baixa no estoque
+            pedido.produtos.forEach(produtoPedido => {
+                if (produtoPedido.sl === 'SE') return; // Pular produtos sob encomenda
+
+                const produtoCadastrado = produtosAtualizados.find(p => p.id === produtoPedido.produtoId);
+                
+                if (produtoCadastrado && produtoPedido.sl) {
+                    const quantidadeVendida = parseInt(produtoPedido.quantidade) || 0;
+                    const estoqueAtual = produtoCadastrado.estoque?.[produtoPedido.sl]?.quantidade || 0;
+                    
+                    // Calcular nova quantidade
+                    const novaQuantidade = Math.max(0, estoqueAtual - quantidadeVendida);
+                    
+                    // Atualizar estoque
+                    if (!produtoCadastrado.estoque) {
+                        produtoCadastrado.estoque = {};
+                    }
+                    
+                    produtoCadastrado.estoque[produtoPedido.sl] = {
+                        quantidade: novaQuantidade,
+                        observacao: produtoCadastrado.estoque[produtoPedido.sl]?.observacao || ''
+                    };
+                    
+                    // Calcular estoque total
+                    const estoqueTotal = Object.values(produtoCadastrado.estoque).reduce((total, local) => {
+                        return total + (local.quantidade || 0);
+                    }, 0);
+                    
+                    produtoCadastrado.estoqueDisponivel = estoqueTotal;
+                    produtoCadastrado.estoqueFisico = estoqueTotal;
+                    
+                    baixasRealizadas.push({
+                        produto: produtoPedido.produto,
+                        local: produtoPedido.sl,
+                        quantidadeVendida,
+                        estoqueAnterior: estoqueAtual,
+                        estoqueAtual: novaQuantidade
+                    });
+                }
+            });
+
+            // Salvar produtos atualizados
+            localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosAtualizados));
+            
+            // Atualizar situação do pedido
+            pedido.situacao = 'Concluído';
+            localStorage.setItem('pravoceapp_pedidosVenda', JSON.stringify(pedidos));
+
+            // Criar histórico de lançamentos
+            const historicoExistente = JSON.parse(localStorage.getItem('historicoLancamentos') || '[]');
+            const dataAtual = new Date().toISOString().split('T')[0];
+            const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            
+            const novosLancamentos = baixasRealizadas.map((baixa, index) => ({
+                id: Date.now() + Math.random() + index,
+                data: dataAtual,
+                hora: horaAtual,
+                tipo: 'Saída',
+                fornecedor: 'Venda',
+                descricao: baixa.produto,
+                quantidade: -baixa.quantidadeVendida,
+                observacao: `Baixa automática - Pedido ${pedido.numeroPedido}`,
+                usuario: 'Sistema',
+                local: baixa.local
+            }));
+            
+            const novoHistorico = [...historicoExistente, ...novosLancamentos];
+            localStorage.setItem('historicoLancamentos', JSON.stringify(novoHistorico));
+
+            let html = `
+                <div class="card success">
+                    <h4>✅ Pedido finalizado com sucesso!</h4>
+                    <p><strong>Pedido:</strong> ${pedido.numeroPedido} - Situação: ${pedido.situacao}</p>
+                    <p><strong>Baixas realizadas:</strong></p>
+                    <ul>
+            `;
+
+            baixasRealizadas.forEach(baixa => {
+                html += `<li><strong>${baixa.produto}</strong> (${baixa.local}): ${baixa.quantidadeVendida} unidades</li>`;
+            });
+
+            html += `
+                    </ul>
+                    <p><strong>Histórico:</strong> ${novosLancamentos.length} lançamentos criados no histórico de estoque</p>
+                </div>
+            `;
+
+            document.getElementById('resultado').innerHTML = html;
+        }
+
+        function limparDados() {
+            localStorage.removeItem('produtos_cadastrados');
+            localStorage.removeItem('pravoceapp_pedidosVenda');
+            localStorage.removeItem('historicoLancamentos');
+            
+            document.getElementById('resultado').innerHTML = `
+                <div class="card warning">
+                    <h4>🧹 Dados limpos!</h4>
+                    <p>Todos os dados de teste foram removidos do localStorage.</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html> 
