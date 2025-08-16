@@ -78,6 +78,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   const [sugestoesProdutos, setSugestoesProdutos] = useState([]);
   const [sugestoesFornecedores, setSugestoesFornecedores] = useState([]);
   const [tributosDisponiveis, setTributosDisponiveis] = useState([]);
+  const [colaboradores, setColaboradores] = useState([]);
+  const [sugestoesVendedores, setSugestoesVendedores] = useState([]);
+  const [sugestoesFabricas, setSugestoesFabricas] = useState([]);
 
   // Estados para o popup de duplicata
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
@@ -180,6 +183,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     
     const produtosSalvos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
     setProdutos(produtosSalvos);
+
+    const colaboradoresSalvos = JSON.parse(localStorage.getItem('pravoceapp_colaboradores') || '[]');
+    setColaboradores(colaboradoresSalvos);
   }, []);
 
   // Inicializar prazo quando o componente for montado
@@ -893,20 +899,21 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       return;
     }
 
-    // Filtrar produtos por fornecedor selecionado
+    // Verificar se uma fábrica foi selecionada
+    if (!formData.fabrica) {
+      setSugestoesProdutos([]);
+      return;
+    }
+
+    // Filtrar produtos por fornecedor selecionado no campo Fábrica
     let produtosFiltrados = produtos.filter(produto => 
       produto.descricao.toLowerCase().includes(descricao.toLowerCase())
     );
 
-    // Se um fornecedor estiver selecionado, filtrar apenas produtos desse fornecedor
-    if (formData.fornecedor) {
-      const fornecedorSelecionado = fornecedores.find(f => f.id === parseInt(formData.fornecedor));
-      if (fornecedorSelecionado) {
-        produtosFiltrados = produtosFiltrados.filter(produto => 
-          produto.fornecedor === fornecedorSelecionado.nomeFantasia
-        );
-      }
-    }
+    // Filtrar apenas produtos da fábrica selecionada
+    produtosFiltrados = produtosFiltrados.filter(produto => 
+      produto.fornecedor === formData.fabrica
+    );
 
     setSugestoesProdutos(produtosFiltrados);
   };
@@ -1333,24 +1340,131 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Vendedor:</label>
-                    <input
-                      type="text"
-                      name="vendedor"
-                      value={formData.vendedor}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="vendedor"
+                        value={formData.vendedor}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData(prev => ({ ...prev, vendedor: value }));
+                          
+                          // Mostrar sugestões apenas para colaboradores ativos
+                          if (value.length > 0) {
+                            const sugestoes = colaboradores
+                              .filter(c => c.status === 'Ativo' && 
+                                c.nome && c.nome.toLowerCase().includes(value.toLowerCase()))
+                              .slice(0, 10); // Limitar a 10 sugestões
+                            setSugestoesVendedores(sugestoes);
+                          } else {
+                            setSugestoesVendedores([]);
+                          }
+                        }}
+                        onFocus={(e) => {
+                          if (e.target.value.length > 0) {
+                            const sugestoes = colaboradores
+                              .filter(c => c.status === 'Ativo' && 
+                                c.nome && c.nome.toLowerCase().includes(e.target.value.toLowerCase()))
+                              .slice(0, 10);
+                            setSugestoesVendedores(sugestoes);
+                          }
+                        }}
+                        onBlur={() => {
+                          // Aguardar um pouco antes de esconder as sugestões para permitir cliques
+                          setTimeout(() => setSugestoesVendedores([]), 200);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Digite para buscar vendedores..."
+                      />
+                      {sugestoesVendedores && sugestoesVendedores.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                          {sugestoesVendedores.map((colaborador, idx) => (
+                            <div
+                              key={colaborador.id}
+                              className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                              onClick={() => {
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  vendedor: colaborador.nome
+                                }));
+                                setSugestoesVendedores([]);
+                              }}
+                            >
+                              <div className="font-medium">{colaborador.nome}</div>
+                              {colaborador.cargo && (
+                                <div className="text-xs text-gray-500">{colaborador.cargo}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fábrica:</label>
-                    <input
-                      type="text"
-                      name="fabrica"
-                      value={formData.fabrica}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="fabrica"
+                        value={formData.fabrica}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData(prev => ({ ...prev, fabrica: value }));
+                          
+                          // Limpar sugestões de produtos quando a fábrica for alterada
+                          setSugestoesProdutos([]);
+                          
+                          // Mostrar sugestões apenas para fornecedores ativos
+                          if (value.length > 0) {
+                            const sugestoes = fornecedores
+                              .filter(f => f.status === 'Ativo' && 
+                                f.nomeFantasia && f.nomeFantasia.toLowerCase().includes(value.toLowerCase()))
+                              .slice(0, 10); // Limitar a 10 sugestões
+                            setSugestoesFabricas(sugestoes);
+                          } else {
+                            setSugestoesFabricas([]);
+                          }
+                        }}
+                        onFocus={(e) => {
+                          if (e.target.value.length > 0) {
+                            const sugestoes = fornecedores
+                              .filter(f => f.status === 'Ativo' && 
+                                f.nomeFantasia && f.nomeFantasia.toLowerCase().includes(e.target.value.toLowerCase()))
+                              .slice(0, 10);
+                            setSugestoesFabricas(sugestoes);
+                          }
+                        }}
+                        onBlur={() => {
+                          // Aguardar um pouco antes de esconder as sugestões para permitir cliques
+                          setTimeout(() => setSugestoesFabricas([]), 200);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Digite para buscar fábricas..."
+                      />
+                      {sugestoesFabricas && sugestoesFabricas.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                          {sugestoesFabricas.map((fornecedor, idx) => (
+                            <div
+                              key={fornecedor.id}
+                              className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                              onClick={() => {
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  fabrica: fornecedor.nomeFantasia
+                                }));
+                                setSugestoesFabricas([]);
+                              }}
+                            >
+                              <div className="font-medium">{fornecedor.nomeFantasia}</div>
+                              {fornecedor.razaoSocial && fornecedor.razaoSocial !== fornecedor.nomeFantasia && (
+                                <div className="text-xs text-gray-500">{fornecedor.razaoSocial}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1377,13 +1491,10 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
                           Descrição
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                          Fabricante
-                        </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                           Custo Bruto Unit.
                         </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
@@ -1433,7 +1544,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                 }}
                                 onFocus={() => handleBuscarProduto(item.descricao || '', index)}
                                 className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                                placeholder="Digite para buscar produtos..."
+                                placeholder={formData.fabrica ? "Digite para buscar produtos..." : "Selecione uma fábrica primeiro..."}
+                                disabled={!formData.fabrica}
                               />
                               {sugestoesProdutos.length > 0 && (
                                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
@@ -1449,14 +1561,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   ))}
                                 </div>
                               )}
-                            </td>
-                            <td className="px-2 py-2 whitespace-nowrap">
-                              <input
-                                type="text"
-                                value={item.fabrica || ''}
-                                onChange={(e) => handleItemChange(index, 'fabrica', e.target.value)}
-                                className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                              />
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap">
                               <input
@@ -1829,7 +1933,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                 }}
                                 onFocus={() => handleBuscarProduto(item.descricao || '', index)}
                                 className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                                placeholder="Digite para buscar produtos..."
+                                placeholder={formData.fabrica ? "Digite para buscar produtos..." : "Selecione uma fábrica primeiro..."}
+                                disabled={!formData.fabrica}
                               />
                               {sugestoesProdutos.length > 0 && (
                                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
