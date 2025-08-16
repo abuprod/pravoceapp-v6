@@ -15,7 +15,8 @@ import {
   FaExclamationCircle,
   FaPaperPlane,
   FaPrint,
-  FaArrowLeft
+  FaArrowLeft,
+  FaCalendarAlt
 } from 'react-icons/fa';
 
 // Adicionar estilo global para remover o ícone de calendário
@@ -33,7 +34,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     tipo: tipoPreSelecionado || '',
     status: 'aberto',
     dataVenda: new Date().toISOString().split('T')[0],
-    dataEncomenda: '',
+    dataEncomenda: new Date().toISOString().split('T')[0], // Preencher com data atual
     oc: '',
     pedidoVinculado: '',
     vendedor: '',
@@ -181,6 +182,17 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     setProdutos(produtosSalvos);
   }, []);
 
+  // Inicializar prazo quando o componente for montado
+  useEffect(() => {
+    if (formData.dataVenda && !formData.prazoFinal) {
+      const prazoCalculado = calcular45DiasUteis(formData.dataVenda);
+      setFormData(prev => ({
+        ...prev,
+        prazoFinal: prazoCalculado
+      }));
+    }
+  }, [formData.dataVenda]);
+
   // Carregar tributos disponíveis quando o fornecedor for selecionado
   useEffect(() => {
     if (!formData.fornecedor) {
@@ -216,6 +228,15 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       ...prev,
       [name]: value
     }));
+
+    // Calcular prazo automaticamente quando a data da venda for alterada
+    if (name === 'dataVenda' && value) {
+      const prazoCalculado = calcular45DiasUteis(value);
+      setFormData(prev => ({
+        ...prev,
+        prazoFinal: prazoCalculado
+      }));
+    }
 
     if (name === 'tipo') {
       if (value === 'cliente') {
@@ -1039,6 +1060,47 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     };
   }, []);
 
+  // Função para calcular 45 dias úteis a partir de uma data
+  const calcular45DiasUteis = (dataInicial) => {
+    if (!dataInicial) return '';
+    
+    const data = new Date(dataInicial);
+    let diasAdicionados = 0;
+    let diasUteis = 0;
+    
+    while (diasUteis < 45) {
+      data.setDate(data.getDate() + 1);
+      diasAdicionados++;
+      
+      // Verificar se é dia útil (não é sábado nem domingo)
+      const diaSemana = data.getDay();
+      if (diaSemana !== 0 && diaSemana !== 6) {
+        diasUteis++;
+      }
+    }
+    
+    return data.toISOString().split('T')[0];
+  };
+
+  // Função para definir data de hoje
+  const definirDataHoje = () => {
+    const hoje = new Date().toISOString().split('T')[0];
+    setFormData(prev => ({
+      ...prev,
+      dataVenda: hoje,
+      prazoFinal: calcular45DiasUteis(hoje)
+    }));
+  };
+
+  // Função para definir data da encomenda como hoje
+  const definirDataEncomendaHoje = () => {
+    const hoje = new Date().toISOString().split('T')[0];
+    setFormData(prev => ({
+      ...prev,
+      dataEncomenda: hoje
+    }));
+  };
+
   return (
     <div className="w-full px-2">
       <div className="flex justify-between items-center mb-4">
@@ -1216,24 +1278,42 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data da Venda:</label>
-                    <input
-                      type="date"
-                      name="dataVenda"
-                      value={formData.dataVenda}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        name="dataVenda"
+                        value={formData.dataVenda}
+                        onChange={handleChange}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={definirDataHoje}
+                        className="p-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 transition-colors"
+                        title="Definir data de hoje"
+                      >
+                        <FaCalendarAlt />
+                      </button>
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data da Encomenda:</label>
-                    <input
-                      type="date"
-                      name="dataEncomenda"
-                      value={formData.dataEncomenda}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        name="dataEncomenda"
+                        value={formData.dataEncomenda}
+                        onChange={handleChange}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={definirDataEncomendaHoje}
+                        className="p-2 bg-green-100 text-green-600 rounded-md hover:bg-green-200 transition-colors"
+                        title="Definir data de hoje"
+                      >
+                        <FaCalendarAlt />
+                      </button>
+                    </div>
                   </div>
 
                   <div>
@@ -1244,6 +1324,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       value={formData.prazoFinal}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      readOnly
                     />
                   </div>
                 </div>
