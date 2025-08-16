@@ -1055,6 +1055,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     }, 0);
   };
 
+
   useEffect(() => {
     // Adicionar o estilo global ao montar o componente
     const styleSheet = document.createElement("style");
@@ -1621,7 +1622,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           </tr>
                           {expandedItems[index] && (
                             <tr>
-                              <td colSpan="8" className="px-2 py-1 bg-gray-50">
+                              <td colSpan="6" className="px-2 py-1 bg-gray-50">
                                 <div className="grid grid-cols-5 gap-1">
                                   {/* Conjunto de Tributos */}
                                   <div>
@@ -1994,7 +1995,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           </tr>
                           {expandedItems[index] && (
                             <tr>
-                              <td colSpan="8" className="px-2 py-1 bg-gray-50">
+                              <td colSpan="6" className="px-2 py-1 bg-gray-50">
                                 <div className="grid grid-cols-5 gap-1">
                                   {/* Conjunto de Tributos */}
                                   <div>
