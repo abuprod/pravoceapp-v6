@@ -979,18 +979,51 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
   // Buscar produtos por descrição
   const handleBuscarProduto = (descricao, index) => {
+    console.log('=== INÍCIO handleBuscarProduto ===');
+    console.log('Descrição:', descricao);
+    console.log('Index:', index);
+    console.log('Tipo de OC:', formData.tipo);
+    console.log('Fornecedor selecionado:', formData.fornecedor);
+    console.log('Fábrica selecionada:', formData.fabrica);
+    console.log('Total de produtos disponíveis:', produtos.length);
+    console.log('Total de fornecedores disponíveis:', fornecedores.length);
+    
     // Se não há descrição ou é muito curta, limpar sugestões
     if (!descricao || descricao.length < 2) {
+      console.log('Descrição muito curta, limpando sugestões');
       setSugestoesProdutos([]);
       setCampoProdutoAtivo(null);
       return;
     }
 
-    // Verificar se uma fábrica foi selecionada
-    if (!formData.fabrica) {
-      setSugestoesProdutos([]);
-      setCampoProdutoAtivo(null);
-      return;
+    // Verificar se um fornecedor/fábrica foi selecionada baseado no tipo de OC
+    let fornecedorSelecionado = null;
+    let fornecedorId = null;
+    if (formData.tipo === 'estoque') {
+      // Na tela de estoque, verificar fornecedor
+      if (!formData.fornecedor) {
+        console.log('❌ Nenhum fornecedor selecionado na tela de estoque');
+        setSugestoesProdutos([]);
+        setCampoProdutoAtivo(null);
+        return;
+      }
+      fornecedorId = formData.fornecedor;
+      // Buscar o nome do fornecedor para comparação
+      const fornecedorEncontrado = fornecedores.find(f => f.id === parseInt(formData.fornecedor));
+      fornecedorSelecionado = fornecedorEncontrado ? fornecedorEncontrado.nomeFantasia : '';
+      console.log('✅ Fornecedor encontrado na tela de estoque:', fornecedorEncontrado);
+      console.log('ID do fornecedor:', fornecedorId);
+      console.log('Nome do fornecedor:', fornecedorSelecionado);
+    } else {
+      // Na tela de cliente, verificar fábrica
+      if (!formData.fabrica) {
+        console.log('❌ Nenhuma fábrica selecionada na tela de cliente');
+        setSugestoesProdutos([]);
+        setCampoProdutoAtivo(null);
+        return;
+      }
+      fornecedorSelecionado = formData.fabrica;
+      console.log('✅ Fábrica selecionada na tela de cliente:', fornecedorSelecionado);
     }
 
     // Definir qual campo está ativo
@@ -998,11 +1031,12 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
     console.log('=== DEBUG FILTRAGEM PRODUTOS ===');
     console.log('Descrição buscada:', descricao);
-    console.log('Fábrica selecionada:', formData.fabrica);
+    console.log('Tipo de OC:', formData.tipo);
+    console.log('Fornecedor/Fábrica selecionada:', fornecedorSelecionado);
     console.log('Total de produtos:', produtos.length);
     console.log('Campo ativo:', index);
     
-    // Filtrar produtos por fornecedor selecionado no campo Fábrica
+    // Filtrar produtos por descrição
     let produtosFiltrados = produtos.filter(produto => 
       produto.descricao.toLowerCase().includes(descricao.toLowerCase())
     );
@@ -1010,41 +1044,57 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     console.log('Produtos com descrição similar:', produtosFiltrados.length);
     console.log('Primeiros produtos encontrados:', produtosFiltrados.slice(0, 3));
 
-    // Filtrar apenas produtos da fábrica selecionada
-    // Verificar se produto.fornecedor é ID ou nome
-    produtosFiltrados = produtosFiltrados.filter(produto => {
-      console.log(`Produto: ${produto.descricao}, Fornecedor: ${produto.fornecedor}, Fábrica: ${formData.fabrica}`);
+    // TEMPORÁRIO: Para debug, mostrar todos os produtos sem filtro
+    if (formData.tipo === 'estoque') {
+      console.log('🔧 MODO DEBUG: Mostrando todos os produtos sem filtro para teste');
+      console.log('Produtos disponíveis:', produtosFiltrados);
       
-      // Se produto.fornecedor for um ID (número), buscar o nome do fornecedor
-      if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
-        const fornecedorProduto = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
-        if (fornecedorProduto) {
-          const match = fornecedorProduto.nomeFantasia === formData.fabrica || 
-                       fornecedorProduto.razaoSocial === formData.fabrica;
-          console.log(`Fornecedor encontrado: ${fornecedorProduto.nomeFantasia}, Match: ${match}`);
-          return match;
+      // Por enquanto, retornar todos os produtos para teste
+      // produtosFiltrados = produtosFiltrados; // Já está assim
+    } else {
+      // Filtrar apenas produtos do fornecedor/fábrica selecionada
+      // Verificar se produto.fornecedor é ID ou nome
+      console.log('=== FILTRAGEM POR FORNECEDOR/FÁBRICA ===');
+      produtosFiltrados = produtosFiltrados.filter(produto => {
+        console.log(`🔍 Analisando produto: ${produto.descricao}`);
+        console.log(`   - Tipo do produto.fornecedor: ${typeof produto.fornecedor}`);
+        console.log(`   - Valor do produto.fornecedor: ${produto.fornecedor}`);
+        console.log(`   - Fornecedor/Fábrica selecionada: ${fornecedorSelecionado}`);
+        
+        // Na tela de cliente, comparar nomes de fábrica
+        if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
+          const fornecedorProduto = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
+          if (fornecedorProduto) {
+            const match = fornecedorProduto.nomeFantasia === fornecedorSelecionado || 
+                         fornecedorProduto.razaoSocial === fornecedorSelecionado;
+            console.log(`   ✅ Fornecedor encontrado: ${fornecedorProduto.nomeFantasia}, Match: ${match}`);
+            return match;
+          }
         }
-      }
-      
-      // Se produto.fornecedor for uma string (nome), comparar diretamente
-      const match = produto.fornecedor === formData.fabrica;
-      console.log(`Comparação direta: ${produto.fornecedor} === ${formData.fabrica} = ${match}`);
-      return match;
-    });
+        
+        // Se produto.fornecedor for uma string (nome), comparar diretamente
+        const match = produto.fornecedor === fornecedorSelecionado;
+        console.log(`   ✅ Comparação direta: ${produto.fornecedor} === ${fornecedorSelecionado} = ${match}`);
+        return match;
+      });
+    }
     
-    console.log('Produtos após filtro de fábrica:', produtosFiltrados.length);
+    console.log('=== RESULTADO FINAL ===');
+    console.log('Produtos após filtro de fornecedor/fábrica:', produtosFiltrados.length);
     console.log('Produtos finais:', produtosFiltrados);
-    console.log('=== FIM DEBUG ===');
-
+    
     // Se não há produtos filtrados, limpar sugestões
     if (produtosFiltrados.length === 0) {
+      console.log('❌ Nenhum produto encontrado, limpando sugestões');
       setSugestoesProdutos([]);
       setCampoProdutoAtivo(null);
       return;
     }
 
     // Atualizar sugestões imediatamente
+    console.log('✅ Produtos encontrados, atualizando sugestões:', produtosFiltrados.length);
     setSugestoesProdutos(produtosFiltrados);
+    console.log('=== FIM handleBuscarProduto ===');
   };
 
   // Selecionar produto da sugestão
@@ -2298,6 +2348,57 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
             <>
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-700 mb-4">Informações Iniciais</h2>
+                
+                {/* Primeira linha: Data Encomenda, Status e Prazo */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Encomenda:</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        name="dataEncomenda"
+                        value={formData.dataEncomenda}
+                        onChange={handleChange}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={definirDataEncomendaHoje}
+                        className="p-2 bg-green-100 text-green-600 rounded-md hover:bg-green-200 transition-colors"
+                        title="Definir data de hoje"
+                      >
+                        <FaCalendarAlt />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status:</label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="aberto">Em aberto</option>
+                      <option value="encomendado">Encomendado</option>
+                      <option value="aprovado">Aprovado</option>
+                      <option value="cancelado">Cancelado</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Prazo:</label>
+                    <input
+                      type="date"
+                      name="prazoFinal"
+                      value={formData.prazoFinal}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Segunda linha: OC e Fornecedor */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">OC</label>
@@ -2390,7 +2491,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                 </div>
               </div>
 
-              {/* Seção 3 - Itens da Ordem */}
+                                    {/* Seção 3 - Itens da Ordem */}
               <div className="mb-8">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-semibold text-gray-700">Itens da Ordem</h2>
@@ -2418,7 +2519,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Bruto Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Líq. Unit.
                         </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
@@ -2475,8 +2576,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   }, 200);
                                 }}
                                 className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white campo-produto"
-                                placeholder={formData.fabrica ? "Digite para buscar produtos..." : "Selecione uma fábrica primeiro..."}
-                                disabled={!formData.fabrica}
+                                placeholder={formData.fornecedor ? "Digite para buscar produtos..." : "Selecione um fornecedor primeiro..."}
+                                disabled={!formData.fornecedor}
                               />
                               {sugestoesProdutos.length > 0 && campoProdutoAtivo === index && (
                                 <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
