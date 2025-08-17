@@ -91,8 +91,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   const [showConfirmEditEntrada, setShowConfirmEditEntrada] = useState(null);
   const [showConfirmDeleteEntrega, setShowConfirmDeleteEntrega] = useState(null);
   const [showConfirmEditEntrega, setShowConfirmEditEntrega] = useState(null);
-  
 
+  // Estado para controlar qual campo de produto está ativo
+  const [campoProdutoAtivo, setCampoProdutoAtivo] = useState(null);
 
   // Função para buscar a próxima OC disponível por tipo
   const buscarProximaOC = (tipo) => {
@@ -851,6 +852,10 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
         }
       ]
     }));
+    
+    // Limpar sugestões quando adicionar novo item
+    setSugestoesProdutos([]);
+    setCampoProdutoAtivo(null);
   };
 
   const handleDeleteItem = (index) => {
@@ -858,6 +863,10 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       ...prev,
       itens: prev.itens.filter((_, i) => i !== index)
     }));
+    
+    // Limpar sugestões quando deletar item
+    setSugestoesProdutos([]);
+    setCampoProdutoAtivo(null);
   };
 
   const handleEnviarFornecedor = () => {
@@ -970,21 +979,28 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
   // Buscar produtos por descrição
   const handleBuscarProduto = (descricao, index) => {
+    // Se não há descrição ou é muito curta, limpar sugestões
     if (!descricao || descricao.length < 2) {
       setSugestoesProdutos([]);
+      setCampoProdutoAtivo(null);
       return;
     }
 
     // Verificar se uma fábrica foi selecionada
     if (!formData.fabrica) {
       setSugestoesProdutos([]);
+      setCampoProdutoAtivo(null);
       return;
     }
+
+    // Definir qual campo está ativo
+    setCampoProdutoAtivo(index);
 
     console.log('=== DEBUG FILTRAGEM PRODUTOS ===');
     console.log('Descrição buscada:', descricao);
     console.log('Fábrica selecionada:', formData.fabrica);
     console.log('Total de produtos:', produtos.length);
+    console.log('Campo ativo:', index);
     
     // Filtrar produtos por fornecedor selecionado no campo Fábrica
     let produtosFiltrados = produtos.filter(produto => 
@@ -1020,6 +1036,14 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     console.log('Produtos finais:', produtosFiltrados);
     console.log('=== FIM DEBUG ===');
 
+    // Se não há produtos filtrados, limpar sugestões
+    if (produtosFiltrados.length === 0) {
+      setSugestoesProdutos([]);
+      setCampoProdutoAtivo(null);
+      return;
+    }
+
+    // Atualizar sugestões imediatamente
     setSugestoesProdutos(produtosFiltrados);
   };
 
@@ -1070,6 +1094,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     
     console.log('Item atualizado com valores zerados:', itemAtualizado);
     setSugestoesProdutos([]);
+    setCampoProdutoAtivo(null);
   };
 
   // Aplicar dados do fornecedor selecionado
@@ -1082,6 +1107,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
     // Limpar sugestões de produtos quando o fornecedor for alterado
     setSugestoesProdutos([]);
+    setCampoProdutoAtivo(null);
 
     // NÃO aplicar dados automaticamente - deixar o usuário escolher o conjunto de tributação
   };
@@ -1237,6 +1263,41 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       dataEncomenda: hoje
     }));
   };
+
+  // Event listeners para fechar sugestões
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Se clicar fora de qualquer campo de produto, fechar sugestões
+      if (!event.target.closest('.campo-produto')) {
+        setSugestoesProdutos([]);
+        setCampoProdutoAtivo(null);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      // Se pressionar ESC, fechar sugestões
+      if (event.key === 'Escape') {
+        setSugestoesProdutos([]);
+        setCampoProdutoAtivo(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Limpar sugestões quando o campo ativo mudar
+  useEffect(() => {
+    // Se não há campo ativo, limpar sugestões
+    if (campoProdutoAtivo === null) {
+      setSugestoesProdutos([]);
+    }
+  }, [campoProdutoAtivo]);
 
   return (
     <div className="w-full px-2">
@@ -1501,8 +1562,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           }
                         }}
                         onBlur={() => {
-                          // Aguardar um pouco antes de esconder as sugestões para permitir cliques
-                          setTimeout(() => setSugestoesVendedores([]), 200);
+                          // Aguardar mais tempo para permitir cliques nas sugestões
+                          setTimeout(() => {
+                            if (campoProdutoAtivo === index) {
+                              setSugestoesProdutos([]);
+                              setCampoProdutoAtivo(null);
+                            }
+                          }, 300);
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Digite para buscar vendedores..."
@@ -1545,6 +1611,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           
                           // Limpar sugestões de produtos quando a fábrica for alterada
                           setSugestoesProdutos([]);
+                          setCampoProdutoAtivo(null);
                           
                           // Mostrar sugestões apenas para fornecedores ativos
                           if (value.length > 0) {
@@ -1567,8 +1634,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           }
                         }}
                         onBlur={() => {
-                          // Aguardar um pouco antes de esconder as sugestões para permitir cliques
-                          setTimeout(() => setSugestoesFabricas([]), 200);
+                          // Aguardar mais tempo para permitir cliques nas sugestões
+                          setTimeout(() => {
+                            if (campoProdutoAtivo === index) {
+                              setSugestoesProdutos([]);
+                              setCampoProdutoAtivo(null);
+                            }
+                          }, 300);
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Digite para buscar fábricas..."
@@ -1919,19 +1991,19 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '44%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '40%'}}>
                           Descrição
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Bruto Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Líq. Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Líq. Total
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Ações
                         </th>
                       </tr>
@@ -1943,12 +2015,12 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <span className="text-sm font-medium text-gray-700">{index + 1}</span>
                             </td>
-                            <td className="px-2 py-2 whitespace-nowrap">
+                            <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input
                                 type="number"
                                 value={item.quantidade || ''}
                                 onChange={(e) => handleItemChange(index, 'quantidade', parseFloat(e.target.value))}
-                                className="w-12 px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-center bg-white hover:bg-gray-50"
+                                className="w-10 px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-center bg-white hover:bg-gray-50"
                               />
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap">
@@ -1956,21 +2028,45 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                 type="text"
                                 value={item.descricao || ''}
                                 onChange={(e) => {
-                                  handleItemChange(index, 'descricao', e.target.value);
-                                  handleBuscarProduto(e.target.value, index);
+                                  const valor = e.target.value;
+                                  handleItemChange(index, 'descricao', valor);
+                                  // Buscar produtos automaticamente enquanto digita
+                                  if (valor.length >= 2) {
+                                    handleBuscarProduto(valor, index);
+                                  } else {
+                                    setSugestoesProdutos([]);
+                                    setCampoProdutoAtivo(null);
+                                  }
                                 }}
-                                onFocus={() => handleBuscarProduto(item.descricao || '', index)}
-                                className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                onFocus={() => {
+                                  // Se já há texto no campo, mostrar sugestões imediatamente
+                                  if (item.descricao && item.descricao.length >= 2) {
+                                    handleBuscarProduto(item.descricao, index);
+                                  }
+                                }}
+                                onBlur={() => {
+                                  // Aguardar um pouco para permitir cliques nas sugestões
+                                  setTimeout(() => {
+                                    if (campoProdutoAtivo === index) {
+                                      setSugestoesProdutos([]);
+                                      setCampoProdutoAtivo(null);
+                                    }
+                                  }, 200);
+                                }}
+                                className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white campo-produto"
                                 placeholder={formData.fabrica ? "Digite para buscar produtos..." : "Selecione uma fábrica primeiro..."}
                                 disabled={!formData.fabrica}
                               />
-                              {sugestoesProdutos.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                              {sugestoesProdutos.length > 0 && campoProdutoAtivo === index && (
+                                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
                                   {sugestoesProdutos.map((produto, idx) => (
                                     <div
                                       key={idx}
                                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                                      onClick={() => handleSelecionarProduto(produto, index)}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleSelecionarProduto(produto, index);
+                                      }}
                                     >
                                       <div className="font-medium">{produto.descricao}</div>
                                       <div className="text-gray-600">Custo: R$ {produto.custoBruto?.toFixed(2) || '0.00'}</div>
@@ -1984,7 +2080,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                 type="text"
                                 value={item.custoBruto || ''}
                                 onChange={(e) => handleItemChange(index, 'custoBruto', parseFloat(e.target.value))}
-                                className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                className="w-full px-1 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                               />
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap">
@@ -2282,6 +2378,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                               setSugestoesFornecedores([]);
                               // Limpar sugestões de produtos quando o fornecedor for alterado
                               setSugestoesProdutos([]);
+                              setCampoProdutoAtivo(null);
                             }}
                           >
                             <div className="font-medium">{fornecedor.nomeFantasia}</div>
@@ -2315,19 +2412,19 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '44%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '40%'}}>
                           Descrição
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Bruto Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Líq. Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Líq. Total
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Ações
                         </th>
                       </tr>
@@ -2339,12 +2436,12 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <span className="text-sm font-medium text-gray-700">{index + 1}</span>
                             </td>
-                            <td className="px-2 py-2 whitespace-nowrap">
+                            <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input
                                 type="number"
                                 value={item.quantidade || ''}
                                 onChange={(e) => handleItemChange(index, 'quantidade', parseFloat(e.target.value))}
-                                className="w-12 px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-center bg-white hover:bg-gray-50"
+                                className="w-10 px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-center bg-white hover:bg-gray-50"
                               />
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap relative">
@@ -2352,21 +2449,45 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                 type="text"
                                 value={item.descricao || ''}
                                 onChange={(e) => {
-                                  handleItemChange(index, 'descricao', e.target.value);
-                                  handleBuscarProduto(e.target.value, index);
+                                  const valor = e.target.value;
+                                  handleItemChange(index, 'descricao', valor);
+                                  // Buscar produtos automaticamente enquanto digita
+                                  if (valor.length >= 2) {
+                                    handleBuscarProduto(valor, index);
+                                  } else {
+                                    setSugestoesProdutos([]);
+                                    setCampoProdutoAtivo(null);
+                                  }
                                 }}
-                                onFocus={() => handleBuscarProduto(item.descricao || '', index)}
-                                className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                onFocus={() => {
+                                  // Se já há texto no campo, mostrar sugestões imediatamente
+                                  if (item.descricao && item.descricao.length >= 2) {
+                                    handleBuscarProduto(item.descricao, index);
+                                  }
+                                }}
+                                onBlur={() => {
+                                  // Aguardar um pouco para permitir cliques nas sugestões
+                                  setTimeout(() => {
+                                    if (campoProdutoAtivo === index) {
+                                      setSugestoesProdutos([]);
+                                      setCampoProdutoAtivo(null);
+                                    }
+                                  }, 200);
+                                }}
+                                className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white campo-produto"
                                 placeholder={formData.fabrica ? "Digite para buscar produtos..." : "Selecione uma fábrica primeiro..."}
                                 disabled={!formData.fabrica}
                               />
-                              {sugestoesProdutos.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                              {sugestoesProdutos.length > 0 && campoProdutoAtivo === index && (
+                                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
                                   {sugestoesProdutos.map((produto, idx) => (
                                     <div
                                       key={idx}
                                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                                      onClick={() => handleSelecionarProduto(produto, index)}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleSelecionarProduto(produto, index);
+                                      }}
                                     >
                                       <div className="font-medium">{produto.descricao}</div>
                                       <div className="text-gray-600">Custo: R$ {produto.custoBruto?.toFixed(2) || '0.00'}</div>
@@ -2660,6 +2781,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                               setSugestoesFornecedores([]);
                               // Limpar sugestões de produtos quando o fornecedor for alterado
                               setSugestoesProdutos([]);
+                              setCampoProdutoAtivo(null);
                             }}
                           >
                             <div className="font-medium">{fornecedor.nomeFantasia}</div>
