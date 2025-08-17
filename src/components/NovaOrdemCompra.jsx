@@ -1913,37 +1913,26 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '6%'}}>
+                          N.
+                        </th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '44%'}}>
                           Descrição
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
                           Custo Bruto Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
                           Custo Líq. Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
                           Custo Líq. Total
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                          <div className="flex items-center justify-between">
-                            <span>Ações</span>
-                            <button
-                              onClick={() => {
-                                const itensParaEnviar = formData.itens.filter((_, index) => itensSelecionados[index]);
-                                if (itensParaEnviar.length > 0) {
-                                  itensParaEnviar.forEach((_, index) => handleEnviarItem(index));
-                                }
-                              }}
-                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs flex items-center gap-1"
-                            >
-                              <FaPaperPlane />
-                              Enviar
-                            </button>
-                          </div>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>
+                          Ações
                         </th>
                       </tr>
                     </thead>
@@ -1951,6 +1940,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       {formData.itens.map((item, index) => (
                         <React.Fragment key={index}>
                           <tr>
+                            <td className="px-2 py-2 whitespace-nowrap text-center">
+                              <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                            </td>
                             <td className="px-2 py-2 whitespace-nowrap">
                               <input
                                 type="number"
@@ -1959,7 +1951,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                 className="w-12 px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-center bg-white hover:bg-gray-50"
                               />
                             </td>
-                            <td className="px-2 py-2 whitespace-nowrap relative">
+                            <td className="px-2 py-2 whitespace-nowrap">
                               <input
                                 type="text"
                                 value={item.descricao || ''}
@@ -2046,7 +2038,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           </tr>
                           {expandedItems[index] && (
                             <tr>
-                              <td colSpan="6" className="px-2 py-1 bg-gray-50">
+                              <td colSpan="7" className="px-2 py-1 bg-gray-50">
                                 <div className="grid grid-cols-5 gap-1">
                                   {/* Conjunto de Tributos */}
                                   <div>
@@ -2317,10 +2309,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '6%'}}>
+                          N.
+                        </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '50%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '44%'}}>
                           Descrição
                         </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10.67%'}}>
@@ -2341,6 +2336,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       {formData.itens.map((item, index) => (
                         <React.Fragment key={index}>
                           <tr>
+                            <td className="px-2 py-2 whitespace-nowrap text-center">
+                              <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                            </td>
                             <td className="px-2 py-2 whitespace-nowrap">
                               <input
                                 type="number"
@@ -2420,7 +2418,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           </tr>
                           {expandedItems[index] && (
                             <tr>
-                              <td colSpan="6" className="px-2 py-1 bg-gray-50">
+                              <td colSpan="7" className="px-2 py-1 bg-gray-50">
                                 <div className="grid grid-cols-5 gap-1">
                                   {/* Conjunto de Tributos */}
                                   <div>
