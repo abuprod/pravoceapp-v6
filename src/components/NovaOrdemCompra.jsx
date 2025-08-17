@@ -52,8 +52,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     fornecedorNome: '',
     data: new Date().toISOString().split('T')[0],
     // Novos campos para Dados de Pós Recebimento
-    datasEntrada: [],
-    documentosFabrica: [],
+    entradas: [],
     datasEntrega: []
   });
 
@@ -85,6 +84,15 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   // Estados para o popup de duplicata
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [duplicateOC, setDuplicateOC] = useState('');
+  const [dadosPosRecebimentoExpanded, setDadosPosRecebimentoExpanded] = useState(true);
+  
+  // Estados para popups de confirmação
+  const [showConfirmDeleteEntrada, setShowConfirmDeleteEntrada] = useState(null);
+  const [showConfirmEditEntrada, setShowConfirmEditEntrada] = useState(null);
+  const [showConfirmDeleteEntrega, setShowConfirmDeleteEntrega] = useState(null);
+  const [showConfirmEditEntrega, setShowConfirmEditEntrega] = useState(null);
+  
+
 
   // Função para buscar a próxima OC disponível por tipo
   const buscarProximaOC = (tipo) => {
@@ -281,56 +289,73 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   };
 
   // Funções para gerenciar Dados de Pós Recebimento
-  const handleAddDataEntrada = () => {
+  const handleAddEntrada = () => {
     setFormData(prev => ({
       ...prev,
-      datasEntrada: [...(prev.datasEntrada || []), { data: '', observacao: '' }]
+      entradas: [...(prev.entradas || []), { 
+        dataEntrada: '', 
+        documentoFabrica: '', 
+        dataDocumento: '', 
+        observacao: '',
+        salvo: false,
+        editando: true
+      }]
     }));
   };
 
-  const handleDataEntradaChange = (index, field, value) => {
+  const handleEntradaChange = (index, field, value) => {
     setFormData(prev => ({
       ...prev,
-      datasEntrada: prev.datasEntrada.map((item, i) => 
+      entradas: prev.entradas.map((item, i) => 
         i === index ? { ...item, [field]: value } : item
       )
     }));
   };
 
-  const handleRemoveDataEntrada = (index) => {
+  const handleSalvarEntrada = (index) => {
     setFormData(prev => ({
       ...prev,
-      datasEntrada: prev.datasEntrada.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleAddDocumentoFabrica = () => {
-    setFormData(prev => ({
-      ...prev,
-      documentosFabrica: [...(prev.documentosFabrica || []), { documento: '', data: '', observacao: '' }]
-    }));
-  };
-
-  const handleDocumentoFabricaChange = (index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      documentosFabrica: prev.documentosFabrica.map((item, i) => 
-        i === index ? { ...item, [field]: value } : item
+      entradas: prev.entradas.map((item, i) => 
+        i === index ? { ...item, salvo: true, editando: false } : item
       )
     }));
   };
 
-  const handleRemoveDocumentoFabrica = (index) => {
+  const handleEditarEntrada = (index) => {
+    setShowConfirmEditEntrada(index);
+  };
+
+  const handleConfirmEditEntrada = (index) => {
     setFormData(prev => ({
       ...prev,
-      documentosFabrica: prev.documentosFabrica.filter((_, i) => i !== index)
+      entradas: prev.entradas.map((item, i) => 
+        i === index ? { ...item, editando: true } : item
+      )
     }));
+    setShowConfirmEditEntrada(null);
+  };
+
+  const handleRemoveEntrada = (index) => {
+    setShowConfirmDeleteEntrada(index);
+  };
+
+  const handleConfirmDeleteEntrada = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      entradas: prev.entradas.filter((_, i) => i !== index)
+    }));
+    setShowConfirmDeleteEntrada(null);
   };
 
   const handleAddDataEntrega = () => {
     setFormData(prev => ({
       ...prev,
-      datasEntrega: [...(prev.datasEntrega || []), { data: '', observacao: '' }]
+      datasEntrega: [...(prev.datasEntrega || []), { 
+        data: '', 
+        observacao: '',
+        salvo: false,
+        editando: true
+      }]
     }));
   };
 
@@ -343,11 +368,39 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     }));
   };
 
+  const handleSalvarDataEntrega = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      datasEntrega: prev.datasEntrega.map((item, i) => 
+        i === index ? { ...item, salvo: true, editando: false } : item
+      )
+    }));
+  };
+
+  const handleEditarDataEntrega = (index) => {
+    setShowConfirmEditEntrega(index);
+  };
+
+  const handleConfirmEditEntrega = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      datasEntrega: prev.datasEntrega.map((item, i) => 
+        i === index ? { ...item, editando: true } : item
+      )
+    }));
+    setShowConfirmEditEntrega(null);
+  };
+
   const handleRemoveDataEntrega = (index) => {
+    setShowConfirmDeleteEntrega(index);
+  };
+
+  const handleConfirmDeleteEntrega = (index) => {
     setFormData(prev => ({
       ...prev,
       datasEntrega: prev.datasEntrega.filter((_, i) => i !== index)
     }));
+    setShowConfirmDeleteEntrega(null);
   };
 
   const handleGerarOC = () => {
@@ -1225,6 +1278,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-700 mb-4">Informações Iniciais</h2>
                 
+                <>
                 {/* Primeira linha: N. do Ped, OC e Status */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
@@ -1467,15 +1521,308 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       )}
                     </div>
                   </div>
+                                  </div>
+                    </>
+                  </div>
+
+              {/* Linha divisória */}
+              <hr className="border-gray-300 my-8" />
+
+              {/* Seção 3 - Dados Pós Recebimento */}
+              <div className="mb-8">
+                <div 
+                  className="flex items-center gap-3 cursor-pointer mb-4"
+                  onClick={() => setDadosPosRecebimentoExpanded(!dadosPosRecebimentoExpanded)}
+                >
+                  <h2 className="text-xl font-semibold text-gray-700">Dados Pós Recebimento</h2>
+                  <button className="text-gray-500 hover:text-gray-700 transition-colors">
+                    {dadosPosRecebimentoExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                  </button>
                 </div>
+                
+                {dadosPosRecebimentoExpanded && (
+                  <div className="space-y-6">
+                    {/* ENTRADAS */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-lg font-medium text-gray-700">ENTRADAS</h3>
+                        <button
+                          onClick={handleAddEntrada}
+                          className="p-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 transition-colors"
+                          title="Adicionar entrada"
+                        >
+                          <FaPlus />
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {formData.entradas && formData.entradas.map((entrada, index) => (
+                          <div 
+                            key={index} 
+                            className={`p-4 rounded-lg border ${
+                              entrada.salvo 
+                                ? 'bg-green-50 border-green-200' 
+                                : 'bg-white border-gray-200'
+                            }`}
+                          >
+                            {entrada.editando ? (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada</label>
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="date"
+                                        value={entrada.dataEntrada || ''}
+                                        onChange={(e) => handleEntradaChange(index, 'dataEntrada', e.target.value)}
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleEntradaChange(index, 'dataEntrada', new Date().toISOString().split('T')[0])}
+                                        className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                                        title="Definir data atual"
+                                      >
+                                        <FaCalendarAlt className="text-sm" />
+                                        Hoje
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">DOC FAB</label>
+                                    <input
+                                      type="text"
+                                      placeholder="Documento da fábrica"
+                                      value={entrada.documentoFabrica || ''}
+                                      onChange={(e) => handleEntradaChange(index, 'documentoFabrica', e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Data DOC (Emissão)</label>
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="date"
+                                        value={entrada.dataDocumento || ''}
+                                        onChange={(e) => handleEntradaChange(index, 'dataDocumento', e.target.value)}
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleEntradaChange(index, 'dataDocumento', new Date().toISOString().split('T')[0])}
+                                        className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                                        title="Definir data atual"
+                                      >
+                                        <FaCalendarAlt className="text-sm" />
+                                        Hoje
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                                  <textarea
+                                    placeholder="Observações..."
+                                    value={entrada.observacao || ''}
+                                    onChange={(e) => handleEntradaChange(index, 'observacao', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    rows="2"
+                                  />
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleEditarEntrada(index)}
+                                      className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
+                                      title="Editar"
+                                    >
+                                      <FaInfoCircle />
+                                    </button>
+                                    <button
+                                      onClick={() => handleRemoveEntrada(index)}
+                                      className="p-2 text-red-600 hover:text-red-800 transition-colors"
+                                      title="Deletar"
+                                    >
+                                      <FaTrash />
+                                    </button>
+                                  </div>
+                                  <button
+                                    onClick={() => handleSalvarEntrada(index)}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                                  >
+                                    Salvar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                                  <div>
+                                    <span className="font-medium text-gray-700">Data Entrada:</span>
+                                    <p className="text-gray-600">{entrada.dataEntrada || '-'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium text-gray-700">DOC FAB:</span>
+                                    <p className="text-gray-600">{entrada.documentoFabrica || '-'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium text-gray-700">Data DOC:</span>
+                                    <p className="text-gray-600">{entrada.dataDocumento || '-'}</p>
+                                  </div>
+                                </div>
+                                {entrada.observacao && (
+                                  <div>
+                                    <span className="font-medium text-gray-700">Observações:</span>
+                                    <p className="text-gray-600">{entrada.observacao}</p>
+                                  </div>
+                                )}
+                                <div className="flex justify-end gap-2 pt-2">
+                                  <button
+                                    onClick={() => handleEditarEntrada(index)}
+                                    className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
+                                    title="Editar"
+                                  >
+                                    <FaInfoCircle />
+                                  </button>
+                                  <button
+                                    onClick={() => handleRemoveEntrada(index)}
+                                    className="p-2 text-red-600 hover:text-red-800 transition-colors"
+                                    title="Deletar"
+                                  >
+                                    <FaTrash />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* DATA ENTREGA CLIENTE */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-lg font-medium text-gray-700">DATA ENTREGA CLIENTE</h3>
+                        <button
+                          onClick={handleAddDataEntrega}
+                          className="p-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 transition-colors"
+                          title="Adicionar entrega"
+                        >
+                          <FaPlus />
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {formData.datasEntrega && formData.datasEntrega.map((entrega, index) => (
+                          <div 
+                            key={index} 
+                            className={`p-4 rounded-lg border ${
+                              entrega.salvo 
+                                ? 'bg-green-50 border-green-200' 
+                                : 'bg-white border-gray-200'
+                            }`}
+                          >
+                            {entrega.editando ? (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrega</label>
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="date"
+                                        value={entrega.data || ''}
+                                        onChange={(e) => handleDataEntregaChange(index, 'data', e.target.value)}
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDataEntregaChange(index, 'data', new Date().toISOString().split('T')[0])}
+                                        className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                                        title="Definir data atual"
+                                      >
+                                        <FaCalendarAlt className="text-sm" />
+                                        Hoje
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                                    <textarea
+                                      placeholder="Observações..."
+                                      value={entrega.observacao || ''}
+                                      onChange={(e) => handleDataEntregaChange(index, 'observacao', e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      rows="2"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleEditarDataEntrega(index)}
+                                      className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
+                                      title="Editar"
+                                    >
+                                      <FaInfoCircle />
+                                    </button>
+                                    <button
+                                      onClick={() => handleRemoveDataEntrega(index)}
+                                      className="p-2 text-red-600 hover:text-red-800 transition-colors"
+                                      title="Deletar"
+                                    >
+                                      <FaTrash />
+                                    </button>
+                                  </div>
+                                  <button
+                                    onClick={() => handleSalvarDataEntrega(index)}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                                  >
+                                    Salvar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                  <div>
+                                    <span className="font-medium text-gray-700">Data Entrega:</span>
+                                    <p className="text-gray-600">{entrega.data || '-'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium text-gray-700">Observações:</span>
+                                    <p className="text-gray-600">{entrega.observacao || '-'}</p>
+                                  </div>
+                                </div>
+                                <div className="flex justify-end gap-2 pt-2">
+                                  <button
+                                    onClick={() => handleEditarDataEntrega(index)}
+                                    className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
+                                    title="Editar"
+                                  >
+                                    <FaInfoCircle />
+                                  </button>
+                                  <button
+                                    onClick={() => handleRemoveDataEntrega(index)}
+                                    className="p-2 text-red-600 hover:text-red-800 transition-colors"
+                                    title="Deletar"
+                                  >
+                                    <FaTrash />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Linha divisória */}
               <hr className="border-gray-300 my-8" />
 
-              {/* Seção 3 - Itens da Ordem */}
+                            {/* Seção 4 - Itens da Ordem */}
               <div className="mb-8">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-700">Itens da Ordem</h2>
                   <button
                     onClick={handleAddItem}
@@ -1485,6 +1832,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                     Adicionar Item
                   </button>
                 </div>
+                
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -1682,10 +2030,10 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           )}
                         </React.Fragment>
                       ))}
-                    </tbody>
+                                        </tbody>
                   </table>
+                  </div>
                 </div>
-              </div>
 
               {/* Totais */}
               <div className="mb-8 grid grid-cols-2 gap-4">
@@ -1722,9 +2070,10 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
               {/* Linha divisória */}
               <hr className="border-gray-300 my-8" />
 
-              {/* Seção 4 - Observações */}
+                            {/* Seção 4 - Observações */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-700 mb-4">Observações</h2>
+                
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
@@ -2377,6 +2726,130 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup de Confirmação - Editar Entrada */}
+      {showConfirmEditEntrada !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <div className="flex items-center mb-4">
+              <FaInfoCircle className="text-blue-500 text-2xl mr-3" />
+              <h3 className="text-lg font-semibold text-blue-600">Confirmar Edição</h3>
+            </div>
+            <p className="mb-6 text-gray-700">
+              Tem certeza que deseja editar esta entrada?
+              <br />
+              As alterações serão aplicadas imediatamente.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirmEditEntrada(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleConfirmEditEntrada(showConfirmEditEntrada)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup de Confirmação - Deletar Entrada */}
+      {showConfirmDeleteEntrada !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <div className="flex items-center mb-4">
+              <FaExclamationCircle className="text-red-500 text-2xl mr-3" />
+              <h3 className="text-lg font-semibold text-red-600">Confirmar Exclusão</h3>
+            </div>
+            <p className="mb-6 text-gray-700">
+              Tem certeza que deseja excluir esta entrada?
+              <br />
+              <strong>Esta ação não pode ser desfeita.</strong>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirmDeleteEntrada(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleConfirmDeleteEntrada(showConfirmDeleteEntrada)}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup de Confirmação - Editar Entrega */}
+      {showConfirmEditEntrega !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <div className="flex items-center mb-4">
+              <FaInfoCircle className="text-blue-500 text-2xl mr-3" />
+              <h3 className="text-lg font-semibold text-blue-600">Confirmar Edição</h3>
+            </div>
+            <p className="mb-6 text-gray-700">
+              Tem certeza que deseja editar esta data de entrega?
+              <br />
+              As alterações serão aplicadas imediatamente.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirmEditEntrega(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleConfirmEditEntrega(showConfirmEditEntrega)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup de Confirmação - Deletar Entrega */}
+      {showConfirmDeleteEntrega !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <div className="flex items-center mb-4">
+              <FaExclamationCircle className="text-red-500 text-2xl mr-3" />
+              <h3 className="text-lg font-semibold text-red-600">Confirmar Exclusão</h3>
+            </div>
+            <p className="mb-6 text-gray-700">
+              Tem certeza que deseja excluir esta data de entrega?
+              <br />
+              <strong>Esta ação não pode ser desfeita.</strong>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirmDeleteEntrega(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleConfirmDeleteEntrega(showConfirmDeleteEntrega)}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                Excluir
               </button>
             </div>
           </div>
