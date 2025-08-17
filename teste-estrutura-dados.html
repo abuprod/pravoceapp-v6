@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Estrutura de Dados</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .debug-title { font-weight: bold; color: #333; margin-bottom: 10px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Teste de Estrutura de Dados - Produtos e Fornecedores</h1>
+    
+    <div class="debug-section">
+        <div class="debug-title">1. Verificar Dados no LocalStorage</div>
+        <button onclick="verificarDados()">Verificar Dados</button>
+        <div id="resultado"></div>
+    </div>
+    
+    <div class="debug-section">
+        <div class="debug-title">2. Testar Filtragem de Produtos</div>
+        <input type="text" id="fabrica" placeholder="Digite o nome da fábrica" style="width: 300px; padding: 5px;">
+        <input type="text" id="descricao" placeholder="Digite descrição do produto" style="width: 300px; padding: 5px;">
+        <button onclick="testarFiltragem()">Testar Filtragem</button>
+        <div id="resultado-filtragem"></div>
+    </div>
+    
+    <div class="debug-section">
+        <div class="debug-title">3. Verificar Estrutura de Tributos</div>
+        <button onclick="verificarTributos()">Verificar Tributos</button>
+        <div id="resultado-tributos"></div>
+    </div>
+
+    <script>
+        function verificarDados() {
+            const resultado = document.getElementById('resultado');
+            
+            try {
+                // Verificar produtos
+                const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                
+                let html = '<h3>Dados Encontrados:</h3>';
+                
+                html += `<p><strong>Total de Produtos:</strong> ${produtos.length}</p>`;
+                html += `<p><strong>Total de Fornecedores:</strong> ${fornecedores.length}</p>`;
+                
+                if (produtos.length > 0) {
+                    html += '<h4>Primeiro Produto (estrutura):</h4>';
+                    html += '<pre>' + JSON.stringify(produtos[0], null, 2) + '</pre>';
+                }
+                
+                if (fornecedores.length > 0) {
+                    html += '<h4>Primeiro Fornecedor (estrutura):</h4>';
+                    html += '<pre>' + JSON.stringify(fornecedores[0], null, 2) + '</pre>';
+                }
+                
+                resultado.innerHTML = html;
+                
+            } catch (error) {
+                resultado.innerHTML = `<p class="error">Erro ao verificar dados: ${error.message}</p>`;
+            }
+        }
+        
+        function testarFiltragem() {
+            const resultado = document.getElementById('resultado-filtragem');
+            const fabrica = document.getElementById('fabrica').value;
+            const descricao = document.getElementById('descricao').value;
+            
+            if (!fabrica || !descricao) {
+                resultado.innerHTML = '<p class="error">Preencha ambos os campos</p>';
+                return;
+            }
+            
+            try {
+                const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                
+                let html = '<h4>Teste de Filtragem:</h4>';
+                html += `<p><strong>Fábrica:</strong> ${fabrica}</p>`;
+                html += `<p><strong>Descrição:</strong> ${descricao}</p>`;
+                
+                // Filtrar produtos por descrição
+                let produtosFiltrados = produtos.filter(produto => 
+                    produto.descricao.toLowerCase().includes(descricao.toLowerCase())
+                );
+                
+                html += `<p><strong>Produtos com descrição similar:</strong> ${produtosFiltrados.length}</p>`;
+                
+                // Mostrar primeiros produtos encontrados
+                if (produtosFiltrados.length > 0) {
+                    html += '<h5>Primeiros produtos encontrados:</h5>';
+                    produtosFiltrados.slice(0, 3).forEach((produto, index) => {
+                        html += `<p><strong>${index + 1}.</strong> ${produto.descricao} (Fornecedor: ${produto.fornecedor})</p>`;
+                    });
+                }
+                
+                // Filtrar por fábrica
+                produtosFiltrados = produtosFiltrados.filter(produto => 
+                    produto.fornecedor === fabrica
+                );
+                
+                html += `<p><strong>Produtos após filtro de fábrica:</strong> ${produtosFiltrados.length}</p>`;
+                
+                if (produtosFiltrados.length > 0) {
+                    html += '<h5>Produtos finais:</h5>';
+                    produtosFiltrados.forEach((produto, index) => {
+                        html += `<p><strong>${index + 1}.</strong> ${produto.descricao}</p>`;
+                    });
+                } else {
+                    html += '<p class="error">Nenhum produto encontrado após filtro de fábrica</p>';
+                    
+                    // Verificar se há produtos com fornecedor diferente
+                    const produtosComFornecedor = produtos.filter(p => p.fornecedor);
+                    const fornecedoresUnicos = [...new Set(produtosComFornecedor.map(p => p.fornecedor))];
+                    
+                    html += `<p><strong>Fornecedores únicos nos produtos:</strong> ${fornecedoresUnicos.join(', ')}</p>`;
+                }
+                
+                resultado.innerHTML = html;
+                
+            } catch (error) {
+                resultado.innerHTML = `<p class="error">Erro ao testar filtragem: ${error.message}</p>`;
+            }
+        }
+        
+        function verificarTributos() {
+            const resultado = document.getElementById('resultado-tributos');
+            
+            try {
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                
+                let html = '<h4>Estrutura de Tributos por Fornecedor:</h4>';
+                
+                fornecedores.forEach((fornecedor, index) => {
+                    html += `<h5>${index + 1}. ${fornecedor.nomeFantasia || fornecedor.razaoSocial}</h5>`;
+                    html += `<p><strong>ID:</strong> ${fornecedor.id}</p>`;
+                    html += `<p><strong>Nome Fantasia:</strong> ${fornecedor.nomeFantasia || 'N/A'}</p>`;
+                    html += `<p><strong>Razão Social:</strong> ${fornecedor.razaoSocial || 'N/A'}</p>`;
+                    
+                    if (fornecedor.tributosDescontos && fornecedor.tributosDescontos.length > 0) {
+                        html += `<p><strong>Tributos/Descontos:</strong> ${fornecedor.tributosDescontos.length}</p>`;
+                        html += '<pre>' + JSON.stringify(fornecedor.tributosDescontos, null, 2) + '</pre>';
+                    } else {
+                        html += '<p class="error">Nenhum tributo/desconto cadastrado</p>';
+                    }
+                    
+                    html += '<hr>';
+                });
+                
+                resultado.innerHTML = html;
+                
+            } catch (error) {
+                resultado.innerHTML = `<p class="error">Erro ao verificar tributos: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

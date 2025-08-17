@@ -220,6 +220,29 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     }
   }, [formData.fornecedor, fornecedores]);
 
+  // Sincronizar campo fabrica com fornecedor e carregar tributos automaticamente
+  useEffect(() => {
+    if (formData.fabrica && fornecedores.length > 0) {
+      const fornecedorEncontrado = fornecedores.find(f => 
+        f.nomeFantasia === formData.fabrica || f.razaoSocial === formData.fabrica
+      );
+      
+      if (fornecedorEncontrado) {
+        // Atualizar o campo fornecedor com o ID
+        setFormData(prev => ({
+          ...prev,
+          fornecedor: fornecedorEncontrado.id.toString()
+        }));
+        
+        // Carregar os tributos automaticamente
+        setTributosDisponiveis(fornecedorEncontrado.tributosDescontos || []);
+        
+        console.log('Fornecedor sincronizado:', fornecedorEncontrado.nomeFantasia, 'ID:', fornecedorEncontrado.id);
+        console.log('Tributos carregados:', fornecedorEncontrado.tributosDescontos);
+      }
+    }
+  }, [formData.fabrica, fornecedores]);
+
   // Simulação de dados de fabricante
   const fabricanteData = {
     'Móveis ABC': {
@@ -958,15 +981,44 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       return;
     }
 
+    console.log('=== DEBUG FILTRAGEM PRODUTOS ===');
+    console.log('Descrição buscada:', descricao);
+    console.log('Fábrica selecionada:', formData.fabrica);
+    console.log('Total de produtos:', produtos.length);
+    
     // Filtrar produtos por fornecedor selecionado no campo Fábrica
     let produtosFiltrados = produtos.filter(produto => 
       produto.descricao.toLowerCase().includes(descricao.toLowerCase())
     );
+    
+    console.log('Produtos com descrição similar:', produtosFiltrados.length);
+    console.log('Primeiros produtos encontrados:', produtosFiltrados.slice(0, 3));
 
     // Filtrar apenas produtos da fábrica selecionada
-    produtosFiltrados = produtosFiltrados.filter(produto => 
-      produto.fornecedor === formData.fabrica
-    );
+    // Verificar se produto.fornecedor é ID ou nome
+    produtosFiltrados = produtosFiltrados.filter(produto => {
+      console.log(`Produto: ${produto.descricao}, Fornecedor: ${produto.fornecedor}, Fábrica: ${formData.fabrica}`);
+      
+      // Se produto.fornecedor for um ID (número), buscar o nome do fornecedor
+      if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
+        const fornecedorProduto = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
+        if (fornecedorProduto) {
+          const match = fornecedorProduto.nomeFantasia === formData.fabrica || 
+                       fornecedorProduto.razaoSocial === formData.fabrica;
+          console.log(`Fornecedor encontrado: ${fornecedorProduto.nomeFantasia}, Match: ${match}`);
+          return match;
+        }
+      }
+      
+      // Se produto.fornecedor for uma string (nome), comparar diretamente
+      const match = produto.fornecedor === formData.fabrica;
+      console.log(`Comparação direta: ${produto.fornecedor} === ${formData.fabrica} = ${match}`);
+      return match;
+    });
+    
+    console.log('Produtos após filtro de fábrica:', produtosFiltrados.length);
+    console.log('Produtos finais:', produtosFiltrados);
+    console.log('=== FIM DEBUG ===');
 
     setSugestoesProdutos(produtosFiltrados);
   };
@@ -974,6 +1026,30 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   // Selecionar produto da sugestão
   const handleSelecionarProduto = (produto, index) => {
     console.log('Produto selecionado:', produto);
+    console.log('Tributos disponíveis no momento da seleção:', tributosDisponiveis);
+    console.log('Fornecedor atual:', formData.fornecedor);
+    console.log('Fábrica atual:', formData.fabrica);
+    
+    // Verificar se os tributos foram carregados corretamente
+    if (tributosDisponiveis.length > 0) {
+      console.log('✅ Tributos carregados com sucesso:', tributosDisponiveis.length, 'conjuntos disponíveis');
+      tributosDisponiveis.forEach((tributo, idx) => {
+        console.log(`  ${idx + 1}. ${tributo.nome || 'Sem nome'} (ID: ${tributo.id})`);
+      });
+    } else {
+      console.log('❌ Nenhum tributo disponível. Verificando fornecedor...');
+      if (formData.fornecedor) {
+        const fornecedorAtual = fornecedores.find(f => f.id === parseInt(formData.fornecedor));
+        if (fornecedorAtual) {
+          console.log('Fornecedor encontrado:', fornecedorAtual.nomeFantasia);
+          console.log('Tributos do fornecedor:', fornecedorAtual.tributosDescontos);
+        } else {
+          console.log('Fornecedor não encontrado no array de fornecedores');
+        }
+      } else {
+        console.log('Campo fornecedor está vazio');
+      }
+    }
     
     const itemAtualizado = {
       ...formData.itens[index],
