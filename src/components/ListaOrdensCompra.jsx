@@ -41,7 +41,26 @@ const ListaOrdensCompra = () => {
   useEffect(() => {
     const ordensSalvas = localStorage.getItem('ordensCompra');
     if (ordensSalvas) {
-      setOrdensCompra(JSON.parse(ordensSalvas));
+      const ordens = JSON.parse(ordensSalvas);
+      
+      // CORREÇÃO: Adicionar ID para ordens que não têm
+      const ordensCorrigidas = ordens.map((ordem, index) => {
+        if (!ordem.id || ordem.id === undefined || ordem.id === null) {
+          return {
+            ...ordem,
+            id: Date.now() + index // ID único baseado em timestamp + índice
+          };
+        }
+        return ordem;
+      });
+      
+      // Salvar ordens corrigidas se houve mudanças
+      if (ordensCorrigidas.some((ordem, index) => ordem.id !== ordens[index].id)) {
+        localStorage.setItem('ordensCompra', JSON.stringify(ordensCorrigidas));
+        setOrdensCompra(ordensCorrigidas);
+      } else {
+        setOrdensCompra(ordens);
+      }
     }
   }, []);
 
@@ -156,6 +175,7 @@ const ListaOrdensCompra = () => {
     navigate(`/ordens-compra/visualizar/${id}`);
   };
 
+
   const handleDelete = (id) => {
     setOrdemToDelete(id);
     setShowDeleteModal(true);
@@ -163,8 +183,8 @@ const ListaOrdensCompra = () => {
 
   const confirmDelete = () => {
     if (ordemToDelete) {
-      // Remover a ordem do estado
-      const novasOrdens = ordensCompra.filter(ordem => ordem.id !== ordemToDelete);
+      // Remover a ordem do estado - usar comparação flexível para compatibilidade com diferentes tipos de ID
+      const novasOrdens = ordensCompra.filter(ordem => ordem.id != ordemToDelete);
       setOrdensCompra(novasOrdens);
       
       // Atualizar o localStorage
