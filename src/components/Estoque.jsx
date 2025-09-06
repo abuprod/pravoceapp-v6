@@ -71,7 +71,8 @@ const Estoque = () => {
     isOpen: false,
     produto: null,
     local: null,
-    observacao: ''
+    observacao: '',
+    cor: 'amarelo' // Cor padrão
   });
 
   // Estados para sugestões de produtos
@@ -468,11 +469,13 @@ const Estoque = () => {
   }, [historicoLancamentos, historicoFiltrado.length, filtrosHistorico]);
 
   const handleQuantidadeClick = (produto, local) => {
+    const estoqueLocal = produto.estoque?.[local] || { quantidade: 0, observacao: '', cor: null };
     setObservacaoQuantidade({
       isOpen: true,
       produto,
       local,
-      observacao: produto.estoque[local].observacao || ''
+      observacao: estoqueLocal.observacao || '',
+      cor: estoqueLocal.cor || 'amarelo'
     });
   };
 
@@ -493,27 +496,52 @@ const Estoque = () => {
   };
 
   const handleSalvarObservacao = () => {
-    const { produto, local, observacao } = observacaoQuantidade;
+    const { produto, local, observacao, cor } = observacaoQuantidade;
     
-    setProdutos(produtosAtuais => 
-      produtosAtuais.map(p => {
-        if (p === produto) {
-          return {
-            ...p,
-            estoque: {
-              ...p.estoque,
-              [local]: {
-                ...p.estoque[local],
-                observacao: observacao
-              }
-            }
-          };
-        }
-        return p;
-      })
-    );
+    console.log('🔍 Salvando observação:', { produto: produto?.descricao, local, observacao, cor });
+    console.log('🔍 Produto original:', produto);
+    console.log('🔍 Produtos atuais:', produtos.length);
+    
+    // Atualizar produtos no estado local
+    const produtosAtualizados = produtos.map(p => {
+      // Usar comparação por ID ou descrição para garantir que encontramos o produto correto
+      if (p.id === produto.id || p.descricao === produto.descricao) {
+        console.log('🔍 Produto encontrado para atualizar:', p.descricao);
+        console.log('🔍 Estoque atual do produto:', p.estoque);
+        
+        const novoEstoque = {
+          ...p.estoque,
+          [local]: {
+            quantidade: p.estoque?.[local]?.quantidade || 0,
+            observacao: observacao,
+            cor: cor // Sempre salvar a cor escolhida, incluindo amarelo
+          }
+        };
+        
+        console.log('🔍 Novo estoque:', novoEstoque);
+        
+        return {
+          ...p,
+          estoque: novoEstoque
+        };
+      }
+      return p;
+    });
+    
+    console.log('🔍 Produtos atualizados:', produtosAtualizados.length);
+    
+    setProdutos(produtosAtualizados);
+    
+    // Salvar no localStorage
+    localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosAtualizados));
+    console.log('🔍 Salvo no localStorage');
+    
+    // Atualizar produtosCadastrados também
+    setProdutosCadastrados(produtosAtualizados);
 
-    setObservacaoQuantidade({ isOpen: false, produto: null, local: null, observacao: '' });
+    setObservacaoQuantidade({ isOpen: false, produto: null, local: null, observacao: '', cor: 'amarelo' });
+    
+    console.log('🔍 Modal fechado');
   };
 
   // Seleção em massa no histórico (não afeta estoque)
@@ -643,25 +671,45 @@ const Estoque = () => {
                       </button>
                     </td>
                     {locais.map(local => {
-                      const estoqueLocal = produto.estoque?.[local] || { quantidade: 0, observacao: '' };
+                      const estoqueLocal = produto.estoque?.[local] || { quantidade: 0, observacao: '', cor: null };
+                      
+                      // Definir estilos de cor baseado na cor selecionada
+                      const getCorStyles = (cor) => {
+                        if (!cor) return { backgroundColor: 'transparent', border: '2px solid #9ca3af' };
+                        switch(cor) {
+                          case 'amarelo':
+                            return { backgroundColor: '#fde68a', border: '3px solid #f59e0b' };
+                          case 'vermelho':
+                            return { backgroundColor: '#fca5a5', border: '3px solid #ef4444' };
+                          case 'laranja':
+                            return { backgroundColor: '#fdba74', border: '3px solid #f97316' };
+                          case 'lilas':
+                            return { backgroundColor: '#c4b5fd', border: '3px solid #8b5cf6' };
+                          default:
+                            return { backgroundColor: 'transparent', border: '2px solid #9ca3af' };
+                        }
+                      };
+                      
                       return (
-                        <td key={local} className="px-4 py-2 border-2 border-gray-400 text-center bg-amber-50/50">
-                          <div className="flex items-center justify-center gap-1">
+                        <td key={local} className="px-4 py-2 text-center relative" style={getCorStyles(estoqueLocal.cor)}>
+                          {/* Ícone de exclamação discreto no canto superior direito */}
+                          {estoqueLocal.observacao && (
+                            <button
+                              onClick={() => handleQuantidadeClick(produto, local)}
+                              className="absolute top-1 right-1 text-gray-400 hover:text-gray-600 text-xs"
+                              title={estoqueLocal.observacao}
+                            >
+                              <FaExclamationCircle />
+                            </button>
+                          )}
+                          
+                          <div className="flex items-center justify-center">
                             <button
                               onClick={() => handleQuantidadeClick(produto, local)}
                               className="hover:bg-gray-100 px-2 py-1 rounded"
                             >
                               {estoqueLocal.quantidade}
                             </button>
-                            {estoqueLocal.observacao && (
-                              <button
-                                onClick={() => handleQuantidadeClick(produto, local)}
-                                className="text-red-500 hover:text-red-600"
-                                title={estoqueLocal.observacao}
-                              >
-                                <FaExclamationCircle />
-                              </button>
-                            )}
                           </div>
                         </td>
                       );
@@ -1119,7 +1167,7 @@ const Estoque = () => {
         {/* Modal de Observação da Quantidade */}
         <Dialog
           open={observacaoQuantidade.isOpen}
-          onClose={() => setObservacaoQuantidade({ isOpen: false, produto: null, local: null, observacao: '' })}
+          onClose={() => setObservacaoQuantidade({ isOpen: false, produto: null, local: null, observacao: '', cor: 'amarelo' })}
           className="relative z-50"
         >
           <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
@@ -1137,6 +1185,51 @@ const Estoque = () => {
                 <p className="text-sm text-gray-600 mb-4">
                   Local: {observacaoQuantidade.local}
                 </p>
+                
+                {/* Seleção de Cor */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cor da célula:
+                  </label>
+                  <div className="flex gap-3">
+                    {/* Opção incolor */}
+                    <button
+                      type="button"
+                      onClick={() => setObservacaoQuantidade(prev => ({ ...prev, cor: null }))}
+                      className={`w-8 h-8 rounded-full bg-white border-2 ${
+                        observacaoQuantidade.cor === null 
+                          ? 'border-gray-800 ring-2 ring-gray-300' 
+                          : 'border-gray-300'
+                      } hover:scale-110 transition-transform relative`}
+                      title="Incolor"
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-6 h-0.5 bg-red-500"></div>
+                      </div>
+                    </button>
+                    
+                    {/* Opções coloridas */}
+                    {[
+                      { nome: 'amarelo', cor: 'bg-yellow-400', label: 'Amarelo' },
+                      { nome: 'vermelho', cor: 'bg-red-400', label: 'Vermelho' },
+                      { nome: 'laranja', cor: 'bg-orange-400', label: 'Laranja' },
+                      { nome: 'lilas', cor: 'bg-purple-400', label: 'Lilás' }
+                    ].map((opcao) => (
+                      <button
+                        key={opcao.nome}
+                        type="button"
+                        onClick={() => setObservacaoQuantidade(prev => ({ ...prev, cor: opcao.nome }))}
+                        className={`w-8 h-8 rounded-full ${opcao.cor} border-2 ${
+                          observacaoQuantidade.cor === opcao.nome 
+                            ? 'border-gray-800 ring-2 ring-gray-300' 
+                            : 'border-gray-300'
+                        } hover:scale-110 transition-transform`}
+                        title={opcao.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+
                 <textarea
                   value={observacaoQuantidade.observacao}
                   onChange={(e) => setObservacaoQuantidade(prev => ({ ...prev, observacao: e.target.value }))}
@@ -1149,7 +1242,7 @@ const Estoque = () => {
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => setObservacaoQuantidade({ isOpen: false, produto: null, local: null, observacao: '' })}
+                  onClick={() => setObservacaoQuantidade({ isOpen: false, produto: null, local: null, observacao: '', cor: 'amarelo' })}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Cancelar
