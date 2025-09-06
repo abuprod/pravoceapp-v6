@@ -1445,6 +1445,9 @@ const NovoPedidoVenda = () => {
         // Adicionar novo pedido
         await pedidosVendaService.salvar(dadosPedido);
         
+        // Notificar que o pedido foi salvo pela primeira vez
+        alert('✅ Pedido salvo com sucesso!');
+        
         if (estaCancelando) {
           // Reverter estoque se está cancelando
           console.log('🚫 Processando cancelamento de pedido novo...');
@@ -1652,60 +1655,65 @@ const NovoPedidoVenda = () => {
             {/* Box de Cliente */}
             <div className="mb-6 bg-white rounded-lg shadow-md p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Cliente</h2>
-              <div className="relative">
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      placeholder="Digite nome, CPF/CNPJ ou telefone para buscar cliente..."
-                      value={buscaCliente}
-                      onChange={(e) => {
-                        setBuscaCliente(e.target.value);
-                        setMostrarSugestoesCliente(true);
-                      }}
-                      onFocus={() => setMostrarSugestoesCliente(true)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    
-                    {/* Sugestões de clientes */}
-                    {mostrarSugestoesCliente && buscaCliente && !clienteSelecionado && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                        {clientesFiltrados.map(cliente => (
-                          <div
-                            key={cliente.id}
-                            onClick={() => selecionarCliente(cliente)}
-                            className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="font-medium text-gray-900">{cliente.nome}</div>
-                            <div className="text-sm text-gray-600">
-                              {cliente.tipoPessoa === 'pf' ? 'CPF: ' : 'CNPJ: '}{cliente.cpfCnpj}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              Tel: {cliente.telefone1}
-                              {cliente.telefone2 && ` / ${cliente.telefone2}`}
-                            </div>
-                            {cliente.email && (
-                              <div className="text-sm text-gray-500">
-                                Email: {cliente.email}
+              
+              {/* Campo de busca e botão Novo Cliente - só aparece quando não há cliente selecionado */}
+              {!clienteSelecionado && (
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        placeholder="Digite nome, CPF/CNPJ ou telefone para buscar cliente..."
+                        value={buscaCliente}
+                        onChange={(e) => {
+                          setBuscaCliente(e.target.value);
+                          setMostrarSugestoesCliente(true);
+                        }}
+                        onFocus={() => setMostrarSugestoesCliente(true)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      
+                      {/* Sugestões de clientes */}
+                      {mostrarSugestoesCliente && buscaCliente && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          {clientesFiltrados.map(cliente => (
+                            <div
+                              key={cliente.id}
+                              onClick={() => selecionarCliente(cliente)}
+                              className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="font-medium text-gray-900">{cliente.nome}</div>
+                              <div className="text-sm text-gray-600">
+                                {cliente.tipoPessoa === 'pf' ? 'CPF: ' : 'CNPJ: '}{cliente.cpfCnpj}
                               </div>
-                            )}
-                          </div>
-                        ))}
-                        {clientesFiltrados.length === 0 && (
-                          <div className="px-4 py-3 text-gray-500 text-center">
-                            Nenhum cliente encontrado
-                          </div>
-                        )}
-                      </div>
-                    )}
+                              <div className="text-sm text-gray-500">
+                                Tel: {cliente.telefone1}
+                                {cliente.telefone2 && ` / ${cliente.telefone2}`}
+                              </div>
+                              {cliente.email && (
+                                <div className="text-sm text-gray-500">
+                                  Email: {cliente.email}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {clientesFiltrados.length === 0 && (
+                            <div className="px-4 py-3 text-gray-500 text-center">
+                              Nenhum cliente encontrado
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleNovoCliente}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <FaPlus /> Novo Cliente
+                    </button>
                   </div>
-                  <button
-                    onClick={handleNovoCliente}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-                  >
-                    <FaPlus /> Novo Cliente
-                  </button>
                 </div>
+              )}
 
                 {/* Cliente selecionado */}
                 {clienteSelecionado && (
@@ -1768,8 +1776,13 @@ const NovoPedidoVenda = () => {
                         </button>
                         <button
                           onClick={() => {
-                            setClienteSelecionado(null);
-                            setBuscaCliente('');
+                            const confirmacao = window.confirm(
+                              'Tem certeza que deseja remover este cliente do pedido?'
+                            );
+                            if (confirmacao) {
+                              setClienteSelecionado(null);
+                              setBuscaCliente('');
+                            }
                           }}
                           className="text-gray-500 hover:text-gray-700 p-1"
                           title="Remover cliente"
@@ -2718,8 +2731,6 @@ const NovoPedidoVenda = () => {
             </div>
           )}
 
-
-        </div>
       </div>
     </form>
   );
