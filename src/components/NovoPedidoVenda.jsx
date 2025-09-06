@@ -1461,7 +1461,6 @@ const NovoPedidoVenda = () => {
         };
 
         console.log('📋 Dados da ordem de compra criada:', dadosOrdemCompra);
-        console.log('🔢 ID gerado:', dadosOrdemCompra.id, 'Tipo:', typeof dadosOrdemCompra.id);
 
         // Salvar a ordem de compra
         ordensExistentes.push(dadosOrdemCompra);

@@ -31,11 +31,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  console.log('🚀 === NOVA ORDEM COMPRA RENDERIZADA ===');
-  console.log('📋 Props recebidas:', { tipoPreSelecionado });
-  console.log('🔗 Parâmetros da URL:', { id });
-  console.log('📍 URL atual:', window.location.href);
-  
   const [formData, setFormData] = useState({
     tipo: tipoPreSelecionado || '',
     status: 'aberto',
@@ -149,25 +144,14 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   // Carregar dados da ordem se estiver em modo de edição
   useEffect(() => {
     try {
-      console.log('🔍 === DEBUG EDITION LOADING ===');
-      console.log('📋 ID recebido:', id, 'Tipo:', typeof id);
-      
       if (id) {
         setIsLoading(true);
-        console.log('⏳ Iniciando carregamento...');
         
         const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-        console.log('📦 Ordens salvas encontradas:', ordensSalvas.length);
-        console.log('📋 IDs disponíveis:', ordensSalvas.map(o => ({ id: o.id, tipo: typeof o.id })));
-        
-        const idNumerico = parseFloat(id); // Usar parseFloat para manter decimais se necessário
-        console.log('🔢 ID convertido para número:', idNumerico);
-        
-        const ordemParaEditar = ordensSalvas.find(ordem => ordem.id == idNumerico); // Usar == para comparação flexível
-        console.log('🎯 Ordem encontrada:', ordemParaEditar);
+        const idNumerico = parseFloat(id);
+        const ordemParaEditar = ordensSalvas.find(ordem => ordem.id == idNumerico);
         
         if (ordemParaEditar) {
-          console.log('✅ Ordem encontrada para edição:', ordemParaEditar);
           // Mapear fornecedorId para fornecedor se existir
           const dadosParaEditar = {
             ...ordemParaEditar,
@@ -177,23 +161,16 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
             tipo: ordemParaEditar.tipo || 'cliente'
           };
           
-          console.log('📋 Dados mapeados para edição:', dadosParaEditar);
           setFormData(dadosParaEditar);
           setPedidoOriginal(dadosParaEditar);
-          console.log('✅ FormData atualizado com sucesso');
         } else {
-          console.log('❌ Ordem não encontrada! Redirecionando...');
           // Se não encontrar a ordem, redireciona para a lista
           navigate('/ordens-compra');
         }
         setIsLoading(false);
-        console.log('⏳ Carregamento finalizado');
-      } else {
-        console.log('ℹ️ Nenhum ID fornecido, modo de criação');
       }
     } catch (error) {
-      console.error('❌ ERRO NO CARREGAMENTO:', error);
-      console.error('📋 Stack trace:', error.stack);
+      console.error('Erro ao carregar ordem de compra:', error);
       setIsLoading(false);
       alert(`Erro ao carregar ordem de compra: ${error.message}`);
     }
@@ -1404,13 +1381,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       </div>
     );
   }
-
-  // Debug: Verificar se há erro de renderização
-  console.log('🎨 === RENDERIZAÇÃO ===');
-  console.log('📋 formData.tipo:', formData.tipo);
-  console.log('🔗 id:', id);
-  console.log('⏳ isLoading:', isLoading);
-  console.log('📍 URL atual:', window.location.href);
 
   return (
     <div className="w-full px-2">

@@ -141,20 +141,14 @@ const ListaOrdensCompra = () => {
     });
 
   const handleEdit = (id) => {
-    console.log('🔧 === TESTE DE EDIÇÃO ===');
-    console.log('📋 ID recebido:', id, 'Tipo:', typeof id);
-    console.log('🔗 Navegando para:', `/ordens-compra/editar/${id}`);
-    
     // Verificar se a ordem existe antes de navegar
     const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-    const ordemExiste = ordensSalvas.find(ordem => ordem.id == id); // Usar == em vez de === para comparação flexível
+    const ordemExiste = ordensSalvas.find(ordem => ordem.id == id);
     
     if (ordemExiste) {
-      console.log('✅ Ordem encontrada, navegando...');
       navigate(`/ordens-compra/editar/${id}`);
     } else {
-      console.log('❌ Ordem não encontrada!');
-      alert(`Erro: Ordem com ID ${id} não encontrada!\n\nIDs disponíveis: ${ordensSalvas.map(o => o.id).join(', ')}`);
+      alert(`Erro: Ordem com ID ${id} não encontrada!`);
     }
   };
 
