@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Ordens de Compra</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .data-display {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug - Ordens de Compra</h1>
+        <p>Este teste verifica o que está causando a tela branca na lista de ordens de compra.</p>
+        
+        <div class="container">
+            <h3>📊 Verificar Dados Atuais</h3>
+            <button onclick="verificarDados()">Verificar Dados no localStorage</button>
+            <button onclick="criarDadosTeste()">Criar Dados de Teste</button>
+            <button onclick="limparDados()">Limpar Dados</button>
+            <div id="dadosAtuais" class="data-display"></div>
+        </div>
+
+        <div class="container">
+            <h3>🧪 Testar Filtros da ListaOrdensCompra</h3>
+            <button onclick="testarFiltros()">Testar Filtros</button>
+            <div id="resultadoFiltros" class="log"></div>
+        </div>
+
+        <div class="container">
+            <h3>🔍 Log Completo</h3>
+            <button onclick="limparLog()">Limpar Log</button>
+            <div id="logCompleto" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(mensagem, tipo = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('logCompleto');
+            const colorClass = tipo === 'success' ? 'success' : 
+                             tipo === 'error' ? 'error' : 
+                             tipo === 'warning' ? 'warning' : 'info';
+            
+            logElement.innerHTML += `<span class="${colorClass}">[${timestamp}] ${mensagem}</span>\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function limparLog() {
+            document.getElementById('logCompleto').innerHTML = '';
+        }
+
+        function verificarDados() {
+            log('🔍 Verificando dados no localStorage...', 'info');
+            
+            try {
+                const ordensCompra = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+                const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                const pedidosVenda = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+
+                log(`📋 Ordens de compra: ${ordensCompra.length}`, 'info');
+                log(`📦 Produtos: ${produtos.length}`, 'info');
+                log(`🏢 Fornecedores: ${fornecedores.length}`, 'info');
+                log(`🛒 Pedidos de venda: ${pedidosVenda.length}`, 'info');
+
+                if (ordensCompra.length > 0) {
+                    log('📋 Primeira ordem de compra:', 'info');
+                    log(JSON.stringify(ordensCompra[0], null, 2), 'info');
+                    
+                    // Verificar campos obrigatórios
+                    const primeiraOrdem = ordensCompra[0];
+                    const camposObrigatorios = ['numero', 'fornecedor', 'valor', 'status', 'data'];
+                    
+                    camposObrigatorios.forEach(campo => {
+                        if (primeiraOrdem[campo] === undefined || primeiraOrdem[campo] === null) {
+                            log(`❌ Campo obrigatório ausente: ${campo}`, 'error');
+                        } else {
+                            log(`✅ Campo ${campo}: ${primeiraOrdem[campo]}`, 'success');
+                        }
+                    });
+                }
+
+                // Mostrar dados
+                document.getElementById('dadosAtuais').innerHTML = `
+                    <strong>Ordens de Compra (${ordensCompra.length}):</strong><br>
+                    ${ordensCompra.length > 0 ? JSON.stringify(ordensCompra, null, 2) : 'Nenhuma ordem encontrada'}<br><br>
+                    
+                    <strong>Produtos (${produtos.length}):</strong><br>
+                    ${produtos.length > 0 ? produtos.slice(0, 2).map(p => `${p.descricao} (${p.sku})`).join('<br>') : 'Nenhum produto encontrado'}<br><br>
+                    
+                    <strong>Fornecedores (${fornecedores.length}):</strong><br>
+                    ${fornecedores.length > 0 ? fornecedores.slice(0, 2).map(f => f.nome).join('<br>') : 'Nenhum fornecedor encontrado'}
+                `;
+
+            } catch (error) {
+                log(`❌ Erro ao verificar dados: ${error.message}`, 'error');
+            }
+        }
+
+        function criarDadosTeste() {
+            log('🔧 Criando dados de teste...', 'info');
+            
+            // Criar produtos de teste
+            const produtosTeste = [
+                {
+                    id: 1,
+                    sku: 'SOF001',
+                    descricao: 'Sofá 3 Lugares',
+                    categoria: 'Sofás',
+                    fornecedor: 'Móveis ABC',
+                    fornecedorId: 1,
+                    estoque: {
+                        'LOJA': { quantidade: 5 },
+                        'DEPOSITO': { quantidade: 3 }
+                    },
+                    tabc: 2500.00
+                },
+                {
+                    id: 2,
+                    sku: 'MES001',
+                    descricao: 'Mesa de Jantar',
+                    categoria: 'Mesas',
+                    fornecedor: 'Móveis XYZ',
+                    fornecedorId: 2,
+                    estoque: {
+                        'LOJA': { quantidade: 2 },
+                        'DEPOSITO': { quantidade: 1 }
+                    },
+                    tabc: 1800.00
+                }
+            ];
+
+            // Criar fornecedores de teste
+            const fornecedoresTeste = [
+                { id: 1, nome: 'Móveis ABC', status: 'Ativo' },
+                { id: 2, nome: 'Móveis XYZ', status: 'Ativo' }
+            ];
+
+            // Criar ordem de compra de teste (com estrutura correta)
+            const ordemCompraTeste = {
+                id: Date.now(),
+                tipo: 'encomenda',
+                status: 'Em aberto',
+                dataVenda: new Date().toISOString().split('T')[0],
+                dataEncomenda: new Date().toISOString().split('T')[0],
+                oc: 'A-0001',
+                numero: 'A-0001', // Campo obrigatório
+                pedidoVinculado: 'PV-001',
+                vendedor: 'Maria Santos',
+                obsNaoEntregue: '',
+                prazoFinal: '',
+                dataEntradaDeposito: '',
+                documentoFabrica: '',
+                entregaCliente: '',
+                prazoPagamento: '',
+                observacoes: 'Ordem de compra de teste',
+                observacoesInternas: 'Teste',
+                itens: [
+                    {
+                        produto: 'Sofá 3 Lugares',
+                        produtoId: 1,
+                        quantidade: 1,
+                        valorUnitario: 2500.00,
+                        valorTotal: 2500.00,
+                        fornecedor: 'Móveis ABC',
+                        fornecedorId: 1,
+                        observacoes: '',
+                        status: 'pendente'
+                    }
+                ],
+                fabrica: '',
+                fornecedor: 'Móveis ABC', // Campo obrigatório
+                fornecedorNome: 'Móveis ABC',
+                data: new Date().toISOString().split('T')[0],
+                valor: 2500.00, // Campo obrigatório
+                entradas: [],
+                datasEntrega: [],
+                origem: 'teste',
+                cliente: 'João Silva',
+                clienteId: 1
+            };
+
+            // Salvar no localStorage
+            localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosTeste));
+            localStorage.setItem('fornecedores', JSON.stringify(fornecedoresTeste));
+            localStorage.setItem('ordensCompra', JSON.stringify([ordemCompraTeste]));
+
+            log('✅ Dados de teste criados!', 'success');
+            log(`📋 OC: ${ordemCompraTeste.numero}`, 'success');
+            log(`🏢 Fornecedor: ${ordemCompraTeste.fornecedor}`, 'success');
+            log(`💰 Valor: R$ ${ordemCompraTeste.valor.toFixed(2)}`, 'success');
+
+            verificarDados();
+        }
+
+        function testarFiltros() {
+            log('🧪 Testando filtros da ListaOrdensCompra...', 'info');
+            
+            try {
+                const ordensCompra = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+                
+                if (ordensCompra.length === 0) {
+                    log('⚠️ Nenhuma ordem de compra encontrada para testar', 'warning');
+                    return;
+                }
+
+                // Simular os filtros da ListaOrdensCompra
+                const searchTerm = '';
+                const filters = {
+                    tipo: '',
+                    status: [],
+                    statusInput: '',
+                    dataInicio: '',
+                    dataFim: '',
+                    fornecedor: '',
+                    valorMin: '',
+                    valorMax: ''
+                };
+
+                const filteredAndSortedOrdens = ordensCompra
+                    .filter(ordem => {
+                        try {
+                            const matchesSearch = 
+                                ordem.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                ordem.fornecedor.toLowerCase().includes(searchTerm.toLowerCase());
+                            
+                            const matchesTipo = !filters.tipo || ordem.tipo === filters.tipo;
+                            
+                            const matchesStatus = filters.status.length === 0 || 
+                                filters.status.includes(ordem.status);
+                            
+                            const matchesFornecedor = !filters.fornecedor || 
+                                ordem.fornecedor.toLowerCase().includes(filters.fornecedor.toLowerCase());
+                            
+                            const matchesData = (!filters.dataInicio || new Date(ordem.data) >= new Date(filters.dataInicio)) &&
+                                (!filters.dataFim || new Date(ordem.data) <= new Date(filters.dataFim));
+
+                            const matchesValor = (!filters.valorMin || ordem.valor >= parseFloat(filters.valorMin)) &&
+                                (!filters.valorMax || ordem.valor <= parseFloat(filters.valorMax));
+
+                            return matchesSearch && matchesTipo && matchesStatus && matchesFornecedor && matchesData && matchesValor;
+                        } catch (error) {
+                            log(`❌ Erro ao filtrar ordem ${ordem.numero || 'sem número'}: ${error.message}`, 'error');
+                            return false;
+                        }
+                    });
+
+                log(`✅ Filtros aplicados com sucesso!`, 'success');
+                log(`📊 Ordens filtradas: ${filteredAndSortedOrdens.length} de ${ordensCompra.length}`, 'info');
+
+                filteredAndSortedOrdens.forEach((ordem, index) => {
+                    log(`📋 ${index + 1}. ${ordem.numero} - ${ordem.fornecedor} - R$ ${ordem.valor.toFixed(2)}`, 'info');
+                });
+
+                document.getElementById('resultadoFiltros').innerHTML = `
+                    <strong>Resultado dos Filtros:</strong><br>
+                    Ordens filtradas: ${filteredAndSortedOrdens.length} de ${ordensCompra.length}<br><br>
+                    ${filteredAndSortedOrdens.map((ordem, index) => 
+                        `${index + 1}. ${ordem.numero} - ${ordem.fornecedor} - R$ ${ordem.valor.toFixed(2)}`
+                    ).join('<br>')}
+                `;
+
+            } catch (error) {
+                log(`❌ Erro ao testar filtros: ${error.message}`, 'error');
+            }
+        }
+
+        function limparDados() {
+            localStorage.removeItem('ordensCompra');
+            localStorage.removeItem('produtos_cadastrados');
+            localStorage.removeItem('fornecedores');
+            localStorage.removeItem('pravoceapp_pedidosVenda');
+            
+            log('🗑️ Dados limpos!', 'warning');
+            document.getElementById('dadosAtuais').innerHTML = '';
+            document.getElementById('resultadoFiltros').innerHTML = '';
+        }
+
+        // Inicializar
+        log('🚀 Debug de Ordens de Compra iniciado', 'info');
+        verificarDados();
+    </script>
+</body>
+</html>

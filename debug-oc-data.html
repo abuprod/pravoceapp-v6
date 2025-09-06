@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Dados das Ordens de Compra</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .oc-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .oc-item h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .oc-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            font-size: 14px;
+        }
+        .oc-details div {
+            padding: 5px;
+            background: white;
+            border-radius: 3px;
+        }
+        .label {
+            font-weight: bold;
+            color: #666;
+        }
+        .value {
+            color: #333;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug - Dados das Ordens de Compra</h1>
+        <button onclick="carregarDados()">🔄 Recarregar Dados</button>
+        <button onclick="limparDados()">🗑️ Limpar Dados de Teste</button>
+        <button onclick="criarDadosTeste()">➕ Criar Dados de Teste</button>
+    </div>
+
+    <div id="resultado" class="container">
+        <h2>📊 Resultado da Análise</h2>
+        <div id="analise"></div>
+    </div>
+
+    <div id="ordens" class="container">
+        <h2>📋 Ordens de Compra Encontradas</h2>
+        <div id="lista-ordens"></div>
+    </div>
+
+    <script>
+        function carregarDados() {
+            console.log('🔍 Carregando dados das ordens de compra...');
+            
+            try {
+                const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+                console.log('📦 Ordens encontradas:', ordensSalvas);
+                
+                // Análise dos dados
+                let analise = '<h3>📈 Análise dos Dados:</h3>';
+                analise += `<p><strong>Total de ordens:</strong> ${ordensSalvas.length}</p>`;
+                
+                if (ordensSalvas.length === 0) {
+                    analise += '<p class="error">❌ Nenhuma ordem de compra encontrada!</p>';
+                    analise += '<p>💡 Dica: Crie um pedido de venda com produtos SE para gerar ordens automaticamente.</p>';
+                } else {
+                    // Verificar IDs
+                    const ids = ordensSalvas.map(o => o.id);
+                    const idsUnicos = [...new Set(ids)];
+                    analise += `<p><strong>IDs únicos:</strong> ${idsUnicos.length} de ${ids.length}</p>`;
+                    
+                    if (ids.length !== idsUnicos.length) {
+                        analise += '<p class="error">⚠️ IDs duplicados encontrados!</p>';
+                    } else {
+                        analise += '<p class="success">✅ Todos os IDs são únicos</p>';
+                    }
+                    
+                    // Verificar tipos
+                    const tipos = ordensSalvas.map(o => o.tipo);
+                    const tiposUnicos = [...new Set(tipos)];
+                    analise += `<p><strong>Tipos encontrados:</strong> ${tiposUnicos.join(', ')}</p>`;
+                    
+                    // Verificar ordens automáticas
+                    const ordensAutomaticas = ordensSalvas.filter(o => o.origem === 'pedido_venda_automatico');
+                    analise += `<p><strong>Ordens automáticas:</strong> ${ordensAutomaticas.length}</p>`;
+                    
+                    // Verificar problemas comuns
+                    const problemas = [];
+                    ordensSalvas.forEach((ordem, index) => {
+                        if (!ordem.id) problemas.push(`Ordem ${index}: ID ausente`);
+                        if (!ordem.tipo) problemas.push(`Ordem ${index}: Tipo ausente`);
+                        if (!ordem.oc) problemas.push(`Ordem ${index}: OC ausente`);
+                        if (typeof ordem.id !== 'number') problemas.push(`Ordem ${index}: ID não é número (${typeof ordem.id})`);
+                    });
+                    
+                    if (problemas.length > 0) {
+                        analise += '<h4>⚠️ Problemas Encontrados:</h4><ul>';
+                        problemas.forEach(p => analise += `<li class="error">${p}</li>`);
+                        analise += '</ul>';
+                    } else {
+                        analise += '<p class="success">✅ Nenhum problema estrutural encontrado</p>';
+                    }
+                }
+                
+                document.getElementById('analise').innerHTML = analise;
+                
+                // Listar ordens
+                let listaOrdens = '';
+                if (ordensSalvas.length === 0) {
+                    listaOrdens = '<p>Nenhuma ordem encontrada.</p>';
+                } else {
+                    ordensSalvas.forEach((ordem, index) => {
+                        listaOrdens += `
+                            <div class="oc-item">
+                                <h3>Ordem ${index + 1} - ID: ${ordem.id} (${typeof ordem.id})</h3>
+                                <div class="oc-details">
+                                    <div><span class="label">OC:</span> <span class="value">${ordem.oc || 'N/A'}</span></div>
+                                    <div><span class="label">Tipo:</span> <span class="value">${ordem.tipo || 'N/A'}</span></div>
+                                    <div><span class="label">Status:</span> <span class="value">${ordem.status || 'N/A'}</span></div>
+                                    <div><span class="label">Fornecedor:</span> <span class="value">${ordem.fornecedor || 'N/A'}</span></div>
+                                    <div><span class="label">Pedido Vinculado:</span> <span class="value">${ordem.pedidoVinculado || 'N/A'}</span></div>
+                                    <div><span class="label">Origem:</span> <span class="value">${ordem.origem || 'Manual'}</span></div>
+                                    <div><span class="label">Data Criação:</span> <span class="value">${ordem.dataCriacao || 'N/A'}</span></div>
+                                    <div><span class="label">Itens:</span> <span class="value">${ordem.itens ? ordem.itens.length : 0}</span></div>
+                                </div>
+                                <div style="margin-top: 10px;">
+                                    <button onclick="testarEdicao(${ordem.id})">🔧 Testar Edição</button>
+                                    <button onclick="verDetalhes(${ordem.id})">👁️ Ver Detalhes</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                document.getElementById('lista-ordens').innerHTML = listaOrdens;
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar dados:', error);
+                document.getElementById('analise').innerHTML = `<p class="error">❌ Erro ao carregar dados: ${error.message}</p>`;
+            }
+        }
+        
+        function testarEdicao(id) {
+            console.log(`🔧 Testando edição da ordem ID: ${id} (tipo: ${typeof id})`);
+            
+            // Simular o que acontece no componente
+            const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+            const ordemParaEditar = ordensSalvas.find(ordem => ordem.id === parseInt(id));
+            
+            console.log('🔍 Buscando ordem com ID:', id);
+            console.log('📦 Ordens disponíveis:', ordensSalvas.map(o => ({ id: o.id, tipo: typeof o.id })));
+            console.log('🎯 Ordem encontrada:', ordemParaEditar);
+            
+            if (ordemParaEditar) {
+                alert(`✅ Ordem encontrada!\n\nID: ${ordemParaEditar.id}\nOC: ${ordemParaEditar.oc}\nTipo: ${ordemParaEditar.tipo}\n\nA edição deveria funcionar normalmente.`);
+            } else {
+                alert(`❌ Ordem não encontrada!\n\nID buscado: ${id}\nTipo do ID: ${typeof id}\n\nIsso pode ser o problema!`);
+            }
+        }
+        
+        function verDetalhes(id) {
+            const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+            const ordem = ordensSalvas.find(o => o.id === parseInt(id));
+            
+            if (ordem) {
+                console.log('📋 Detalhes da ordem:', ordem);
+                alert(`Detalhes da Ordem ${id}:\n\n${JSON.stringify(ordem, null, 2)}`);
+            }
+        }
+        
+        function criarDadosTeste() {
+            const dadosTeste = {
+                id: Date.now(),
+                tipo: 'cliente',
+                status: 'Em aberto',
+                dataVenda: new Date().toISOString().split('T')[0],
+                dataEncomenda: '',
+                oc: 'A-0001',
+                numero: 'A-0001',
+                pedidoVinculado: 'TESTE-001',
+                vendedor: 'Vendedor Teste',
+                prazoFinal: '2025-12-31',
+                fabrica: 'Fábrica Teste',
+                fornecedor: 'Fornecedor Teste',
+                fornecedorNome: 'Fornecedor Teste',
+                data: new Date().toISOString().split('T')[0],
+                valor: 1000,
+                itens: [],
+                entradas: [],
+                datasEntrega: [],
+                origem: 'pedido_venda_automatico',
+                pedidoVendaId: 123,
+                cliente: 'Cliente Teste',
+                clienteId: 456,
+                clienteCpfCnpj: '12345678901',
+                clienteEmail: 'teste@email.com',
+                clienteTelefone: '11999999999',
+                valorTotal: 1000,
+                quantidadeItens: 0,
+                quantidadeTotal: 0,
+                dataCriacao: new Date().toISOString(),
+                criadoPor: 'Sistema Automático',
+                ultimaAtualizacao: new Date().toISOString()
+            };
+            
+            const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+            ordensExistentes.push(dadosTeste);
+            localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+            
+            alert('✅ Dados de teste criados!');
+            carregarDados();
+        }
+        
+        function limparDados() {
+            if (confirm('Tem certeza que deseja limpar todos os dados de teste?')) {
+                localStorage.removeItem('ordensCompra');
+                alert('🗑️ Dados limpos!');
+                carregarDados();
+            }
+        }
+        
+        // Carregar dados automaticamente ao abrir a página
+        window.onload = function() {
+            carregarDados();
+        };
+    </script>
+</body>
+</html>

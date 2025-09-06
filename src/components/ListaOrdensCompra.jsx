@@ -104,8 +104,8 @@ const ListaOrdensCompra = () => {
   const filteredAndSortedOrdens = ordensCompra
     .filter(ordem => {
       const matchesSearch = 
-    ordem.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ordem.fornecedor.toLowerCase().includes(searchTerm.toLowerCase());
+        (ordem.numero || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (ordem.fornecedor || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesTipo = !filters.tipo || ordem.tipo === filters.tipo;
       
@@ -113,13 +113,13 @@ const ListaOrdensCompra = () => {
         filters.status.includes(ordem.status);
       
       const matchesFornecedor = !filters.fornecedor || 
-        ordem.fornecedor.toLowerCase().includes(filters.fornecedor.toLowerCase());
+        (ordem.fornecedor || '').toLowerCase().includes(filters.fornecedor.toLowerCase());
       
       const matchesData = (!filters.dataInicio || new Date(ordem.data) >= new Date(filters.dataInicio)) &&
         (!filters.dataFim || new Date(ordem.data) <= new Date(filters.dataFim));
 
-      const matchesValor = (!filters.valorMin || ordem.valor >= parseFloat(filters.valorMin)) &&
-        (!filters.valorMax || ordem.valor <= parseFloat(filters.valorMax));
+      const matchesValor = (!filters.valorMin || (ordem.valor || 0) >= parseFloat(filters.valorMin)) &&
+        (!filters.valorMax || (ordem.valor || 0) <= parseFloat(filters.valorMax));
 
       return matchesSearch && matchesTipo && matchesStatus && matchesFornecedor && matchesData && matchesValor;
     })
@@ -141,7 +141,21 @@ const ListaOrdensCompra = () => {
     });
 
   const handleEdit = (id) => {
-    navigate(`/ordens-compra/editar/${id}`);
+    console.log('🔧 === TESTE DE EDIÇÃO ===');
+    console.log('📋 ID recebido:', id, 'Tipo:', typeof id);
+    console.log('🔗 Navegando para:', `/ordens-compra/editar/${id}`);
+    
+    // Verificar se a ordem existe antes de navegar
+    const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemExiste = ordensSalvas.find(ordem => ordem.id == id); // Usar == em vez de === para comparação flexível
+    
+    if (ordemExiste) {
+      console.log('✅ Ordem encontrada, navegando...');
+      navigate(`/ordens-compra/editar/${id}`);
+    } else {
+      console.log('❌ Ordem não encontrada!');
+      alert(`Erro: Ordem com ID ${id} não encontrada!\n\nIDs disponíveis: ${ordensSalvas.map(o => o.id).join(', ')}`);
+    }
   };
 
   const handleView = (id) => {
@@ -484,6 +498,15 @@ const ListaOrdensCompra = () => {
                   {getSortIcon('prazoFinal')}
                 </div>
               </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort('pedidoVinculado')}
+              >
+                <div className="flex items-center">
+                  PED
+                  {getSortIcon('pedidoVinculado')}
+                </div>
+              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
 Ações
               </th>
@@ -491,29 +514,32 @@ Ações
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredAndSortedOrdens.map((ordem) => (
-              <tr key={ordem.id} className="hover:bg-gray-50">
+              <tr key={ordem.id || Date.now()} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {ordem.numero}
+                  {ordem.numero || ordem.oc || '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.tipo.charAt(0).toUpperCase() + ordem.tipo.slice(1)}
+                  {ordem.tipo ? ordem.tipo.charAt(0).toUpperCase() + ordem.tipo.slice(1) : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(ordem.data).toLocaleDateString('pt-BR')}
+                  {ordem.data ? new Date(ordem.data).toLocaleDateString('pt-BR') : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.fornecedor}
+                  {ordem.fornecedor || ordem.fornecedorNome || '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(ordem.status)}`}>
-                    {ordem.status.toUpperCase()}
+                    {(ordem.status || 'Em aberto').toUpperCase()}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  R$ {ordem.valor.toFixed(2)}
+                  R$ {(ordem.valor || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {ordem.prazoFinal ? new Date(ordem.prazoFinal).toLocaleDateString('pt-BR') : '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {ordem.pedidoVinculado || '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button

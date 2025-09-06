@@ -30,6 +30,12 @@ const globalStyles = `
 const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  console.log('🚀 === NOVA ORDEM COMPRA RENDERIZADA ===');
+  console.log('📋 Props recebidas:', { tipoPreSelecionado });
+  console.log('🔗 Parâmetros da URL:', { id });
+  console.log('📍 URL atual:', window.location.href);
+  
   const [formData, setFormData] = useState({
     tipo: tipoPreSelecionado || '',
     status: 'aberto',
@@ -59,6 +65,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   const [pedidoOriginal, setPedidoOriginal] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [showChangesAlert, setShowChangesAlert] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [expandedItems, setExpandedItems] = useState({});
   const [nextOC, setNextOC] = useState('A-0001');
@@ -102,6 +109,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     let prefixo = '';
     switch (tipo) {
       case 'cliente':
+      case 'encomenda': // Ordens de compra de encomenda também usam prefixo A-
         prefixo = 'A-';
         break;
       case 'estoque':
@@ -140,26 +148,54 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
   // Carregar dados da ordem se estiver em modo de edição
   useEffect(() => {
-    if (id) {
-      const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-      const ordemParaEditar = ordensSalvas.find(ordem => ordem.id === parseInt(id));
+    try {
+      console.log('🔍 === DEBUG EDITION LOADING ===');
+      console.log('📋 ID recebido:', id, 'Tipo:', typeof id);
       
-      if (ordemParaEditar) {
-        console.log('Ordem encontrada para edição:', ordemParaEditar);
-        // Mapear fornecedorId para fornecedor se existir
-        const dadosParaEditar = {
-          ...ordemParaEditar,
-          fornecedor: ordemParaEditar.fornecedorId || ordemParaEditar.fornecedor || '',
-          fornecedorNome: ordemParaEditar.fornecedorNome || ordemParaEditar.fornecedor || ''
-        };
+      if (id) {
+        setIsLoading(true);
+        console.log('⏳ Iniciando carregamento...');
         
-        console.log('Dados mapeados para edição:', dadosParaEditar);
-        setFormData(dadosParaEditar);
-        setPedidoOriginal(dadosParaEditar);
+        const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+        console.log('📦 Ordens salvas encontradas:', ordensSalvas.length);
+        console.log('📋 IDs disponíveis:', ordensSalvas.map(o => ({ id: o.id, tipo: typeof o.id })));
+        
+        const idNumerico = parseFloat(id); // Usar parseFloat para manter decimais se necessário
+        console.log('🔢 ID convertido para número:', idNumerico);
+        
+        const ordemParaEditar = ordensSalvas.find(ordem => ordem.id == idNumerico); // Usar == para comparação flexível
+        console.log('🎯 Ordem encontrada:', ordemParaEditar);
+        
+        if (ordemParaEditar) {
+          console.log('✅ Ordem encontrada para edição:', ordemParaEditar);
+          // Mapear fornecedorId para fornecedor se existir
+          const dadosParaEditar = {
+            ...ordemParaEditar,
+            fornecedor: ordemParaEditar.fornecedorId || ordemParaEditar.fornecedor || '',
+            fornecedorNome: ordemParaEditar.fornecedorNome || ordemParaEditar.fornecedor || '',
+            // Garantir que o tipo seja sempre definido
+            tipo: ordemParaEditar.tipo || 'cliente'
+          };
+          
+          console.log('📋 Dados mapeados para edição:', dadosParaEditar);
+          setFormData(dadosParaEditar);
+          setPedidoOriginal(dadosParaEditar);
+          console.log('✅ FormData atualizado com sucesso');
+        } else {
+          console.log('❌ Ordem não encontrada! Redirecionando...');
+          // Se não encontrar a ordem, redireciona para a lista
+          navigate('/ordens-compra');
+        }
+        setIsLoading(false);
+        console.log('⏳ Carregamento finalizado');
       } else {
-        // Se não encontrar a ordem, redireciona para a lista
-        navigate('/ordens-compra');
+        console.log('ℹ️ Nenhum ID fornecido, modo de criação');
       }
+    } catch (error) {
+      console.error('❌ ERRO NO CARREGAMENTO:', error);
+      console.error('📋 Stack trace:', error.stack);
+      setIsLoading(false);
+      alert(`Erro ao carregar ordem de compra: ${error.message}`);
     }
   }, [id, navigate]);
 
@@ -1355,6 +1391,27 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     }
   }, [campoProdutoAtivo]);
 
+  // Mostrar loading enquanto carrega dados de edição
+  if (isLoading) {
+    return (
+      <div className="w-full px-2">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando ordem de compra...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Debug: Verificar se há erro de renderização
+  console.log('🎨 === RENDERIZAÇÃO ===');
+  console.log('📋 formData.tipo:', formData.tipo);
+  console.log('🔗 id:', id);
+  console.log('⏳ isLoading:', isLoading);
+  console.log('📍 URL atual:', window.location.href);
+
   return (
     <div className="w-full px-2">
       <div className="flex justify-between items-center mb-4">
@@ -1401,7 +1458,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       </div>
 
       {/* Seletor de Tipo quando nenhum tipo estiver selecionado */}
-      {!formData.tipo && (
+      {!formData.tipo && !id && (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
           <h2 className="text-2xl font-semibold text-gray-700 mb-6">Selecione o tipo de Ordem de Compra</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1463,7 +1520,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       )}
 
       {/* Formulários só aparecem quando um tipo for selecionado */}
-      {formData.tipo && (
+      {(formData.tipo || id) && (
         <div className="bg-white rounded-lg shadow-md p-4">
           {/* Seção 2 - Formulário de Cliente */}
           {formData.tipo === 'cliente' && (

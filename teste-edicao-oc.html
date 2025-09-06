@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Direto - Edição de OC</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste Direto - Edição de Ordem de Compra</h1>
+        <p>Este teste simula exatamente o que acontece quando você clica em "Editar" uma OC.</p>
+        
+        <button onclick="testarEdicaoCompleta()">🔧 Testar Edição Completa</button>
+        <button onclick="criarOCTeste()">➕ Criar OC de Teste</button>
+        <button onclick="limparLogs()">🗑️ Limpar Logs</button>
+    </div>
+
+    <div class="container">
+        <h2>📋 Logs de Teste</h2>
+        <div id="logs" class="log">Clique em "Testar Edição Completa" para começar...</div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Resultado</h2>
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        let logs = [];
+        
+        function adicionarLog(mensagem, tipo = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${mensagem}`;
+            logs.push({ mensagem: logEntry, tipo });
+            
+            const logsDiv = document.getElementById('logs');
+            logsDiv.innerHTML = logs.map(log => {
+                const classe = log.tipo === 'error' ? 'error' : log.tipo === 'success' ? 'success' : '';
+                return `<div class="${classe}">${log.mensagem}</div>`;
+            }).join('\n');
+            
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(logEntry);
+        }
+        
+        function limparLogs() {
+            logs = [];
+            document.getElementById('logs').innerHTML = 'Logs limpos...';
+            document.getElementById('resultado').innerHTML = '';
+        }
+        
+        function criarOCTeste() {
+            adicionarLog('🔧 Criando OC de teste...');
+            
+            const ocTeste = {
+                id: Date.now(),
+                tipo: 'cliente',
+                status: 'Em aberto',
+                dataVenda: new Date().toISOString().split('T')[0],
+                dataEncomenda: '',
+                oc: 'A-9999',
+                numero: 'A-9999',
+                pedidoVinculado: 'TESTE-999',
+                vendedor: 'Vendedor Teste',
+                prazoFinal: '2025-12-31',
+                fabrica: 'Fábrica Teste',
+                fornecedor: 'Fornecedor Teste',
+                fornecedorNome: 'Fornecedor Teste',
+                data: new Date().toISOString().split('T')[0],
+                valor: 1000,
+                itens: [],
+                entradas: [],
+                datasEntrega: [],
+                origem: 'pedido_venda_automatico',
+                pedidoVendaId: 999,
+                cliente: 'Cliente Teste',
+                clienteId: 999,
+                clienteCpfCnpj: '12345678901',
+                clienteEmail: 'teste@email.com',
+                clienteTelefone: '11999999999',
+                valorTotal: 1000,
+                quantidadeItens: 0,
+                quantidadeTotal: 0,
+                dataCriacao: new Date().toISOString(),
+                criadoPor: 'Sistema Automático',
+                ultimaAtualizacao: new Date().toISOString()
+            };
+            
+            const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+            ordensExistentes.push(ocTeste);
+            localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+            
+            adicionarLog(`✅ OC de teste criada com ID: ${ocTeste.id}`, 'success');
+            adicionarLog(`📋 OC: ${ocTeste.oc}, Tipo: ${ocTeste.tipo}`);
+        }
+        
+        function testarEdicaoCompleta() {
+            adicionarLog('🚀 === INICIANDO TESTE DE EDIÇÃO COMPLETA ===');
+            
+            // Passo 1: Verificar ordens existentes
+            adicionarLog('📋 Passo 1: Verificando ordens existentes...');
+            const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+            adicionarLog(`📦 Total de ordens encontradas: ${ordensSalvas.length}`);
+            
+            if (ordensSalvas.length === 0) {
+                adicionarLog('❌ Nenhuma ordem encontrada! Criando uma de teste...', 'error');
+                criarOCTeste();
+                return testarEdicaoCompleta(); // Recursão para testar após criar
+            }
+            
+            // Passo 2: Selecionar primeira ordem
+            const ordemParaTeste = ordensSalvas[0];
+            adicionarLog(`🎯 Testando com ordem: ID ${ordemParaTeste.id}, OC ${ordemParaTeste.oc}`);
+            
+            // Passo 3: Simular clique no botão Editar
+            adicionarLog('🔧 Passo 2: Simulando clique no botão Editar...');
+            adicionarLog(`📋 ID recebido: ${ordemParaTeste.id}, Tipo: ${typeof ordemParaTeste.id}`);
+            adicionarLog(`🔗 URL de destino: /ordens-compra/editar/${ordemParaTeste.id}`);
+            
+            // Passo 4: Verificar se ordem existe (como no código atual)
+            adicionarLog('🔍 Passo 3: Verificando se ordem existe...');
+            const ordemExiste = ordensSalvas.find(ordem => ordem.id === parseInt(ordemParaTeste.id));
+            
+            if (ordemExiste) {
+                adicionarLog('✅ Ordem encontrada!', 'success');
+                adicionarLog(`📋 Dados da ordem: ${JSON.stringify(ordemExiste, null, 2)}`);
+                
+                // Passo 5: Simular navegação
+                adicionarLog('🚀 Passo 4: Simulando navegação...');
+                adicionarLog('📍 Tentando navegar para: /ordens-compra/editar/' + ordemParaTeste.id);
+                
+                // Simular o que acontece no componente NovaOrdemCompra
+                adicionarLog('🔍 Passo 5: Simulando carregamento no componente NovaOrdemCompra...');
+                
+                const idNumerico = parseInt(ordemParaTeste.id);
+                adicionarLog(`🔢 ID convertido para número: ${idNumerico}`);
+                
+                const ordemParaEditar = ordensSalvas.find(ordem => ordem.id === idNumerico);
+                
+                if (ordemParaEditar) {
+                    adicionarLog('✅ Ordem encontrada no componente!', 'success');
+                    
+                    // Simular mapeamento de dados
+                    const dadosParaEditar = {
+                        ...ordemParaEditar,
+                        fornecedor: ordemParaEditar.fornecedorId || ordemParaEditar.fornecedor || '',
+                        fornecedorNome: ordemParaEditar.fornecedorNome || ordemParaEditar.fornecedor || '',
+                        tipo: ordemParaEditar.tipo || 'cliente'
+                    };
+                    
+                    adicionarLog('📋 Dados mapeados para edição:');
+                    adicionarLog(JSON.stringify(dadosParaEditar, null, 2));
+                    
+                    // Verificar se todos os campos necessários estão presentes
+                    const camposObrigatorios = ['id', 'tipo', 'oc', 'status'];
+                    const camposFaltando = camposObrigatorios.filter(campo => !dadosParaEditar[campo]);
+                    
+                    if (camposFaltando.length === 0) {
+                        adicionarLog('✅ Todos os campos obrigatórios estão presentes!', 'success');
+                        adicionarLog('🎉 TESTE CONCLUÍDO COM SUCESSO!', 'success');
+                        adicionarLog('💡 A edição deveria funcionar normalmente.');
+                        
+                        document.getElementById('resultado').innerHTML = `
+                            <div class="success">
+                                <h3>✅ Teste Passou!</h3>
+                                <p>A ordem de compra tem todos os dados necessários para edição.</p>
+                                <p><strong>ID:</strong> ${dadosParaEditar.id}</p>
+                                <p><strong>OC:</strong> ${dadosParaEditar.oc}</p>
+                                <p><strong>Tipo:</strong> ${dadosParaEditar.tipo}</p>
+                                <p><strong>Status:</strong> ${dadosParaEditar.status}</p>
+                            </div>
+                        `;
+                    } else {
+                        adicionarLog(`❌ Campos obrigatórios faltando: ${camposFaltando.join(', ')}`, 'error');
+                        
+                        document.getElementById('resultado').innerHTML = `
+                            <div class="error">
+                                <h3>❌ Problema Encontrado!</h3>
+                                <p>Campos obrigatórios faltando: ${camposFaltando.join(', ')}</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    adicionarLog('❌ Ordem não encontrada no componente!', 'error');
+                    
+                    document.getElementById('resultado').innerHTML = `
+                        <div class="error">
+                            <h3>❌ Problema Encontrado!</h3>
+                            <p>A ordem não foi encontrada durante o carregamento do componente.</p>
+                        </div>
+                    `;
+                }
+            } else {
+                adicionarLog('❌ Ordem não encontrada!', 'error');
+                
+                document.getElementById('resultado').innerHTML = `
+                    <div class="error">
+                        <h3>❌ Problema Encontrado!</h3>
+                        <p>A ordem não foi encontrada no localStorage.</p>
+                    </div>
+                `;
+            }
+            
+            adicionarLog('🏁 === TESTE FINALIZADO ===');
+        }
+        
+        // Executar teste automaticamente ao carregar
+        window.onload = function() {
+            adicionarLog('📱 Página carregada. Pronto para testar!');
+        };
+    </script>
+</body>
+</html>

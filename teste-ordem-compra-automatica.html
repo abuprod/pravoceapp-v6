@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Ordem de Compra Automática</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .data-display {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste - Ordem de Compra Automática</h1>
+        <p>Este teste verifica se produtos SE são automaticamente convertidos em ordens de compra.</p>
+        
+        <div class="test-section">
+            <h3>📋 Dados de Teste</h3>
+            <button onclick="criarDadosTeste()">Criar Dados de Teste</button>
+            <button onclick="limparDados()">Limpar Dados</button>
+            <div id="dadosTeste" class="data-display"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🛒 Simular Pedido de Venda com Produtos SE</h3>
+            <button onclick="simularPedidoVenda()">Simular Pedido de Venda</button>
+            <div id="resultadoPedido" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Verificar Ordens de Compra Criadas</h3>
+            <button onclick="verificarOrdensCompra()">Verificar Ordens de Compra</button>
+            <div id="resultadoOrdens" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Log Completo</h3>
+            <button onclick="limparLog()">Limpar Log</button>
+            <div id="logCompleto" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(mensagem, tipo = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('logCompleto');
+            const colorClass = tipo === 'success' ? 'success' : 
+                             tipo === 'error' ? 'error' : 
+                             tipo === 'warning' ? 'warning' : 'info';
+            
+            logElement.innerHTML += `<span class="${colorClass}">[${timestamp}] ${mensagem}</span>\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function limparLog() {
+            document.getElementById('logCompleto').innerHTML = '';
+        }
+
+        function criarDadosTeste() {
+            log('🔧 Criando dados de teste...', 'info');
+            
+            // Criar produtos de teste
+            const produtosTeste = [
+                {
+                    id: 1,
+                    sku: 'SOF001',
+                    descricao: 'Sofá 3 Lugares',
+                    categoria: 'Sofás',
+                    fornecedor: 'Móveis ABC',
+                    fornecedorId: 1,
+                    estoque: {
+                        'LOJA': { quantidade: 5 },
+                        'DEPOSITO': { quantidade: 3 }
+                    },
+                    tabc: 2500.00
+                },
+                {
+                    id: 2,
+                    sku: 'MES001',
+                    descricao: 'Mesa de Jantar',
+                    categoria: 'Mesas',
+                    fornecedor: 'Móveis XYZ',
+                    fornecedorId: 2,
+                    estoque: {
+                        'LOJA': { quantidade: 2 },
+                        'DEPOSITO': { quantidade: 1 }
+                    },
+                    tabc: 1800.00
+                },
+                {
+                    id: 3,
+                    sku: 'POL001',
+                    descricao: 'Poltrona Especial',
+                    categoria: 'Poltronas',
+                    fornecedor: 'Móveis Premium',
+                    fornecedorId: 3,
+                    estoque: {},
+                    tabc: 3200.00
+                }
+            ];
+
+            // Criar fornecedores de teste
+            const fornecedoresTeste = [
+                { id: 1, nome: 'Móveis ABC', status: 'Ativo' },
+                { id: 2, nome: 'Móveis XYZ', status: 'Ativo' },
+                { id: 3, nome: 'Móveis Premium', status: 'Ativo' }
+            ];
+
+            // Criar cliente de teste
+            const clienteTeste = {
+                id: 1,
+                nome: 'João Silva',
+                cpfCnpj: '123.456.789-00',
+                email: 'joao@email.com',
+                telefone1: '(11) 99999-9999'
+            };
+
+            // Salvar no localStorage
+            localStorage.setItem('produtos_cadastrados', JSON.stringify(produtosTeste));
+            localStorage.setItem('fornecedores', JSON.stringify(fornecedoresTeste));
+            localStorage.setItem('clientes', JSON.stringify([clienteTeste]));
+            localStorage.setItem('ordensCompra', JSON.stringify([]));
+            localStorage.setItem('pravoceapp_pedidosVenda', JSON.stringify([]));
+
+            log('✅ Dados de teste criados com sucesso!', 'success');
+            log(`📦 Produtos: ${produtosTeste.length}`, 'info');
+            log(`🏢 Fornecedores: ${fornecedoresTeste.length}`, 'info');
+            log(`👤 Cliente: ${clienteTeste.nome}`, 'info');
+
+            // Mostrar dados criados
+            document.getElementById('dadosTeste').innerHTML = `
+                <strong>Produtos:</strong><br>
+                ${produtosTeste.map(p => `• ${p.descricao} (${p.sku}) - Fornecedor: ${p.fornecedor}`).join('<br>')}<br><br>
+                <strong>Cliente:</strong><br>
+                • ${clienteTeste.nome} (${clienteTeste.cpfCnpj})
+            `;
+        }
+
+        function simularPedidoVenda() {
+            log('🛒 Simulando pedido de venda com produtos SE...', 'info');
+            
+            // Simular dados do pedido
+            const dadosPedido = {
+                id: 1,
+                numeroPedido: 'PV-001',
+                cliente: 'João Silva',
+                clienteId: 1,
+                vendedor: 'Maria Santos',
+                dataVenda: new Date().toISOString().split('T')[0],
+                situacao: 'Em aberto',
+                produtos: [
+                    {
+                        produto: 'Sofá 3 Lugares',
+                        produtoId: 1,
+                        sl: 'LOJA',
+                        quantidade: 1,
+                        valorUnitario: 2500.00,
+                        observacoes: ''
+                    },
+                    {
+                        produto: 'Mesa de Jantar',
+                        produtoId: 2,
+                        sl: 'SE', // Produto SE - deve gerar ordem de compra
+                        quantidade: 1,
+                        valorUnitario: 1800.00,
+                        observacoes: 'Cor especial'
+                    },
+                    {
+                        produto: 'Poltrona Especial',
+                        produtoId: 3,
+                        sl: 'SE', // Produto SE - deve gerar ordem de compra
+                        quantidade: 2,
+                        valorUnitario: 3200.00,
+                        observacoes: 'Tecido premium'
+                    }
+                ]
+            };
+
+            log(`📋 Pedido: ${dadosPedido.numeroPedido}`, 'info');
+            log(`👤 Cliente: ${dadosPedido.cliente}`, 'info');
+            log(`📦 Total de produtos: ${dadosPedido.produtos.length}`, 'info');
+
+            // Identificar produtos SE
+            const produtosSE = dadosPedido.produtos.filter(p => p.sl === 'SE');
+            log(`🛒 Produtos SE encontrados: ${produtosSE.length}`, 'warning');
+            
+            produtosSE.forEach((produto, index) => {
+                log(`  ${index + 1}. ${produto.produto} - Qtd: ${produto.quantidade}`, 'warning');
+            });
+
+            // Simular criação da ordem de compra
+            criarOrdemCompraAutomatica(dadosPedido, produtosSE);
+
+            // Salvar pedido de venda
+            const pedidosExistentes = JSON.parse(localStorage.getItem('pravoceapp_pedidosVenda') || '[]');
+            pedidosExistentes.push(dadosPedido);
+            localStorage.setItem('pravoceapp_pedidosVenda', JSON.stringify(pedidosExistentes));
+
+            log('✅ Pedido de venda salvo!', 'success');
+            
+            document.getElementById('resultadoPedido').innerHTML = `
+                <strong>Pedido Simulado:</strong><br>
+                Número: ${dadosPedido.numeroPedido}<br>
+                Cliente: ${dadosPedido.cliente}<br>
+                Produtos: ${dadosPedido.produtos.length}<br>
+                Produtos SE: ${produtosSE.length}<br><br>
+                <strong>Produtos SE:</strong><br>
+                ${produtosSE.map(p => `• ${p.produto} (${p.quantidade}x)`).join('<br>')}
+            `;
+        }
+
+        function criarOrdemCompraAutomatica(dadosPedido, produtosSE) {
+            try {
+                log('🛒 === CRIANDO ORDEM DE COMPRA AUTOMÁTICA ===', 'info');
+                log(`📋 Pedido vinculado: ${dadosPedido.numeroPedido}`, 'info');
+                log(`📦 Produtos SE: ${produtosSE.length}`, 'info');
+
+                // Buscar próxima OC disponível
+                const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+                const ultimaOC = ordensExistentes.reduce((max, oc) => {
+                    const numero = parseInt(oc.oc?.replace('A-', '') || '0');
+                    return numero > max ? numero : max;
+                }, 0);
+                const proximaOC = `A-${String(ultimaOC + 1).padStart(4, '0')}`;
+
+                log(`🔢 Próxima OC: ${proximaOC}`, 'info');
+
+                // Carregar produtos cadastrados
+                const produtosCadastrados = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+
+                // Preparar itens da ordem de compra
+                const itensOrdemCompra = produtosSE.map(produto => {
+                    // Buscar informações do produto cadastrado
+                    const produtoCadastrado = produtosCadastrados.find(p => p.id === produto.produtoId);
+                    
+                    const item = {
+                        produto: produto.produto,
+                        produtoId: produto.produtoId,
+                        quantidade: parseInt(produto.quantidade) || 1,
+                        valorUnitario: produto.valorUnitario || (produtoCadastrado?.tabc || 0),
+                        valorTotal: (parseInt(produto.quantidade) || 1) * (produto.valorUnitario || (produtoCadastrado?.tabc || 0)),
+                        fornecedor: produtoCadastrado?.fornecedor || '',
+                        fornecedorId: produtoCadastrado?.fornecedorId || '',
+                        observacoes: produto.observacoes || '',
+                        status: 'pendente'
+                    };
+
+                    log(`📦 Item: ${item.produto} - Qtd: ${item.quantidade} - Valor: R$ ${item.valorTotal.toFixed(2)}`, 'info');
+                    return item;
+                });
+
+                // Calcular valor total da ordem
+                const valorTotal = itensOrdemCompra.reduce((total, item) => total + item.valorTotal, 0);
+
+                // Determinar fornecedor principal (mais frequente)
+                const fornecedoresCount = {};
+                itensOrdemCompra.forEach(item => {
+                    if (item.fornecedor) {
+                        fornecedoresCount[item.fornecedor] = (fornecedoresCount[item.fornecedor] || 0) + 1;
+                    }
+                });
+                const fornecedorPrincipal = Object.keys(fornecedoresCount).reduce((a, b) => 
+                    fornecedoresCount[a] > fornecedoresCount[b] ? a : b, '');
+
+                // Criar dados da ordem de compra
+                const dadosOrdemCompra = {
+                    id: Date.now(), // ID único para a ordem
+                    tipo: 'encomenda',
+                    status: 'Em aberto', // Status compatível com ListaOrdensCompra
+                    dataVenda: dadosPedido.dataVenda || new Date().toISOString().split('T')[0],
+                    dataEncomenda: new Date().toISOString().split('T')[0],
+                    oc: proximaOC,
+                    numero: proximaOC, // Campo necessário para ListaOrdensCompra
+                    pedidoVinculado: dadosPedido.numeroPedido,
+                    vendedor: dadosPedido.vendedor || '',
+                    obsNaoEntregue: '',
+                    prazoFinal: '',
+                    dataEntradaDeposito: '',
+                    documentoFabrica: '',
+                    entregaCliente: '',
+                    prazoPagamento: '',
+                    observacoes: `Ordem de compra gerada automaticamente para o pedido de venda ${dadosPedido.numeroPedido}`,
+                    observacoesInternas: `Cliente: ${dadosPedido.cliente}\nPedido: ${dadosPedido.numeroPedido}`,
+                    itens: itensOrdemCompra,
+                    fabrica: '',
+                    fornecedor: fornecedorPrincipal || 'Múltiplos fornecedores', // Campo necessário para ListaOrdensCompra
+                    fornecedorNome: fornecedorPrincipal || 'Múltiplos fornecedores',
+                    data: new Date().toISOString().split('T')[0],
+                    valor: valorTotal, // Campo necessário para ListaOrdensCompra
+                    entradas: [],
+                    datasEntrega: [],
+                    // Campos adicionais para controle
+                    origem: 'pedido_venda_automatico',
+                    pedidoVendaId: dadosPedido.id,
+                    cliente: dadosPedido.cliente,
+                    clienteId: dadosPedido.clienteId
+                };
+
+                log('📋 Dados da ordem de compra preparados', 'info');
+
+                // Salvar ordem de compra
+                const ordensAtualizadas = [...ordensExistentes, dadosOrdemCompra];
+                localStorage.setItem('ordensCompra', JSON.stringify(ordensAtualizadas));
+
+                log('✅ Ordem de compra criada com sucesso!', 'success');
+                log(`📋 OC: ${proximaOC}`, 'success');
+                log(`📦 Itens: ${itensOrdemCompra.length}`, 'success');
+                log(`🔗 Vinculada ao pedido: ${dadosPedido.numeroPedido}`, 'success');
+
+                return true;
+
+            } catch (error) {
+                log(`❌ Erro ao criar ordem de compra automática: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        function verificarOrdensCompra() {
+            log('📊 Verificando ordens de compra criadas...', 'info');
+            
+            const ordensCompra = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+            log(`📋 Total de ordens de compra: ${ordensCompra.length}`, 'info');
+
+            if (ordensCompra.length === 0) {
+                log('⚠️ Nenhuma ordem de compra encontrada', 'warning');
+                document.getElementById('resultadoOrdens').innerHTML = 'Nenhuma ordem de compra encontrada.';
+                return;
+            }
+
+            ordensCompra.forEach((ordem, index) => {
+                log(`📋 OC ${index + 1}: ${ordem.oc}`, 'info');
+                log(`   Tipo: ${ordem.tipo}`, 'info');
+                log(`   Status: ${ordem.status}`, 'info');
+                log(`   Pedido vinculado: ${ordem.pedidoVinculado}`, 'info');
+                log(`   Cliente: ${ordem.cliente}`, 'info');
+                log(`   Itens: ${ordem.itens.length}`, 'info');
+                log(`   Origem: ${ordem.origem}`, 'info');
+                
+                ordem.itens.forEach((item, itemIndex) => {
+                    log(`     ${itemIndex + 1}. ${item.produto} - Qtd: ${item.quantidade} - Valor: R$ ${item.valorTotal.toFixed(2)}`, 'info');
+                });
+            });
+
+            // Mostrar resultado
+            const html = ordensCompra.map(ordem => `
+                <div style="border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                    <strong>OC: ${ordem.oc}</strong><br>
+                    Tipo: ${ordem.tipo}<br>
+                    Status: ${ordem.status}<br>
+                    Pedido vinculado: ${ordem.pedidoVinculado}<br>
+                    Cliente: ${ordem.cliente}<br>
+                    Origem: ${ordem.origem}<br>
+                    <strong>Itens (${ordem.itens.length}):</strong><br>
+                    ${ordem.itens.map(item => `• ${item.produto} - Qtd: ${item.quantidade} - Valor: R$ ${item.valorTotal.toFixed(2)}`).join('<br>')}
+                </div>
+            `).join('');
+
+            document.getElementById('resultadoOrdens').innerHTML = html;
+        }
+
+        function limparDados() {
+            localStorage.removeItem('produtos_cadastrados');
+            localStorage.removeItem('fornecedores');
+            localStorage.removeItem('clientes');
+            localStorage.removeItem('ordensCompra');
+            localStorage.removeItem('pravoceapp_pedidosVenda');
+            
+            log('🗑️ Dados limpos!', 'warning');
+            document.getElementById('dadosTeste').innerHTML = '';
+            document.getElementById('resultadoPedido').innerHTML = '';
+            document.getElementById('resultadoOrdens').innerHTML = '';
+        }
+
+        // Inicializar
+        log('🚀 Teste de Ordem de Compra Automática iniciado', 'info');
+    </script>
+</body>
+</html>
