@@ -1575,7 +1575,7 @@ const NovoPedidoVenda = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Situação</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                   <select
                     name="situacao"
                     value={formData.situacao}

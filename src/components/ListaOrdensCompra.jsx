@@ -13,6 +13,7 @@ const ListaOrdensCompra = () => {
   const [filters, setFilters] = useState({
     tipo: '',
     status: [],
+    statusInput: '',
     dataInicio: '',
     dataFim: '',
     fornecedor: '',
@@ -21,8 +22,20 @@ const ListaOrdensCompra = () => {
   });
   const [ordensCompra, setOrdensCompra] = useState([]);
 
-  const tipoOptions = ['Cliente', 'Estoque', 'Assistência'];
-  const statusOptions = ['Em aberto', 'Encomendado', 'Enviada', 'Recebida', 'Cancelada'];
+  const tipoOptions = ['cliente', 'estoque', 'assistencia'];
+  const statusOptions = [
+    'Em aberto', 
+    'Aprovado', 
+    'Encomendado', 
+    'Em depósito', 
+    'Aguardando outra oc', 
+    'Agendado', 
+    'Entregue parcial', 
+    'Entregue', 
+    'Não entregue (ter obs)', 
+    'Cancelado', 
+    'Outro (ter obs)'
+  ];
 
   // Carregar ordens do localStorage ao montar o componente
   useEffect(() => {
@@ -79,6 +92,7 @@ const ListaOrdensCompra = () => {
     setFilters({
       tipo: '',
       status: [],
+      statusInput: '',
       dataInicio: '',
       dataFim: '',
       fornecedor: '',
@@ -163,14 +177,26 @@ const ListaOrdensCompra = () => {
     switch (status.toLowerCase()) {
       case 'em aberto':
         return 'bg-yellow-100 text-yellow-800';
+      case 'aprovado':
+        return 'bg-green-100 text-green-800';
       case 'encomendado':
-        return 'bg-green-100 text-green-800';
-      case 'enviada':
         return 'bg-blue-100 text-blue-800';
-      case 'recebida':
+      case 'em depósito':
+        return 'bg-purple-100 text-purple-800';
+      case 'aguardando outra oc':
+        return 'bg-orange-100 text-orange-800';
+      case 'agendado':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'entregue parcial':
+        return 'bg-cyan-100 text-cyan-800';
+      case 'entregue':
         return 'bg-green-100 text-green-800';
-      case 'cancelada':
+      case 'não entregue (ter obs)':
         return 'bg-red-100 text-red-800';
+      case 'cancelado':
+        return 'bg-red-100 text-red-800';
+      case 'outro (ter obs)':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -221,7 +247,7 @@ const ListaOrdensCompra = () => {
                 >
                   <option value="">Todos</option>
                   {tipoOptions.map(tipo => (
-                    <option key={tipo} value={tipo}>{tipo}</option>
+                    <option key={tipo} value={tipo}>{tipo.charAt(0).toUpperCase() + tipo.slice(1)}</option>
                   ))}
                 </select>
               </div>
@@ -229,18 +255,82 @@ const ListaOrdensCompra = () => {
               {/* Filtro de Status */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {statusOptions.map(status => (
-                    <label key={status} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={filters.status.includes(status)}
-                        onChange={() => handleFilterChange('status', status)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">{status}</span>
-                    </label>
-                  ))}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={filters.statusInput || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFilters(prev => ({
+                        ...prev,
+                        statusInput: value
+                      }));
+                    }}
+                    onBlur={() => {
+                      if (filters.statusInput.trim()) {
+                        const newStatus = filters.statusInput.trim();
+                        if (!filters.status.includes(newStatus)) {
+                          setFilters(prev => ({
+                            ...prev,
+                            status: [...prev.status, newStatus],
+                            statusInput: ''
+                          }));
+                        } else {
+                          setFilters(prev => ({
+                            ...prev,
+                            statusInput: ''
+                          }));
+                        }
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && filters.statusInput.trim()) {
+                        e.preventDefault();
+                        const newStatus = filters.statusInput.trim();
+                        if (!filters.status.includes(newStatus)) {
+                          setFilters(prev => ({
+                            ...prev,
+                            status: [...prev.status, newStatus],
+                            statusInput: ''
+                          }));
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Digite o status ou selecione da lista..."
+                    list="status-options"
+                  />
+                  <datalist id="status-options">
+                    {statusOptions.map(status => (
+                      <option key={status} value={status} />
+                    ))}
+                  </datalist>
+                </div>
+                {filters.status.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {filters.status.map((status, index) => (
+                      <span
+                        key={`${status}-${index}`}
+                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
+                      >
+                        {status}
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({
+                              ...prev,
+                              status: prev.status.filter((_, i) => i !== index)
+                            }));
+                          }}
+                          className="ml-1 text-blue-600 hover:text-blue-800"
+                        >
+                          <FaTimes className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-1 text-xs text-gray-500">
+                  💡 Digite um status e clique fora ou pressione Enter para adicionar
                 </div>
               </div>
 
@@ -385,8 +475,17 @@ const ListaOrdensCompra = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Valor
               </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort('prazoFinal')}
+              >
+                <div className="flex items-center">
+                  Prazo
+                  {getSortIcon('prazoFinal')}
+                </div>
+              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ações
+Ações
               </th>
             </tr>
           </thead>
@@ -397,7 +496,7 @@ const ListaOrdensCompra = () => {
                   {ordem.numero}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.tipo.toUpperCase()}
+                  {ordem.tipo.charAt(0).toUpperCase() + ordem.tipo.slice(1)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {new Date(ordem.data).toLocaleDateString('pt-BR')}
@@ -412,6 +511,9 @@ const ListaOrdensCompra = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   R$ {ordem.valor.toFixed(2)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {ordem.prazoFinal ? new Date(ordem.prazoFinal).toLocaleDateString('pt-BR') : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button

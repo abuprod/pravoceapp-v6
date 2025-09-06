@@ -598,10 +598,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       aprovado: 'bg-green-100 text-green-800',
       encomendado: 'bg-blue-100 text-blue-800',
       deposito: 'bg-purple-100 text-purple-800',
+      aguardando_outra_oc: 'bg-orange-100 text-orange-800',
       agendado: 'bg-indigo-100 text-indigo-800',
+      entregue_parcial: 'bg-cyan-100 text-cyan-800',
       entregue: 'bg-green-100 text-green-800',
+      nao_entregue: 'bg-red-100 text-red-800',
       cancelado: 'bg-red-100 text-red-800',
-      nao_entregue: 'bg-red-100 text-red-800'
+      outro: 'bg-gray-100 text-gray-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -612,10 +615,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       aprovado: 'APROVADO',
       encomendado: 'ENCOMENDADO',
       deposito: 'EM DEPÓSITO',
+      aguardando_outra_oc: 'AGUARDANDO OUTRA OC',
       agendado: 'AGENDADO',
+      entregue_parcial: 'ENTREGUE PARCIAL',
       entregue: 'ENTREGUE',
+      nao_entregue: 'NÃO ENTREGUE',
       cancelado: 'CANCELADO',
-      nao_entregue: 'NÃO ENTREGUE'
+      outro: 'OUTRO'
     };
     return labels[status] || status.toUpperCase();
   };
@@ -1518,7 +1524,16 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="aberto">Em aberto</option>
+                      <option value="aprovado">Aprovado</option>
                       <option value="encomendado">Encomendado</option>
+                      <option value="deposito">Em depósito</option>
+                      <option value="aguardando_outra_oc">Aguardando outra oc</option>
+                      <option value="agendado">Agendado</option>
+                      <option value="entregue_parcial">Entregue parcial</option>
+                      <option value="entregue">Entregue</option>
+                      <option value="nao_entregue">Não entregue (ter obs)</option>
+                      <option value="cancelado">Cancelado</option>
+                      <option value="outro">Outro (ter obs)</option>
                     </select>
                   </div>
                 </div>
@@ -2380,9 +2395,11 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="aberto">Em aberto</option>
-                      <option value="encomendado">Encomendado</option>
                       <option value="aprovado">Aprovado</option>
+                      <option value="encomendado">Encomendado</option>
+                      <option value="deposito">Em depósito</option>
                       <option value="cancelado">Cancelado</option>
+                      <option value="outro">Outro (ter obs)</option>
                     </select>
                   </div>
 
