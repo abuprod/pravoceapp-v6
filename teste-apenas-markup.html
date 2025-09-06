@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Apenas Markup</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        button { margin: 5px; padding: 10px; cursor: pointer; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Teste: Checkbox "Apenas Markup" no Fornecedor</h1>
+    
+    <div class="test-section">
+        <h3>1. Criar Fornecedor de Teste com Apenas Markup</h3>
+        <button onclick="criarFornecedorTeste()">Criar Fornecedor Teste</button>
+        <div id="result1" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. Verificar se Apenas Markup foi Salvo</h3>
+        <button onclick="verificarApenasMarkup()">Verificar Salvamento</button>
+        <div id="result2" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. Listar Todos os Fornecedores</h3>
+        <button onclick="listarFornecedores()">Listar Fornecedores</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <script>
+        function criarFornecedorTeste() {
+            try {
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                
+                const novoFornecedor = {
+                    id: Math.max(0, ...fornecedores.map(f => f.id)) + 1,
+                    nomeFantasia: 'Teste Apenas Markup',
+                    razaoSocial: 'Teste Apenas Markup Ltda',
+                    cnpj: '12.345.678/0001-99',
+                    representante: 'João Teste',
+                    emailEncomendas: 'teste@teste.com',
+                    emailAssistencia: 'assistencia@teste.com',
+                    contatos: [],
+                    tributosDescontos: [
+                        {
+                            id: 1,
+                            nome: 'Tributo Apenas Markup',
+                            frete: '0',
+                            ipi: '0',
+                            descontos: [],
+                            apenasMarkup: true
+                        }
+                    ],
+                    prazoEntrega: '5 dias',
+                    transportadora: 'Correios',
+                    observacoes: 'Fornecedor de teste',
+                    status: 'Ativo'
+                };
+                
+                fornecedores.push(novoFornecedor);
+                localStorage.setItem('fornecedores', JSON.stringify(fornecedores));
+                
+                document.getElementById('result1').innerHTML = `
+                    <div class="success">
+                        ✅ Fornecedor criado com sucesso!<br>
+                        ID: ${novoFornecedor.id}<br>
+                        Nome: ${novoFornecedor.nomeFantasia}<br>
+                        Apenas Markup: ${novoFornecedor.tributosDescontos[0].apenasMarkup}
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('result1').innerHTML = `
+                    <div class="error">❌ Erro: ${error.message}</div>
+                `;
+            }
+        }
+        
+        function verificarApenasMarkup() {
+            try {
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                const fornecedorTeste = fornecedores.find(f => f.nomeFantasia === 'Teste Apenas Markup');
+                
+                if (!fornecedorTeste) {
+                    document.getElementById('result2').innerHTML = `
+                        <div class="error">❌ Fornecedor de teste não encontrado!</div>
+                    `;
+                    return;
+                }
+                
+                const tributoApenasMarkup = fornecedorTeste.tributosDescontos.find(t => t.apenasMarkup === true);
+                
+                document.getElementById('result2').innerHTML = `
+                    <div class="${tributoApenasMarkup ? 'success' : 'error'}">
+                        ${tributoApenasMarkup ? '✅' : '❌'} Fornecedor encontrado:<br>
+                        Nome: ${fornecedorTeste.nomeFantasia}<br>
+                        Tributos: ${fornecedorTeste.tributosDescontos.length}<br>
+                        Tem Apenas Markup: ${tributoApenasMarkup ? 'SIM' : 'NÃO'}<br>
+                        <br>
+                        <strong>Detalhes dos tributos:</strong><br>
+                        ${fornecedorTeste.tributosDescontos.map(t => 
+                            `• ${t.nome}: apenasMarkup=${t.apenasMarkup}, frete=${t.frete}, ipi=${t.ipi}`
+                        ).join('<br>')}
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('result2').innerHTML = `
+                    <div class="error">❌ Erro: ${error.message}</div>
+                `;
+            }
+        }
+        
+        function listarFornecedores() {
+            try {
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                
+                if (fornecedores.length === 0) {
+                    document.getElementById('result3').innerHTML = `
+                        <div class="error">❌ Nenhum fornecedor encontrado!</div>
+                    `;
+                    return;
+                }
+                
+                const lista = fornecedores.map(f => {
+                    const temApenasMarkup = f.tributosDescontos && f.tributosDescontos.some(t => t.apenasMarkup === true);
+                    return `
+                        <div style="margin: 10px 0; padding: 10px; border: 1px solid #ccc;">
+                            <strong>${f.nomeFantasia}</strong> (ID: ${f.id})<br>
+                            Tributos: ${f.tributosDescontos ? f.tributosDescontos.length : 0}<br>
+                            Tem Apenas Markup: ${temApenasMarkup ? '✅ SIM' : '❌ NÃO'}
+                            ${f.tributosDescontos && f.tributosDescontos.length > 0 ? '<br>Detalhes:<br>' + 
+                                f.tributosDescontos.map(t => 
+                                    `&nbsp;&nbsp;• ${t.nome}: apenasMarkup=${t.apenasMarkup || false}`
+                                ).join('<br>') : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('result3').innerHTML = `
+                    <div class="success">
+                        📋 Total de fornecedores: ${fornecedores.length}<br><br>
+                        ${lista}
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('result3').innerHTML = `
+                    <div class="error">❌ Erro: ${error.message}</div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

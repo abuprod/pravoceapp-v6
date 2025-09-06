@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migração - Apenas Markup</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .migration-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        button { margin: 5px; padding: 10px; cursor: pointer; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Migração: Adicionar Campo "apenasMarkup" para Fornecedores Existentes</h1>
+    
+    <div class="migration-section">
+        <h3>1. Verificar Estado Atual</h3>
+        <button onclick="verificarEstadoAtual()">Verificar Fornecedores Existentes</button>
+        <div id="result1" class="result"></div>
+    </div>
+    
+    <div class="migration-section">
+        <h3>2. Executar Migração</h3>
+        <button onclick="executarMigracao()">Migrar Fornecedores Existentes</button>
+        <div id="result2" class="result"></div>
+    </div>
+    
+    <div class="migration-section">
+        <h3>3. Verificar Após Migração</h3>
+        <button onclick="verificarAposMigracao()">Verificar Resultado</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <script>
+        function verificarEstadoAtual() {
+            try {
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                
+                if (fornecedores.length === 0) {
+                    document.getElementById('result1').innerHTML = `
+                        <div class="warning">⚠️ Nenhum fornecedor encontrado!</div>
+                    `;
+                    return;
+                }
+                
+                let fornecedoresSemApenasMarkup = 0;
+                let totalTributos = 0;
+                
+                fornecedores.forEach(fornecedor => {
+                    if (fornecedor.tributosDescontos && fornecedor.tributosDescontos.length > 0) {
+                        fornecedor.tributosDescontos.forEach(tributo => {
+                            totalTributos++;
+                            if (tributo.apenasMarkup === undefined) {
+                                fornecedoresSemApenasMarkup++;
+                            }
+                        });
+                    }
+                });
+                
+                document.getElementById('result1').innerHTML = `
+                    <div class="${fornecedoresSemApenasMarkup > 0 ? 'warning' : 'success'}">
+                        📊 <strong>Estado Atual:</strong><br>
+                        • Total de fornecedores: ${fornecedores.length}<br>
+                        • Total de tributos: ${totalTributos}<br>
+                        • Tributos sem campo "apenasMarkup": ${fornecedoresSemApenasMarkup}<br>
+                        ${fornecedoresSemApenasMarkup > 0 ? 
+                            '<br>⚠️ <strong>Migração necessária!</strong>' : 
+                            '<br>✅ <strong>Todos os tributos já têm o campo!</strong>'}
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('result1').innerHTML = `
+                    <div class="error">❌ Erro: ${error.message}</div>
+                `;
+            }
+        }
+        
+        function executarMigracao() {
+            try {
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                let fornecedoresAtualizados = 0;
+                let tributosAtualizados = 0;
+                
+                const fornecedoresMigrados = fornecedores.map(fornecedor => {
+                    if (fornecedor.tributosDescontos && fornecedor.tributosDescontos.length > 0) {
+                        const tributosMigrados = fornecedor.tributosDescontos.map(tributo => {
+                            // Se o campo apenasMarkup não existe, adicionar como false
+                            if (tributo.apenasMarkup === undefined) {
+                                tributosAtualizados++;
+                                return {
+                                    ...tributo,
+                                    apenasMarkup: false // Valor padrão para tributos existentes
+                                };
+                            }
+                            return tributo;
+                        });
+                        
+                        if (tributosAtualizados > 0) {
+                            fornecedoresAtualizados++;
+                        }
+                        
+                        return {
+                            ...fornecedor,
+                            tributosDescontos: tributosMigrados
+                        };
+                    }
+                    return fornecedor;
+                });
+                
+                // Salvar os fornecedores migrados
+                localStorage.setItem('fornecedores', JSON.stringify(fornecedoresMigrados));
+                
+                document.getElementById('result2').innerHTML = `
+                    <div class="success">
+                        ✅ <strong>Migração concluída com sucesso!</strong><br>
+                        • Fornecedores atualizados: ${fornecedoresAtualizados}<br>
+                        • Tributos atualizados: ${tributosAtualizados}<br>
+                        <br>
+                        🎉 Agora todos os tributos têm o campo "apenasMarkup"!
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('result2').innerHTML = `
+                    <div class="error">❌ Erro na migração: ${error.message}</div>
+                `;
+            }
+        }
+        
+        function verificarAposMigracao() {
+            try {
+                const fornecedores = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+                
+                if (fornecedores.length === 0) {
+                    document.getElementById('result3').innerHTML = `
+                        <div class="error">❌ Nenhum fornecedor encontrado!</div>
+                    `;
+                    return;
+                }
+                
+                let todosTemApenasMarkup = true;
+                let detalhes = [];
+                
+                fornecedores.forEach(fornecedor => {
+                    if (fornecedor.tributosDescontos && fornecedor.tributosDescontos.length > 0) {
+                        fornecedor.tributosDescontos.forEach(tributo => {
+                            const temCampo = tributo.apenasMarkup !== undefined;
+                            if (!temCampo) todosTemApenasMarkup = false;
+                            
+                            detalhes.push(`
+                                <div style="margin: 5px 0; padding: 5px; background: ${temCampo ? '#d4edda' : '#f8d7da'};">
+                                    <strong>${fornecedor.nomeFantasia}</strong> - ${tributo.nome}<br>
+                                    apenasMarkup: ${tributo.apenasMarkup !== undefined ? tributo.apenasMarkup : '❌ INDEFINIDO'}
+                                </div>
+                            `);
+                        });
+                    }
+                });
+                
+                document.getElementById('result3').innerHTML = `
+                    <div class="${todosTemApenasMarkup ? 'success' : 'error'}">
+                        ${todosTemApenasMarkup ? '✅' : '❌'} <strong>Verificação pós-migração:</strong><br>
+                        ${todosTemApenasMarkup ? 
+                            'Todos os tributos agora têm o campo "apenasMarkup"!' : 
+                            'Ainda há tributos sem o campo "apenasMarkup"!'}
+                        <br><br>
+                        <strong>Detalhes:</strong><br>
+                        ${detalhes.join('')}
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('result3').innerHTML = `
+                    <div class="error">❌ Erro: ${error.message}</div>
+                `;
+            }
+        }
+        
+        // Executar verificação inicial automaticamente
+        window.onload = function() {
+            verificarEstadoAtual();
+        };
+    </script>
+</body>
+</html>

@@ -61,6 +61,7 @@ function NovoFornecedor() {
             ...tributo,
             frete: tributo.frete.toString(),
             ipi: tributo.ipi.toString(),
+            apenasMarkup: tributo.apenasMarkup || false, // Preservar o campo apenasMarkup
             descontos: Array.isArray(tributo.descontos) 
               ? tributo.descontos.map(desconto => ({
                   id: desconto.id,
@@ -70,6 +71,12 @@ function NovoFornecedor() {
               : []
           }))
         : [];
+
+      console.log('=== DEBUG CARREGAMENTO FORNECEDOR ===');
+      console.log('Fornecedor carregado:', fornecedor);
+      console.log('Tributos originais:', fornecedor.tributosDescontos);
+      console.log('Tributos formatados:', tributosFormatados);
+      console.log('=== FIM DEBUG CARREGAMENTO ===');
 
       setFormData({
         ...fornecedor,
@@ -169,20 +176,26 @@ function NovoFornecedor() {
       return;
     }
 
-    // Handler especial para checkbox apenasMarkup
+    // Handler especial para checkbox apenasMarkup (checkbox interno)
     if (name === 'apenasMarkup') {
+      console.log('=== CHECKBOX APENAS MARKUP INTERNO ===');
+      console.log('Novo valor:', checked);
+      
       setFormData(prev => ({
         ...prev,
         tributoTemp: {
           ...prev.tributoTemp,
           apenasMarkup: checked,
-          // Se marcado como apenas markup, limpar frete, IPI e descontos
+          // Se marcado como apenas markup, preencher automaticamente os campos visuais
+          nome: checked ? 'Apenas Markup' : prev.tributoTemp.nome,
           frete: checked ? '0' : prev.tributoTemp.frete,
           ipi: checked ? '0' : prev.tributoTemp.ipi,
           descontos: checked ? [] : prev.tributoTemp.descontos,
           descontoTemp: checked ? { valor: '', observacao: '' } : prev.tributoTemp.descontoTemp
         }
       }));
+      
+      console.log('=== FIM CHECKBOX INTERNO ===');
       return;
     }
 
@@ -249,14 +262,18 @@ function NovoFornecedor() {
     const novoTributo = {
       id: tributoId,
       nome: nome.trim(),
-      frete: apenasMarkup ? '0' : frete.toString(),
-      ipi: apenasMarkup ? '0' : ipi.toString(),
-      descontos: apenasMarkup ? [] : descontosFormatados,
+      frete: frete.toString(), // Sempre usar o valor do campo (que será 0 se apenasMarkup)
+      ipi: ipi.toString(), // Sempre usar o valor do campo (que será 0 se apenasMarkup)
+      descontos: apenasMarkup ? [] : descontosFormatados, // Se apenasMarkup, descontos vazios
       apenasMarkup: apenasMarkup
     };
 
-    console.log('Adicionando tributo:', novoTributo); // Debug
+    console.log('=== DEBUG ADICIONAR TRIBUTO ===');
+    console.log('Adicionando tributo:', novoTributo);
     console.log('ID usado:', tributoId, idOriginal ? '(original)' : '(novo)');
+    console.log('apenasMarkup no tributo:', novoTributo.apenasMarkup);
+    console.log('Estado atual tributosDescontos:', formData.tributosDescontos);
+    console.log('=== FIM DEBUG ADICIONAR ===');
 
     setFormData(prev => ({
       ...prev,
@@ -277,6 +294,12 @@ function NovoFornecedor() {
 
     // Fechar o formulário após adicionar
     setShowTributoForm(false);
+    
+    // Mostrar mensagem de sucesso
+    alert(`✅ Tributo "${novoTributo.nome}" adicionado com sucesso!
+${apenasMarkup ? 
+  '• Tipo: Apenas Markup\n• Frete: 0%\n• IPI: 0%\n• Descontos: nenhum' : 
+  `• Frete: ${novoTributo.frete}%\n• IPI: ${novoTributo.ipi}%\n• Descontos: ${novoTributo.descontos.length}`}`);
   };
 
   // Função para remover um conjunto de tributos
@@ -537,6 +560,7 @@ function NovoFornecedor() {
           ...tributo,
           frete: tributo.frete.toString(),
           ipi: tributo.ipi.toString(),
+          apenasMarkup: tributo.apenasMarkup !== undefined ? tributo.apenasMarkup : false, // Garantir que apenasMarkup seja sempre definido
           descontos: tributo.descontos.map(desconto => ({
             id: desconto.id,
             valor: desconto.valor.toString(),
@@ -947,7 +971,7 @@ function NovoFornecedor() {
           
           {/* Botão para abrir formulário de novo conjunto de tributos */}
           {!showTributoForm && (
-            <div className="mb-6 flex items-center gap-4">
+            <div className="mb-6">
               <button
                 type="button"
                 onClick={() => setShowTributoForm(true)}
@@ -955,16 +979,6 @@ function NovoFornecedor() {
               >
                 <FaPlus /> Novo Conjunto de Tributos
               </button>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  name="apenasMarkup"
-                  checked={formData.tributoTemp.apenasMarkup}
-                  onChange={handleTributoChange}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                Apenas Markup
-              </label>
             </div>
           )}
 
@@ -1023,67 +1037,67 @@ function NovoFornecedor() {
                 </div>
               </div>
 
-              {/* Campos de Frete e IPI - só aparecem se não for apenas markup */}
-              {!formData.tributoTemp.apenasMarkup && (
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Frete (%)</label>
-                    <input
-                      type="text"
-                      name="frete"
-                      value={formData.tributoTemp.frete}
-                      onChange={handleTributoChange}
-                      placeholder="Ex: 5,5"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
+              {/* Campos de Frete e IPI - sempre aparecem */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Frete (%)</label>
+                  <input
+                    type="text"
+                    name="frete"
+                    value={formData.tributoTemp.frete}
+                    onChange={handleTributoChange}
+                    placeholder="Ex: 5,5"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    disabled={formData.tributoTemp.apenasMarkup}
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">IPI (%)</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">IPI (%)</label>
+                  <input
+                    type="text"
+                    name="ipi"
+                    value={formData.tributoTemp.ipi}
+                    onChange={handleTributoChange}
+                    placeholder="Ex: 7,5"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    disabled={formData.tributoTemp.apenasMarkup}
+                  />
+                </div>
+              </div>
+
+              {/* Formulário de descontos - sempre aparece */}
+              <div className="border-t border-gray-300 pt-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-4">Descontos</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white p-4 rounded-lg border border-gray-300 shadow-sm">
+                    <label className="block text-sm font-medium text-gray-700">Descontos (%)</label>
                     <input
                       type="text"
-                      name="ipi"
-                      value={formData.tributoTemp.ipi}
-                      onChange={handleTributoChange}
-                      placeholder="Ex: 7,5"
+                      name="valor"
+                      value={formData.tributoTemp.descontoTemp.valor}
+                      onChange={handleDescontoChange}
+                      placeholder="Ex: 8,3+7+6+2,1"
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      disabled={formData.tributoTemp.apenasMarkup}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Separe os valores com "+" (ex: 8,3+7+6+2,1)</p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-lg border border-gray-300 shadow-sm">
+                    <label className="block text-sm font-medium text-gray-700">Observação</label>
+                    <input
+                      type="text"
+                      name="observacao"
+                      value={formData.tributoTemp.descontoTemp.observacao}
+                      onChange={handleDescontoChange}
+                      placeholder="Observações adicionais"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      disabled={formData.tributoTemp.apenasMarkup}
                     />
                   </div>
                 </div>
-              )}
-
-              {/* Formulário de descontos - só aparece se não for apenas markup */}
-              {!formData.tributoTemp.apenasMarkup && (
-                <div className="border-t border-gray-300 pt-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-4">Descontos</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white p-4 rounded-lg border border-gray-300 shadow-sm">
-                      <label className="block text-sm font-medium text-gray-700">Descontos (%)</label>
-                      <input
-                        type="text"
-                        name="valor"
-                        value={formData.tributoTemp.descontoTemp.valor}
-                        onChange={handleDescontoChange}
-                        placeholder="Ex: 8,3+7+6+2,1"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Separe os valores com "+" (ex: 8,3+7+6+2,1)</p>
-                    </div>
-                    
-                    <div className="bg-white p-4 rounded-lg border border-gray-300 shadow-sm">
-                      <label className="block text-sm font-medium text-gray-700">Observação</label>
-                      <input
-                        type="text"
-                        name="observacao"
-                        value={formData.tributoTemp.descontoTemp.observacao}
-                        onChange={handleDescontoChange}
-                        placeholder="Observações adicionais"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
 
               {/* Lista de descontos do tributo atual */}
               {formData.tributoTemp.descontos.length > 0 && (
