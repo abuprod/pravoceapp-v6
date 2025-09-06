@@ -27,6 +27,7 @@ function NovoFornecedor() {
         valor: '',
         observacao: ''
       },
+      apenasMarkup: false, // Indica se é apenas markup (sem frete, IPI e descontos)
       idOriginal: null // Para manter referência quando editando
     },
     prazoEntrega: '',
@@ -79,6 +80,7 @@ function NovoFornecedor() {
           ipi: '', 
           descontos: [], 
           descontoTemp: { valor: '', observacao: '' },
+          apenasMarkup: false,
           idOriginal: null
         }
       });
@@ -146,7 +148,7 @@ function NovoFornecedor() {
 
   // Handler para campos do formulário de tributos
   const handleTributoChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     
     if (name === 'frete' || name === 'ipi') {
       // Permite apenas números e vírgula
@@ -167,25 +169,43 @@ function NovoFornecedor() {
       return;
     }
 
+    // Handler especial para checkbox apenasMarkup
+    if (name === 'apenasMarkup') {
+      setFormData(prev => ({
+        ...prev,
+        tributoTemp: {
+          ...prev.tributoTemp,
+          apenasMarkup: checked,
+          // Se marcado como apenas markup, limpar frete, IPI e descontos
+          frete: checked ? '0' : prev.tributoTemp.frete,
+          ipi: checked ? '0' : prev.tributoTemp.ipi,
+          descontos: checked ? [] : prev.tributoTemp.descontos,
+          descontoTemp: checked ? { valor: '', observacao: '' } : prev.tributoTemp.descontoTemp
+        }
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       tributoTemp: {
         ...prev.tributoTemp,
-        [name]: value
+        [name]: type === 'checkbox' ? checked : value
       }
     }));
   };
 
   // Função para adicionar um novo conjunto de tributos
   const adicionarTributo = () => {
-    const { nome, frete, ipi, descontos, descontoTemp, idOriginal } = formData.tributoTemp;
+    const { nome, frete, ipi, descontos, descontoTemp, apenasMarkup, idOriginal } = formData.tributoTemp;
 
     if (!nome) {
       alert('Preencha o nome do conjunto de tributos.');
       return;
     }
 
-    if (frete === '' || ipi === '') {
+    // Se não for apenas markup, validar frete e IPI
+    if (!apenasMarkup && (frete === '' || ipi === '')) {
       alert('Preencha os valores de frete e IPI.');
       return;
     }
@@ -229,9 +249,10 @@ function NovoFornecedor() {
     const novoTributo = {
       id: tributoId,
       nome: nome.trim(),
-      frete: frete.toString(),
-      ipi: ipi.toString(),
-      descontos: descontosFormatados
+      frete: apenasMarkup ? '0' : frete.toString(),
+      ipi: apenasMarkup ? '0' : ipi.toString(),
+      descontos: apenasMarkup ? [] : descontosFormatados,
+      apenasMarkup: apenasMarkup
     };
 
     console.log('Adicionando tributo:', novoTributo); // Debug
@@ -249,6 +270,7 @@ function NovoFornecedor() {
           valor: '',
           observacao: ''
         },
+        apenasMarkup: false,
         idOriginal: null
       }
     }));
@@ -275,6 +297,7 @@ function NovoFornecedor() {
         ipi: tributo.ipi.toString(),
         descontos: [...tributo.descontos],
         descontoTemp: { valor: '', observacao: '' },
+        apenasMarkup: tributo.apenasMarkup || false,
         idOriginal: tributo.id // Guardar o ID original para manter a referência
       }
     }));
@@ -924,7 +947,7 @@ function NovoFornecedor() {
           
           {/* Botão para abrir formulário de novo conjunto de tributos */}
           {!showTributoForm && (
-            <div className="mb-6">
+            <div className="mb-6 flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => setShowTributoForm(true)}
@@ -932,6 +955,16 @@ function NovoFornecedor() {
               >
                 <FaPlus /> Novo Conjunto de Tributos
               </button>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="apenasMarkup"
+                  checked={formData.tributoTemp.apenasMarkup}
+                  onChange={handleTributoChange}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Apenas Markup
+              </label>
             </div>
           )}
 
@@ -953,6 +986,7 @@ function NovoFornecedor() {
                         ipi: '',
                         descontos: [],
                         descontoTemp: { valor: '', observacao: '' },
+                        apenasMarkup: false,
                         idOriginal: null
                       }
                     }));
@@ -975,7 +1009,23 @@ function NovoFornecedor() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      name="apenasMarkup"
+                      checked={formData.tributoTemp.apenasMarkup}
+                      onChange={handleTributoChange}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Apenas Markup
+                  </label>
+                </div>
+              </div>
+
+              {/* Campos de Frete e IPI - só aparecem se não for apenas markup */}
+              {!formData.tributoTemp.apenasMarkup && (
+                <div className="grid grid-cols-2 gap-4 mb-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Frete (%)</label>
                     <input
@@ -1000,38 +1050,40 @@ function NovoFornecedor() {
                     />
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Formulário de descontos */}
-              <div className="border-t border-gray-300 pt-6">
-                <h4 className="text-sm font-medium text-gray-900 mb-4">Descontos</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white p-4 rounded-lg border border-gray-300 shadow-sm">
-                    <label className="block text-sm font-medium text-gray-700">Descontos (%)</label>
-                    <input
-                      type="text"
-                      name="valor"
-                      value={formData.tributoTemp.descontoTemp.valor}
-                      onChange={handleDescontoChange}
-                      placeholder="Ex: 8,3+7+6+2,1"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Separe os valores com "+" (ex: 8,3+7+6+2,1)</p>
-                  </div>
-                  
-                  <div className="bg-white p-4 rounded-lg border border-gray-300 shadow-sm">
-                    <label className="block text-sm font-medium text-gray-700">Observação</label>
-                    <input
-                      type="text"
-                      name="observacao"
-                      value={formData.tributoTemp.descontoTemp.observacao}
-                      onChange={handleDescontoChange}
-                      placeholder="Observações adicionais"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
+              {/* Formulário de descontos - só aparece se não for apenas markup */}
+              {!formData.tributoTemp.apenasMarkup && (
+                <div className="border-t border-gray-300 pt-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">Descontos</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white p-4 rounded-lg border border-gray-300 shadow-sm">
+                      <label className="block text-sm font-medium text-gray-700">Descontos (%)</label>
+                      <input
+                        type="text"
+                        name="valor"
+                        value={formData.tributoTemp.descontoTemp.valor}
+                        onChange={handleDescontoChange}
+                        placeholder="Ex: 8,3+7+6+2,1"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Separe os valores com "+" (ex: 8,3+7+6+2,1)</p>
+                    </div>
+                    
+                    <div className="bg-white p-4 rounded-lg border border-gray-300 shadow-sm">
+                      <label className="block text-sm font-medium text-gray-700">Observação</label>
+                      <input
+                        type="text"
+                        name="observacao"
+                        value={formData.tributoTemp.descontoTemp.observacao}
+                        onChange={handleDescontoChange}
+                        placeholder="Observações adicionais"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Lista de descontos do tributo atual */}
               {formData.tributoTemp.descontos.length > 0 && (
@@ -1090,7 +1142,14 @@ function NovoFornecedor() {
                 {formData.tributosDescontos.map(tributo => (
                   <div key={tributo.id} className="bg-gray-200 border-2 border-gray-300 p-4 rounded-lg shadow-md">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-lg font-medium text-gray-900">{tributo.nome}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-lg font-medium text-gray-900">{tributo.nome}</h4>
+                        {tributo.apenasMarkup && (
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                            Apenas Markup
+                          </span>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <button
                           onClick={() => editarTributo(tributo)}
@@ -1109,20 +1168,22 @@ function NovoFornecedor() {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <span className="text-sm font-medium text-gray-700">Frete: </span>
-                        <span className="text-sm text-gray-900">
-                          {tributo.frete.toString().replace('.', ',')}%
-                        </span>
+                    {!tributo.apenasMarkup && (
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Frete: </span>
+                          <span className="text-sm text-gray-900">
+                            {tributo.frete.toString().replace('.', ',')}%
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">IPI: </span>
+                          <span className="text-sm text-gray-900">
+                            {tributo.ipi.toString().replace('.', ',')}%
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-700">IPI: </span>
-                        <span className="text-sm text-gray-900">
-                          {tributo.ipi.toString().replace('.', ',')}%
-                        </span>
-                      </div>
-                    </div>
+                    )}
 
                     {tributo.descontos && tributo.descontos.length > 0 && (
                       <div className="mt-4">

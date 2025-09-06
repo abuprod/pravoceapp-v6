@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Produto MESA DIANA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        .produto-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug - Produto MESA DIANA</h1>
+    
+    <div class="container">
+        <h2>📋 Verificação do Produto</h2>
+        <p>Este teste verifica se o produto "MESA DIANA 1,40 X 90 LAMINADA CINAMOMO" está cadastrado e se os dados estão corretos.</p>
+        
+        <div class="test-section">
+            <h3>1. Verificar Produtos Cadastrados</h3>
+            <button onclick="verificarProdutos()">Verificar Produtos</button>
+            <div id="resultado-produtos" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Buscar Produto MESA DIANA</h3>
+            <button onclick="buscarMesaDiana()">Buscar MESA DIANA</button>
+            <div id="resultado-busca" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Simular Seleção do Produto</h3>
+            <button onclick="simularSelecao()">Simular Seleção</button>
+            <div id="resultado-selecao" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Verificar Dados Completos</h3>
+            <button onclick="verificarDadosCompletos()">Verificar Dados</button>
+            <div id="resultado-dados" class="result"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Resultado Esperado</h2>
+        <div class="test-section success">
+            <h3>✅ Produto Encontrado</h3>
+            <p>O produto "MESA DIANA 1,40 X 90 LAMINADA CINAMOMO" deve:</p>
+            <ul>
+                <li>Estar cadastrado no localStorage</li>
+                <li>Ter custoBruto preenchido</li>
+                <li>Ter custoLiquido preenchido</li>
+                <li>Ter frete, IPI e descontos preenchidos</li>
+                <li>Ter tributoSelecionado preenchido</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function verificarProdutos() {
+            const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            
+            let html = `📦 Total de produtos cadastrados: ${produtos.length}\n\n`;
+            
+            if (produtos.length === 0) {
+                html += '❌ Nenhum produto cadastrado encontrado!';
+            } else {
+                html += '📋 Produtos encontrados:\n';
+                produtos.forEach((produto, index) => {
+                    html += `\n${index + 1}. ${produto.descricao}\n`;
+                    html += `   - ID: ${produto.id}\n`;
+                    html += `   - SKU: ${produto.sku || 'N/A'}\n`;
+                    html += `   - Custo Bruto: R$ ${produto.custoBruto || 'N/A'}\n`;
+                    html += `   - Custo Líquido: R$ ${produto.custoLiquido || 'N/A'}\n`;
+                    html += `   - Frete: ${produto.frete || 'N/A'}%\n`;
+                    html += `   - IPI: ${produto.ipi || 'N/A'}%\n`;
+                    html += `   - Descontos: ${produto.descontos || 'N/A'}\n`;
+                    html += `   - Tributo: ${produto.tributoSelecionado || 'N/A'}\n`;
+                });
+            }
+            
+            document.getElementById('resultado-produtos').innerHTML = html;
+        }
+
+        function buscarMesaDiana() {
+            const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            const termoBusca = 'MESA DIANA';
+            
+            let html = `🔍 Buscando por: "${termoBusca}"\n\n`;
+            
+            // Busca exata
+            const produtoExato = produtos.find(p => 
+                p.descricao === 'MESA DIANA 1,40 X 90 LAMINADA CINAMOMO'
+            );
+            
+            if (produtoExato) {
+                html += '✅ Produto encontrado (busca exata):\n';
+                html += `   - Descrição: ${produtoExato.descricao}\n`;
+                html += `   - ID: ${produtoExato.id}\n`;
+                html += `   - Custo Bruto: R$ ${produtoExato.custoBruto || 'N/A'}\n`;
+                html += `   - Custo Líquido: R$ ${produtoExato.custoLiquido || 'N/A'}\n`;
+            } else {
+                html += '❌ Produto não encontrado (busca exata)\n';
+            }
+            
+            // Busca parcial
+            const produtosParciais = produtos.filter(p => 
+                p.descricao.toLowerCase().includes(termoBusca.toLowerCase())
+            );
+            
+            html += `\n🔍 Busca parcial encontrou ${produtosParciais.length} produtos:\n`;
+            produtosParciais.forEach((produto, index) => {
+                html += `\n${index + 1}. ${produto.descricao}\n`;
+                html += `   - ID: ${produto.id}\n`;
+                html += `   - Custo Bruto: R$ ${produto.custoBruto || 'N/A'}\n`;
+                html += `   - Custo Líquido: R$ ${produto.custoLiquido || 'N/A'}\n`;
+            });
+            
+            document.getElementById('resultado-busca').innerHTML = html;
+        }
+
+        function simularSelecao() {
+            const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            const produto = produtos.find(p => 
+                p.descricao === 'MESA DIANA 1,40 X 90 LAMINADA CINAMOMO'
+            );
+            
+            let html = '🎯 Simulando seleção do produto:\n\n';
+            
+            if (!produto) {
+                html += '❌ Produto não encontrado para simulação!';
+            } else {
+                html += '✅ Produto encontrado para simulação:\n';
+                html += `   - Descrição: ${produto.descricao}\n`;
+                html += `   - Custo Bruto: R$ ${produto.custoBruto || 'N/A'}\n`;
+                html += `   - Custo Líquido: R$ ${produto.custoLiquido || 'N/A'}\n`;
+                html += `   - Frete: ${produto.frete || 'N/A'}%\n`;
+                html += `   - IPI: ${produto.ipi || 'N/A'}%\n`;
+                html += `   - Descontos: ${produto.descontos || 'N/A'}\n`;
+                html += `   - Tributo: ${produto.tributoSelecionado || 'N/A'}\n\n`;
+                
+                html += '🔄 Dados que seriam aplicados:\n';
+                html += `   - handleItemChange(0, 'descricao', '${produto.descricao}')\n`;
+                html += `   - handleItemChange(0, 'custoBruto', ${produto.custoBruto || 0})\n`;
+                html += `   - handleItemChange(0, 'custoLiquido', ${produto.custoLiquido || 0})\n`;
+                html += `   - handleItemChange(0, 'frete', ${produto.frete || 0})\n`;
+                html += `   - handleItemChange(0, 'ipi', ${produto.ipi || 0})\n`;
+                html += `   - handleItemChange(0, 'desconto', '${produto.descontos || ''}')\n`;
+                html += `   - handleItemChange(0, 'tributoSelecionado', '${produto.tributoSelecionado || ''}')\n`;
+            }
+            
+            document.getElementById('resultado-selecao').innerHTML = html;
+        }
+
+        function verificarDadosCompletos() {
+            const produtos = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+            const produto = produtos.find(p => 
+                p.descricao === 'MESA DIANA 1,40 X 90 LAMINADA CINAMOMO'
+            );
+            
+            let html = '📊 Verificação de dados completos:\n\n';
+            
+            if (!produto) {
+                html += '❌ Produto não encontrado!';
+            } else {
+                html += '✅ Produto encontrado. Verificando campos:\n\n';
+                
+                const campos = [
+                    { nome: 'descricao', valor: produto.descricao, obrigatorio: true },
+                    { nome: 'custoBruto', valor: produto.custoBruto, obrigatorio: true },
+                    { nome: 'custoLiquido', valor: produto.custoLiquido, obrigatorio: true },
+                    { nome: 'frete', valor: produto.frete, obrigatorio: false },
+                    { nome: 'ipi', valor: produto.ipi, obrigatorio: false },
+                    { nome: 'descontos', valor: produto.descontos, obrigatorio: false },
+                    { nome: 'tributoSelecionado', valor: produto.tributoSelecionado, obrigatorio: false }
+                ];
+                
+                campos.forEach(campo => {
+                    const status = campo.valor !== undefined && campo.valor !== null && campo.valor !== '' 
+                        ? '✅' : (campo.obrigatorio ? '❌' : '⚠️');
+                    html += `${status} ${campo.nome}: ${campo.valor || 'VAZIO'}\n`;
+                });
+                
+                // Verificar se todos os campos obrigatórios estão preenchidos
+                const camposObrigatorios = campos.filter(c => c.obrigatorio);
+                const camposVazios = camposObrigatorios.filter(c => !c.valor);
+                
+                html += `\n📋 Resumo:\n`;
+                html += `   - Campos obrigatórios: ${camposObrigatorios.length}\n`;
+                html += `   - Campos vazios: ${camposVazios.length}\n`;
+                
+                if (camposVazios.length === 0) {
+                    html += `   ✅ Todos os campos obrigatórios estão preenchidos!\n`;
+                } else {
+                    html += `   ❌ Campos obrigatórios vazios: ${camposVazios.map(c => c.nome).join(', ')}\n`;
+                }
+            }
+            
+            document.getElementById('resultado-dados').innerHTML = html;
+        }
+
+        // Executar verificação automática ao carregar
+        window.onload = function() {
+            console.log('🔍 Debug do produto MESA DIANA carregado');
+            verificarProdutos();
+        };
+    </script>
+</body>
+</html>

@@ -210,6 +210,131 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     setColaboradores(colaboradoresSalvos);
   }, []);
 
+  // Carregar dados do pedido automaticamente quando não há id (modo criação)
+  useEffect(() => {
+    if (!id) {
+      try {
+        const dadosPedido = localStorage.getItem('pedidoParaOrdem');
+        if (dadosPedido) {
+          const pedidoData = JSON.parse(dadosPedido);
+          console.log('🛒 Carregando dados do pedido para ordem de compra:', pedidoData);
+          
+          // Carregar produtos cadastrados para verificar quais existem
+          const produtosCadastrados = JSON.parse(localStorage.getItem('produtos_cadastrados') || '[]');
+          
+          // Processar produtos do pedido
+          const produtosProcessados = pedidoData.produtos.map(produto => {
+            // Buscar produto cadastrado por ID ou nome
+            let produtoCadastrado = produtosCadastrados.find(p => p.id === produto.produtoId);
+            
+            if (!produtoCadastrado && produto.produto) {
+              produtoCadastrado = produtosCadastrados.find(p => 
+                p.descricao === produto.produto || 
+                p.descricao.includes(produto.produto) ||
+                produto.produto.includes(p.descricao)
+              );
+            }
+            
+            // Se produto não encontrado (local SE não cadastrado), usar dados básicos
+            if (!produtoCadastrado) {
+              console.log(`⚠️ Produto não cadastrado encontrado: ${produto.produto} (local SE)`);
+              return {
+                produto: produto.produto,
+                produtoId: produto.produtoId || '',
+                sku: '',
+                categoria: '',
+                quantidade: parseInt(produto.quantidade) || 1,
+                valorUnitario: 0, // Produto não cadastrado - preço de compra vazio
+                valorTotal: 0,
+                fornecedor: 'Fornecedor não identificado',
+                fornecedorId: '',
+                fornecedorNome: 'Fornecedor não identificado',
+                observacoes: produto.observacoes || '',
+                status: 'pendente',
+                descricao: produto.produto,
+                unidade: 'UN',
+                custoUnitario: 0,
+                margemLucro: 0,
+                tributos: [],
+                // Flag para identificar produto não cadastrado
+                produtoNaoCadastrado: true,
+                local: produto.sl || 'SE'
+              };
+            }
+            
+            // Produto cadastrado encontrado
+            const quantidade = parseInt(produto.quantidade) || 1;
+            const valorUnitario = produtoCadastrado.custoLiquido || 0; // Usar custo líquido (preço de compra) do produto cadastrado
+            const valorTotal = quantidade * valorUnitario;
+            
+            return {
+              produto: produto.produto,
+              produtoId: produto.produtoId,
+              sku: produtoCadastrado.sku || '',
+              categoria: produtoCadastrado.categoria || '',
+              quantidade: quantidade,
+              valorUnitario: valorUnitario,
+              valorTotal: valorTotal,
+              fornecedor: produtoCadastrado.fornecedor || 'Fornecedor não identificado',
+              fornecedorId: produtoCadastrado.fornecedorId || '',
+              fornecedorNome: produtoCadastrado.fornecedor || 'Fornecedor não identificado',
+              observacoes: produto.observacoes || '',
+              status: 'pendente',
+              descricao: produto.produto,
+              unidade: 'UN',
+              custoUnitario: produtoCadastrado.custoUnitario || 0,
+              margemLucro: produtoCadastrado.margemLucro || 0,
+              tributos: produtoCadastrado.tributos || [],
+              produtoNaoCadastrado: false,
+              local: produto.sl || 'SE',
+              // Adicionar campos de custo para preenchimento automático na interface
+              custoBruto: produtoCadastrado.custoBruto || 0,
+              custoLiquido: produtoCadastrado.custoLiquido || 0,
+              frete: produtoCadastrado.frete || 0,
+              ipi: produtoCadastrado.ipi || 0,
+              desconto: produtoCadastrado.descontos || '',
+              tributoSelecionado: produtoCadastrado.tributoSelecionado || ''
+            };
+          });
+          
+          // Atualizar formData com dados do pedido
+          setFormData(prev => ({
+            ...prev,
+            tipo: 'cliente',
+            pedidoVinculado: pedidoData.numeroPedido || '',
+            vendedor: pedidoData.vendedor || '',
+            dataVenda: pedidoData.dataVenda || new Date().toISOString().split('T')[0],
+            prazoFinal: pedidoData.dataVenda ? calcular45DiasUteis(pedidoData.dataVenda) : '',
+            observacoes: `Ordem de compra gerada automaticamente para o pedido de venda ${pedidoData.numeroPedido}`,
+            observacoesInternas: `Cliente: ${pedidoData.cliente}\nPedido: ${pedidoData.numeroPedido}\nVendedor: ${pedidoData.vendedor}`,
+            itens: produtosProcessados,
+            // Campos adicionais do pedido
+            cliente: pedidoData.cliente,
+            clienteId: pedidoData.clienteId,
+            clienteCpfCnpj: pedidoData.clienteCpfCnpj,
+            clienteEmail: pedidoData.clienteEmail,
+            clienteTelefone: pedidoData.clienteTelefone
+          }));
+          
+          // Salvar pedido original para controle de alterações
+          setPedidoOriginal({
+            dataVenda: pedidoData.dataVenda,
+            vendedor: pedidoData.vendedor,
+            produtos: produtosProcessados
+          });
+          
+          // Limpar dados do localStorage após usar
+          localStorage.removeItem('pedidoParaOrdem');
+          
+          console.log('✅ Dados do pedido carregados com sucesso na ordem de compra');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do pedido:', error);
+        localStorage.removeItem('pedidoParaOrdem');
+      }
+    }
+  }, [id]);
+
   // Inicializar prazo quando o componente for montado
   useEffect(() => {
     if (formData.dataVenda && !formData.prazoFinal) {
@@ -786,12 +911,18 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   };
 
   const calcularCustoLiquidoUnitario = (item) => {
-    // Se não há tributo selecionado, retornar "-"
-    if (!item.tributoSelecionado || item.tributoSelecionado === '') {
+    const custoBruto = parseFloat(item.custoBruto) || 0;
+    
+    // Se não há custo bruto, retornar "-"
+    if (custoBruto === 0) {
       return '-';
     }
     
-    const custoBruto = parseFloat(item.custoBruto) || 0;
+    // Se não há tributo selecionado, retornar o custo bruto como custo líquido
+    if (!item.tributoSelecionado || item.tributoSelecionado === '') {
+      return custoBruto;
+    }
+    
     const frete = parseFloat(item.frete) || 0;
     const ipi = parseFloat(item.ipi) || 0;
 
@@ -817,15 +948,21 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   };
 
   const calcularCustoLiquidoItem = (item) => {
-    // Se não há tributo selecionado, retornar "-"
-    if (!item.tributoSelecionado || item.tributoSelecionado === '') {
+    const custoBruto = parseFloat(item.custoBruto) || 0;
+    const quantidade = parseFloat(item.quantidade) || 0;
+    
+    // Se não há custo bruto, retornar "-"
+    if (custoBruto === 0) {
       return '-';
     }
     
-    const custoBruto = parseFloat(item.custoBruto) || 0;
+    // Se não há tributo selecionado, retornar o custo bruto * quantidade
+    if (!item.tributoSelecionado || item.tributoSelecionado === '') {
+      return custoBruto * quantidade;
+    }
+    
     const frete = parseFloat(item.frete) || 0;
     const ipi = parseFloat(item.ipi) || 0;
-    const quantidade = parseFloat(item.quantidade) || 0;
 
     const valorFrete = custoBruto * (frete / 100);
     const valorIpi = (custoBruto + valorFrete) * (ipi / 100);
@@ -860,6 +997,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
           sl: '',
           observacoes: '',
           custoBruto: 0,
+          custoLiquido: 0, // Adicionar campo custo líquido
           frete: 0,
           ipi: 0,
           desconto: 0,
@@ -1118,10 +1256,21 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
   // Selecionar produto da sugestão
   const handleSelecionarProduto = (produto, index) => {
+    console.log('🛒 === INÍCIO handleSelecionarProduto ===');
     console.log('Produto selecionado:', produto);
+    console.log('Index do item:', index);
     console.log('Tributos disponíveis no momento da seleção:', tributosDisponiveis);
     console.log('Fornecedor atual:', formData.fornecedor);
     console.log('Fábrica atual:', formData.fabrica);
+    
+    // Verificar se o produto tem os dados necessários
+    console.log('📊 Dados do produto:');
+    console.log('  - custoBruto:', produto.custoBruto);
+    console.log('  - custoLiquido:', produto.custoLiquido);
+    console.log('  - frete:', produto.frete);
+    console.log('  - ipi:', produto.ipi);
+    console.log('  - descontos:', produto.descontos);
+    console.log('  - tributoSelecionado:', produto.tributoSelecionado);
     
     // Verificar se os tributos foram carregados corretamente
     if (tributosDisponiveis.length > 0) {
@@ -1144,24 +1293,54 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       }
     }
     
+    // Preencher dados do produto cadastrado, incluindo tributos
     const itemAtualizado = {
       ...formData.itens[index],
       descricao: produto.descricao,
       custoBruto: produto.custoBruto || 0,
-      frete: 0, // Zerar frete inicialmente
-      ipi: 0, // Zerar IPI inicialmente
-      desconto: '', // Zerar desconto inicialmente
-      tributoSelecionado: '' // Zerar tributo selecionado
+      custoLiquido: produto.custoLiquido || 0, // Preencher custo líquido
+      frete: produto.frete || 0, // Usar frete do produto cadastrado
+      ipi: produto.ipi || 0, // Usar IPI do produto cadastrado
+      desconto: produto.descontos || '', // Usar descontos do produto cadastrado
+      tributoSelecionado: produto.tributoSelecionado || '' // Usar tributo do produto cadastrado
     };
     
-    handleItemChange(index, 'descricao', produto.descricao);
-    handleItemChange(index, 'custoBruto', produto.custoBruto || 0);
-    handleItemChange(index, 'frete', 0); // Zerar frete
-    handleItemChange(index, 'ipi', 0); // Zerar IPI
-    handleItemChange(index, 'desconto', ''); // Zerar desconto
-    handleItemChange(index, 'tributoSelecionado', ''); // Zerar tributo selecionado
+    console.log('Preenchendo dados do produto cadastrado:', {
+      descricao: produto.descricao,
+      custoBruto: produto.custoBruto || 0,
+      custoLiquido: produto.custoLiquido || 0,
+      frete: produto.frete || 0,
+      ipi: produto.ipi || 0,
+      desconto: produto.descontos || '',
+      tributoSelecionado: produto.tributoSelecionado || ''
+    });
     
-    console.log('Item atualizado com valores zerados:', itemAtualizado);
+    console.log('🔄 Aplicando dados do produto...');
+    
+    handleItemChange(index, 'descricao', produto.descricao);
+    console.log('✅ Descrição aplicada:', produto.descricao);
+    
+    handleItemChange(index, 'custoBruto', produto.custoBruto || 0);
+    console.log('✅ Custo bruto aplicado:', produto.custoBruto || 0);
+    
+    handleItemChange(index, 'custoLiquido', produto.custoLiquido || 0);
+    console.log('✅ Custo líquido aplicado:', produto.custoLiquido || 0);
+    
+    handleItemChange(index, 'frete', produto.frete || 0);
+    console.log('✅ Frete aplicado:', produto.frete || 0);
+    
+    handleItemChange(index, 'ipi', produto.ipi || 0);
+    console.log('✅ IPI aplicado:', produto.ipi || 0);
+    
+    handleItemChange(index, 'desconto', produto.descontos || '');
+    console.log('✅ Descontos aplicados:', produto.descontos || '');
+    
+    handleItemChange(index, 'tributoSelecionado', produto.tributoSelecionado || '');
+    console.log('✅ Tributo selecionado aplicado:', produto.tributoSelecionado || '');
+    
+    console.log('📋 Item atualizado:', itemAtualizado);
+    console.log('🛒 === FIM handleSelecionarProduto ===');
+    
     setSugestoesProdutos([]);
     setCampoProdutoAtivo(null);
   };
@@ -2116,56 +2295,67 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                               />
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap">
-                              <input
-                                type="text"
-                                value={item.descricao || ''}
-                                onChange={(e) => {
-                                  const valor = e.target.value;
-                                  handleItemChange(index, 'descricao', valor);
-                                  // Buscar produtos automaticamente enquanto digita
-                                  if (valor.length >= 2) {
-                                    handleBuscarProduto(valor, index);
-                                  } else {
-                                    setSugestoesProdutos([]);
-                                    setCampoProdutoAtivo(null);
-                                  }
-                                }}
-                                onFocus={() => {
-                                  // Se já há texto no campo, mostrar sugestões imediatamente
-                                  if (item.descricao && item.descricao.length >= 2) {
-                                    handleBuscarProduto(item.descricao, index);
-                                  }
-                                }}
-                                onBlur={() => {
-                                  // Aguardar um pouco para permitir cliques nas sugestões
-                                  setTimeout(() => {
-                                    if (campoProdutoAtivo === index) {
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={item.descricao || ''}
+                                  onChange={(e) => {
+                                    const valor = e.target.value;
+                                    handleItemChange(index, 'descricao', valor);
+                                    // Buscar produtos automaticamente enquanto digita
+                                    if (valor.length >= 2) {
+                                      handleBuscarProduto(valor, index);
+                                    } else {
                                       setSugestoesProdutos([]);
                                       setCampoProdutoAtivo(null);
                                     }
-                                  }, 200);
-                                }}
-                                className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white campo-produto"
-                                placeholder={formData.fabrica ? "Digite para buscar produtos..." : "Selecione uma fábrica primeiro..."}
-                                disabled={!formData.fabrica}
-                              />
-                              {sugestoesProdutos.length > 0 && campoProdutoAtivo === index && (
-                                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
-                                  {sugestoesProdutos.map((produto, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                                      onMouseDown={(e) => {
-                                        e.preventDefault();
-                                        handleSelecionarProduto(produto, index);
-                                      }}
-                                    >
-                                      <div className="font-medium">{produto.descricao}</div>
-                                      <div className="text-gray-600">Custo: R$ {produto.custoBruto?.toFixed(2) || '0.00'}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                                  }}
+                                  onFocus={() => {
+                                    // Se já há texto no campo, mostrar sugestões imediatamente
+                                    if (item.descricao && item.descricao.length >= 2) {
+                                      handleBuscarProduto(item.descricao, index);
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    // Aguardar um pouco para permitir cliques nas sugestões
+                                    setTimeout(() => {
+                                      if (campoProdutoAtivo === index) {
+                                        setSugestoesProdutos([]);
+                                        setCampoProdutoAtivo(null);
+                                      }
+                                    }, 200);
+                                  }}
+                                  className={`w-full px-1 py-1 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 campo-produto ${
+                                    item.produtoNaoCadastrado 
+                                      ? 'border-orange-300 bg-orange-50' 
+                                      : 'border-gray-300 bg-white'
+                                  }`}
+                                  placeholder={formData.fabrica ? "Digite para buscar produtos..." : "Selecione uma fábrica primeiro..."}
+                                  disabled={!formData.fabrica}
+                                />
+                                {item.produtoNaoCadastrado && (
+                                  <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-1 rounded-full" title="Produto não cadastrado (local SE)">
+                                    ⚠️
+                                  </div>
+                                )}
+                                {sugestoesProdutos.length > 0 && campoProdutoAtivo === index && (
+                                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                    {sugestoesProdutos.map((produto, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          handleSelecionarProduto(produto, index);
+                                        }}
+                                      >
+                                        <div className="font-medium">{produto.descricao}</div>
+                                        <div className="text-gray-600">Custo: R$ {produto.custoBruto?.toFixed(2) || '0.00'}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap">
                               <input
@@ -2286,10 +2476,10 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           )}
                         </React.Fragment>
                       ))}
-                                        </tbody>
+                    </tbody>
                   </table>
-                  </div>
                 </div>
+              </div>
 
               {/* Totais */}
               <div className="mb-8 grid grid-cols-2 gap-4">
@@ -2590,23 +2780,24 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                               />
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap relative">
-                              <input
-                                type="text"
-                                value={item.descricao || ''}
-                                onChange={(e) => {
-                                  const valor = e.target.value;
-                                  handleItemChange(index, 'descricao', valor);
-                                  // Buscar produtos automaticamente enquanto digita
-                                  if (valor.length >= 2) {
-                                    handleBuscarProduto(valor, index);
-                                  } else {
-                                    setSugestoesProdutos([]);
-                                    setCampoProdutoAtivo(null);
-                                  }
-                                }}
-                                onFocus={() => {
-                                  // Se já há texto no campo, mostrar sugestões imediatamente
-                                  if (item.descricao && item.descricao.length >= 2) {
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={item.descricao || ''}
+                                  onChange={(e) => {
+                                    const valor = e.target.value;
+                                    handleItemChange(index, 'descricao', valor);
+                                    // Buscar produtos automaticamente enquanto digita
+                                    if (valor.length >= 2) {
+                                      handleBuscarProduto(valor, index);
+                                    } else {
+                                      setSugestoesProdutos([]);
+                                      setCampoProdutoAtivo(null);
+                                    }
+                                  }}
+                                  onFocus={() => {
+                                    // Se já há texto no campo, mostrar sugestões imediatamente
+                                    if (item.descricao && item.descricao.length >= 2) {
                                     handleBuscarProduto(item.descricao, index);
                                   }
                                 }}
@@ -2619,10 +2810,20 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                     }
                                   }, 200);
                                 }}
-                                className="w-full px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white campo-produto"
+                                className={`w-full px-1 py-1 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 campo-produto ${
+                                  item.produtoNaoCadastrado 
+                                    ? 'border-orange-300 bg-orange-50' 
+                                    : 'border-gray-300 bg-white'
+                                }`}
                                 placeholder={formData.fornecedor ? "Digite para buscar produtos..." : "Selecione um fornecedor primeiro..."}
                                 disabled={!formData.fornecedor}
                               />
+                              {item.produtoNaoCadastrado && (
+                                <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-1 rounded-full" title="Produto não cadastrado (local SE)">
+                                  ⚠️
+                                </div>
+                              )}
+                              </div>
                               {sugestoesProdutos.length > 0 && campoProdutoAtivo === index && (
                                 <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
                                   {sugestoesProdutos.map((produto, idx) => (

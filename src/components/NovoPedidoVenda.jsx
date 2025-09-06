@@ -1385,7 +1385,7 @@ const NovoPedidoVenda = () => {
           const produtoCadastrado = produto.produtoCadastrado;
           
           // Calcular valores com base no fornecedor e tributos
-          const valorUnitario = produto.valorUnitario || (produtoCadastrado?.tabc || 0);
+          const valorUnitario = produto.valorUnitario || (produtoCadastrado?.custoLiquido || 0);
           const quantidade = parseInt(produto.quantidade) || 1;
           const valorTotal = quantidade * valorUnitario;
           
@@ -1408,7 +1408,16 @@ const NovoPedidoVenda = () => {
             // Campos para cálculos futuros
             custoUnitario: produtoCadastrado?.custoUnitario || 0,
             margemLucro: produtoCadastrado?.margemLucro || 0,
-            tributos: produtoCadastrado?.tributos || []
+            tributos: produtoCadastrado?.tributos || [],
+            // Adicionar campos financeiros para preenchimento automático na interface
+            custoBruto: produtoCadastrado?.custoBruto || 0,
+            custoLiquido: produtoCadastrado?.custoLiquido || 0,
+            frete: produtoCadastrado?.frete || 0,
+            ipi: produtoCadastrado?.ipi || 0,
+            desconto: produtoCadastrado?.descontos || '',
+            tributoSelecionado: produtoCadastrado?.tributoSelecionado || '',
+            local: produto.sl || 'SE',
+            produtoNaoCadastrado: !produtoCadastrado
           };
         });
 
