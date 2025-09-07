@@ -22,6 +22,13 @@ const ListaOrdensCompra = () => {
   });
   const [ordensCompra, setOrdensCompra] = useState([]);
 
+  // Função para converter data sem problemas de timezone
+  const formatarDataSemTimezone = (dataString) => {
+    if (!dataString) return '-';
+    const [ano, mes, dia] = dataString.split('-');
+    return `${dia}/${mes}/${ano}`;
+  };
+
   const tipoOptions = ['cliente', 'estoque', 'assistencia'];
   const statusOptions = [
     'Em aberto', 
@@ -536,7 +543,7 @@ Ações
                   {ordem.tipo ? ordem.tipo.charAt(0).toUpperCase() + ordem.tipo.slice(1) : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.data ? new Date(ordem.data).toLocaleDateString('pt-BR') : '-'}
+                  {formatarDataSemTimezone(ordem.data)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {ordem.fornecedor || ordem.fornecedorNome || '-'}
@@ -550,7 +557,12 @@ Ações
                   R$ {(ordem.valor || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.prazoFinal ? new Date(ordem.prazoFinal).toLocaleDateString('pt-BR') : '-'}
+                  <div className="flex items-center">
+                    {formatarDataSemTimezone(ordem.prazoFinal)}
+                    {ordem.prazoAlteradoManualmente && (
+                      <span className="ml-1 text-red-500 font-bold" title="Prazo alterado manualmente">*</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {ordem.pedidoVinculado || '-'}

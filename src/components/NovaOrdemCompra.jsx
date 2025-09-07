@@ -59,6 +59,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
   const [pedidoOriginal, setPedidoOriginal] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [prazoAlteradoManualmente, setPrazoAlteradoManualmente] = useState(false);
   const [showChangesAlert, setShowChangesAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -163,6 +164,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
           
           setFormData(dadosParaEditar);
           setPedidoOriginal(dadosParaEditar);
+          
+          // Carregar flag de prazo alterado manualmente
+          setPrazoAlteradoManualmente(ordemParaEditar.prazoAlteradoManualmente || false);
         } else {
           // Se não encontrar a ordem, redireciona para a lista
           navigate('/ordens-compra');
@@ -315,6 +319,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
             clienteEmail: pedidoData.clienteEmail,
             clienteTelefone: pedidoData.clienteTelefone
           }));
+
+          // Resetar flag de alteração manual do prazo quando carregar dados do pedido
+          setPrazoAlteradoManualmente(false);
           
           // Salvar pedido original para controle de alterações
           setPedidoOriginal({
@@ -335,16 +342,18 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     }
   }, [id]);
 
-  // Inicializar prazo quando o componente for montado
+  // Inicializar prazo quando o componente for montado (apenas para novas ordens)
   useEffect(() => {
-    if (formData.dataVenda && !formData.prazoFinal) {
+    if (formData.dataVenda && !formData.prazoFinal && !id) {
       const prazoCalculado = calcular45DiasUteis(formData.dataVenda);
       setFormData(prev => ({
         ...prev,
         prazoFinal: prazoCalculado
       }));
+      // Resetar flag de alteração manual quando calcular automaticamente
+      setPrazoAlteradoManualmente(false);
     }
-  }, [formData.dataVenda]);
+  }, [formData.dataVenda, id]);
 
   // Carregar tributos disponíveis quando o fornecedor for selecionado
   useEffect(() => {
@@ -412,6 +421,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
         ...prev,
         prazoFinal: prazoCalculado
       }));
+      // Resetar flag de alteração manual quando data de venda muda
+      setPrazoAlteradoManualmente(false);
+    }
+
+    // Detectar alteração manual do prazo
+    if (name === 'prazoFinal') {
+      setPrazoAlteradoManualmente(true);
     }
 
     if (name === 'tipo') {
@@ -1076,7 +1092,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       fornecedor: nomeFornecedor,
       fornecedorId: formData.fornecedor,
       fornecedorNome: formData.fornecedorNome,
-      itens: itensComTributos
+      itens: itensComTributos,
+      prazoAlteradoManualmente: prazoAlteradoManualmente
     };
 
     console.log('Ordem atualizada para salvar:', ordemAtualizada);
@@ -1501,6 +1518,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       dataVenda: hoje,
       prazoFinal: calcular45DiasUteis(hoje)
     }));
+    // Resetar flag de alteração manual quando definir data hoje
+    setPrazoAlteradoManualmente(false);
   };
 
   // Função para definir data da encomenda como hoje
@@ -1788,14 +1807,33 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Prazo:</label>
+                    <div className="relative">
                     <input
                       type="date"
                       name="prazoFinal"
                       value={formData.prazoFinal}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      readOnly
-                    />
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const input = document.querySelector('input[name="prazoFinal"]');
+                          if (input) {
+                            input.focus();
+                            input.click();
+                          }
+                        }}
+                        className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-gray-100 transition-colors ${
+                          prazoAlteradoManualmente ? 'text-red-500' : 'text-gray-400'
+                        }`}
+                        title={prazoAlteradoManualmente ? "Prazo foi alterado manualmente" : "Clique para editar o prazo"}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2622,13 +2660,33 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Prazo:</label>
+                    <div className="relative">
                     <input
                       type="date"
                       name="prazoFinal"
                       value={formData.prazoFinal}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const input = document.querySelector('input[name="prazoFinal"]');
+                          if (input) {
+                            input.focus();
+                            input.click();
+                          }
+                        }}
+                        className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-gray-100 transition-colors ${
+                          prazoAlteradoManualmente ? 'text-red-500' : 'text-gray-400'
+                        }`}
+                        title={prazoAlteradoManualmente ? "Prazo foi alterado manualmente" : "Clique para editar o prazo"}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
