@@ -1441,8 +1441,9 @@ const NovoPedidoVenda = () => {
           documentoFabrica: '',
           entregaCliente: '',
           prazoPagamento: '',
-          observacoes: `Ordem de compra gerada automaticamente para o pedido de venda ${dadosPedido.numeroPedido}`,
-          observacoesInternas: `Cliente: ${dadosPedido.cliente}\nPedido: ${dadosPedido.numeroPedido}\nVendedor: ${dadosPedido.vendedor}`,
+          observacoes: '',
+          observacoesInternas: '',
+          informacoesPedidoVenda: `Ordem de compra gerada automaticamente para o pedido de venda ${dadosPedido.numeroPedido}\n\nCliente: ${dadosPedido.cliente}\nPedido: ${dadosPedido.numeroPedido}\nVendedor: ${dadosPedido.vendedor}`,
           itens: itensOrdemCompra,
           fabrica: fornecedor, // Usar o fornecedor como fábrica
           fornecedor: fornecedor,
