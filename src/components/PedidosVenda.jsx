@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaPlus, FaFilter, FaEllipsisV, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaFilter, FaEllipsisV, FaEdit, FaTrash, FaSearch, FaTimes, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
 import { pedidosVendaService } from '../services/database';
@@ -23,6 +23,19 @@ const PedidosVenda = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [menuAberto, setMenuAberto] = useState(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [filters, setFilters] = useState({
+    status: [],
+    statusInput: '',
+    dataInicio: '',
+    dataFim: '',
+    cliente: '',
+    vendedor: '',
+    valorMin: '',
+    valorMax: ''
+  });
 
   // Carregar pedidos do Firestore
   useEffect(() => {
@@ -53,6 +66,55 @@ const PedidosVenda = () => {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, [menuAberto]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return <FaSort className="ml-1 text-gray-400" />;
+    return sortDirection === 'asc' ? 
+      <FaSortUp className="ml-1 text-blue-500" /> : 
+      <FaSortDown className="ml-1 text-blue-500" />;
+  };
+
+  const handleFilterChange = (campo, valor) => {
+    if (campo === 'status') {
+      setFilters(prev => ({
+        ...prev,
+        status: prev.status.includes(valor) 
+          ? prev.status.filter(s => s !== valor)
+          : [...prev.status, valor]
+      }));
+    } else {
+      setFilters(prev => ({
+        ...prev,
+        [campo]: valor
+      }));
+    }
+  };
+
+  const aplicarFiltros = () => {
+    setShowFilters(false);
+  };
+
+  const limparFiltros = () => {
+    setFilters({
+      status: [],
+      statusInput: '',
+      dataInicio: '',
+      dataFim: '',
+      cliente: '',
+      vendedor: '',
+      valorMin: '',
+      valorMax: ''
+    });
+  };
 
   const onDragEnd = (result) => {
     if (!result.destination) return;
@@ -264,6 +326,73 @@ const PedidosVenda = () => {
     }
   };
 
+  // Função para buscar produtos dentro do pedido
+  const buscarProdutosPedido = (pedido, termoBusca) => {
+    if (!pedido.produtos || !Array.isArray(pedido.produtos)) return false;
+    
+    return pedido.produtos.some(produto => {
+      const nomeProduto = (produto.produto || '').toLowerCase();
+      const codigoProduto = (produto.codigo || '').toLowerCase();
+      return nomeProduto.includes(termoBusca.toLowerCase()) || 
+             codigoProduto.includes(termoBusca.toLowerCase());
+    });
+  };
+
+  // Filtrar e ordenar pedidos
+  const filteredAndSortedPedidos = pedidos
+    .filter(pedido => {
+      const matchesSearch = 
+        (pedido.numeroPedido || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (pedido.cliente || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (pedido.cpfCnpj || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (pedido.vendedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (pedido.situacao || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (pedido.ocVinculada || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        buscarProdutosPedido(pedido, searchTerm);
+      
+      const matchesStatus = filters.status.length === 0 || 
+        filters.status.includes(pedido.situacao);
+      
+      const matchesCliente = !filters.cliente || 
+        (pedido.cliente || '').toLowerCase().includes(filters.cliente.toLowerCase());
+      
+      const matchesVendedor = !filters.vendedor || 
+        (pedido.vendedor || '').toLowerCase().includes(filters.vendedor.toLowerCase());
+      
+      const matchesData = (!filters.dataInicio || new Date(pedido.dataCriacao?.toDate ? pedido.dataCriacao.toDate() : pedido.dataCriacao) >= new Date(filters.dataInicio)) &&
+        (!filters.dataFim || new Date(pedido.dataCriacao?.toDate ? pedido.dataCriacao.toDate() : pedido.dataCriacao) <= new Date(filters.dataFim));
+
+      const valorPedido = typeof pedido.valor === 'string' ? parseFloat(pedido.valor.replace(',', '.')) : Number(pedido.valor) || 0;
+      const matchesValor = (!filters.valorMin || valorPedido >= parseFloat(filters.valorMin)) &&
+        (!filters.valorMax || valorPedido <= parseFloat(filters.valorMax));
+
+      return matchesSearch && matchesStatus && matchesCliente && matchesVendedor && matchesData && matchesValor;
+    })
+    .sort((a, b) => {
+      if (!sortField) return 0;
+      
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+      
+      if (sortField === 'dataCriacao') {
+        aValue = aValue?.toDate ? aValue.toDate() : new Date(aValue);
+        bValue = bValue?.toDate ? bValue.toDate() : new Date(bValue);
+        return sortDirection === 'asc' 
+          ? aValue - bValue
+          : bValue - aValue;
+      }
+      
+      if (sortField === 'valor') {
+        aValue = typeof aValue === 'string' ? parseFloat(aValue.replace(',', '.')) : Number(aValue) || 0;
+        bValue = typeof bValue === 'string' ? parseFloat(bValue.replace(',', '.')) : Number(bValue) || 0;
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      
+      return sortDirection === 'asc'
+        ? String(aValue || '').localeCompare(String(bValue || ''))
+        : String(bValue || '').localeCompare(String(aValue || ''));
+    });
+
   // Encontrar o pedido atual do menu
   const pedidoAtual = pedidos.find(p => p.id === menuAberto);
 
@@ -288,17 +417,191 @@ const PedidosVenda = () => {
         </div>
       </div>
 
-      {/* Modal de Filtros (simples, pode ser expandido depois) */}
+      {/* Campo de Busca */}
+      <div className="mb-6">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Buscar pedidos (cliente, CPF, número, produtos, status, OC...)..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      {/* Modal de Filtros */}
       {showFilters && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Filtros</h3>
-              <button onClick={() => setShowFilters(false)} className="text-gray-500 hover:text-gray-700">X</button>
+              <button
+                onClick={() => setShowFilters(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FaTimes />
+              </button>
             </div>
-            <div className="text-gray-500">(Filtros a definir)</div>
-            <div className="mt-6 flex justify-end">
-              <button onClick={() => setShowFilters(false)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Fechar</button>
+
+            <div className="space-y-4">
+              {/* Filtro de Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={filters.statusInput || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFilters(prev => ({
+                        ...prev,
+                        statusInput: value
+                      }));
+                    }}
+                    onBlur={() => {
+                      if (filters.statusInput.trim()) {
+                        const newStatus = filters.statusInput.trim();
+                        if (!filters.status.includes(newStatus)) {
+                          setFilters(prev => ({
+                            ...prev,
+                            status: [...prev.status, newStatus],
+                            statusInput: ''
+                          }));
+                        } else {
+                          setFilters(prev => ({
+                            ...prev,
+                            statusInput: ''
+                          }));
+                        }
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && filters.statusInput.trim()) {
+                        e.preventDefault();
+                        const newStatus = filters.statusInput.trim();
+                        if (!filters.status.includes(newStatus)) {
+                          setFilters(prev => ({
+                            ...prev,
+                            status: [...prev.status, newStatus],
+                            statusInput: ''
+                          }));
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Digite o status..."
+                  />
+                </div>
+                {filters.status.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {filters.status.map((status, index) => (
+                      <span
+                        key={`${status}-${index}`}
+                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
+                      >
+                        {status}
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({
+                              ...prev,
+                              status: prev.status.filter((_, i) => i !== index)
+                            }));
+                          }}
+                          className="ml-1 text-blue-600 hover:text-blue-800"
+                        >
+                          <FaTimes className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Filtro de Cliente */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+                <input
+                  type="text"
+                  value={filters.cliente}
+                  onChange={(e) => handleFilterChange('cliente', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Filtrar por cliente"
+                />
+              </div>
+
+              {/* Filtro de Vendedor */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vendedor</label>
+                <input
+                  type="text"
+                  value={filters.vendedor}
+                  onChange={(e) => handleFilterChange('vendedor', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Filtrar por vendedor"
+                />
+              </div>
+
+              {/* Filtro de Data */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Inicial</label>
+                  <input
+                    type="date"
+                    value={filters.dataInicio}
+                    onChange={(e) => handleFilterChange('dataInicio', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Final</label>
+                  <input
+                    type="date"
+                    value={filters.dataFim}
+                    onChange={(e) => handleFilterChange('dataFim', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Filtro de Valor */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor Mínimo</label>
+                  <input
+                    type="number"
+                    value={filters.valorMin}
+                    onChange={(e) => handleFilterChange('valorMin', e.target.value)}
+                    placeholder="R$ 0,00"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor Máximo</label>
+                  <input
+                    type="number"
+                    value={filters.valorMax}
+                    onChange={(e) => handleFilterChange('valorMax', e.target.value)}
+                    placeholder="R$ 0,00"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={limparFiltros}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Limpar Filtros
+              </button>
+              <button
+                onClick={aplicarFiltros}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Aplicar Filtros
+              </button>
             </div>
           </div>
         </div>
@@ -319,9 +622,13 @@ const PedidosVenda = () => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 ${snapshot.isDragging ? 'bg-blue-100' : ''}`}
+                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 cursor-pointer ${snapshot.isDragging ? 'bg-blue-100' : ''}`}
+                            onClick={() => handleSort(col.id)}
                           >
-                            {col.label}
+                            <div className="flex items-center">
+                              {col.label}
+                              {getSortIcon(col.id)}
+                            </div>
                           </th>
                         )}
                       </Draggable>
@@ -339,15 +646,19 @@ const PedidosVenda = () => {
                   <p className="text-lg">Carregando pedidos...</p>
                 </td>
               </tr>
-            ) : pedidos.length === 0 ? (
+            ) : filteredAndSortedPedidos.length === 0 ? (
               <tr>
                 <td colSpan={colunas.length + 1} className="w-full text-center p-8 text-gray-500">
-                  <p className="text-lg">Nenhum pedido encontrado</p>
-                  <p className="text-sm mt-2">Clique em "Novo Pedido" para começar</p>
+                  <p className="text-lg">
+                    {pedidos.length === 0 ? 'Nenhum pedido encontrado' : 'Nenhum pedido corresponde aos filtros aplicados'}
+                  </p>
+                  <p className="text-sm mt-2">
+                    {pedidos.length === 0 ? 'Clique em "Novo Pedido" para começar' : 'Tente ajustar os filtros ou termos de busca'}
+                  </p>
                 </td>
               </tr>
             ) : (
-              pedidos.map((pedido, idx) => (
+              filteredAndSortedPedidos.map((pedido, idx) => (
                 <tr key={pedido.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 whitespace-nowrap text-sm relative">
                     <div className="menu-dropdown">
