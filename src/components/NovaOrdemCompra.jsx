@@ -99,6 +99,10 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   // Estado para controlar qual campo de produto está ativo
   const [campoProdutoAtivo, setCampoProdutoAtivo] = useState(null);
 
+  // Estado para debug popup
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [showDebugPopup, setShowDebugPopup] = useState(false);
+
   // Função para buscar a próxima OC disponível por tipo
   const buscarProximaOC = (tipo) => {
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
@@ -145,6 +149,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
   // Carregar dados da ordem se estiver em modo de edição
   useEffect(() => {
+    const carregarOrdem = () => {
     try {
       if (id) {
         setIsLoading(true);
@@ -157,11 +162,21 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
           // Mapear fornecedorId para fornecedor se existir
           const dadosParaEditar = {
             ...ordemParaEditar,
-            fornecedor: ordemParaEditar.fornecedorId || ordemParaEditar.fornecedor || '',
+            // Para OC de estoque: fornecedor deve ser o ID
+            // Para OC de cliente: fornecedor deve ser o nome (fabrica)
+            fornecedor: ordemParaEditar.tipo === 'estoque' 
+              ? (ordemParaEditar.fornecedorId || ordemParaEditar.fornecedor || '')
+              : (ordemParaEditar.fabrica || ''),
             fornecedorNome: ordemParaEditar.fornecedorNome || ordemParaEditar.fornecedor || '',
             // Garantir que o tipo seja sempre definido
             tipo: ordemParaEditar.tipo || 'cliente'
           };
+          
+          console.log('🔍 DEBUG: Dados carregados para edição:', dadosParaEditar);
+          console.log('🔍 DEBUG: Itens carregados:', dadosParaEditar.itens);
+          console.log('🔍 DEBUG: Estrutura do primeiro item:', dadosParaEditar.itens?.[0]);
+          console.log('🔍 DEBUG: Fornecedor carregado:', dadosParaEditar.fornecedor);
+          console.log('🔍 DEBUG: Fábrica carregada:', dadosParaEditar.fabrica);
           
           setFormData(dadosParaEditar);
           setPedidoOriginal(dadosParaEditar);
@@ -179,6 +194,24 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       setIsLoading(false);
       alert(`Erro ao carregar ordem de compra: ${error.message}`);
     }
+    };
+
+    // Carregar inicialmente
+    carregarOrdem();
+
+    // Listener para mudanças externas na ordem (quando produto é excluído da lista)
+    const handleStorageChange = () => {
+      console.log('🔄 Detectada alteração na ordem, recarregando dados...');
+      carregarOrdem();
+    };
+
+    // Adicionar listener
+    window.addEventListener('ordensCompraChanged', handleStorageChange);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('ordensCompraChanged', handleStorageChange);
+    };
   }, [id, navigate]);
 
   // Gerar OC automaticamente quando o tipo estiver pré-selecionado
@@ -801,7 +834,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
     // Verificar se houve alteração em relação ao pedido original
     if (pedidoOriginal) {
-      const originalItem = pedidoOriginal.produtos[index];
+      const originalItem = pedidoOriginal.itens[index];
       if (!originalItem) return;
 
       // Campos que não devem disparar alerta de alteração
@@ -869,7 +902,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
     // Verificar alterações nos itens
     formData.itens.forEach((item, index) => {
-      const originalItem = pedidoOriginal.produtos[index];
+      const originalItem = pedidoOriginal.itens[index];
       if (!originalItem) return;
 
       const itemChanges = [];
@@ -1126,6 +1159,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     localStorage.setItem('ordensCompra', JSON.stringify(novasOrdens));
     console.log('=== SALVAMENTO CONCLUÍDO ===');
 
+    // Disparar evento para atualizar a lista de ordens
+    window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+
     // Redirecionar para a lista de ordens
     navigate('/ordens-compra');
   };
@@ -1163,6 +1199,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     console.log('Fábrica selecionada:', formData.fabrica);
     console.log('Total de produtos disponíveis:', produtos.length);
     console.log('Total de fornecedores disponíveis:', fornecedores.length);
+    console.log('🔍 MODO EDIÇÃO:', !!id);
+    console.log('🔍 FormData completo:', formData);
     
     // Se não há descrição ou é muito curta, limpar sugestões
     if (!descricao || descricao.length < 2) {
@@ -1175,35 +1213,38 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     // Verificar se um fornecedor/fábrica foi selecionada baseado no tipo de OC
     let fornecedorSelecionado = null;
     let fornecedorId = null;
+    
     if (formData.tipo === 'estoque') {
       // Na tela de estoque, verificar fornecedor
       if (!formData.fornecedor) {
-        console.log('❌ Nenhum fornecedor selecionado na tela de estoque');
+        console.log('⚠️ Nenhum fornecedor selecionado na tela de estoque');
+        console.log('🔍 FormData.fornecedor:', formData.fornecedor);
+        console.log('🔍 FormData.fornecedorId:', formData.fornecedorId);
         setSugestoesProdutos([]);
         setCampoProdutoAtivo(null);
         return;
+      } else {
+        fornecedorId = formData.fornecedor;
+        // Buscar o nome do fornecedor para comparação
+        const fornecedorEncontrado = fornecedores.find(f => f.id === parseInt(formData.fornecedor));
+        fornecedorSelecionado = fornecedorEncontrado ? fornecedorEncontrado.nomeFantasia : '';
+        console.log('✅ Fornecedor encontrado na tela de estoque:', fornecedorEncontrado);
+        console.log('ID do fornecedor:', fornecedorId);
+        console.log('Nome do fornecedor:', fornecedorSelecionado);
       }
-      fornecedorId = formData.fornecedor;
-      // Buscar o nome do fornecedor para comparação
-      const fornecedorEncontrado = fornecedores.find(f => f.id === parseInt(formData.fornecedor));
-      fornecedorSelecionado = fornecedorEncontrado ? fornecedorEncontrado.nomeFantasia : '';
-      console.log('✅ Fornecedor encontrado na tela de estoque:', fornecedorEncontrado);
-      console.log('ID do fornecedor:', fornecedorId);
-      console.log('Nome do fornecedor:', fornecedorSelecionado);
     } else {
       // Na tela de cliente, verificar fábrica
       if (!formData.fabrica) {
-        console.log('❌ Nenhuma fábrica selecionada na tela de cliente');
+        console.log('⚠️ Nenhuma fábrica selecionada na tela de cliente');
+        console.log('🔍 FormData.fabrica:', formData.fabrica);
         setSugestoesProdutos([]);
         setCampoProdutoAtivo(null);
         return;
+      } else {
+        fornecedorSelecionado = formData.fabrica;
+        console.log('✅ Fábrica selecionada na tela de cliente:', fornecedorSelecionado);
       }
-      fornecedorSelecionado = formData.fabrica;
-      console.log('✅ Fábrica selecionada na tela de cliente:', fornecedorSelecionado);
     }
-
-    // Definir qual campo está ativo
-    setCampoProdutoAtivo(index);
 
     console.log('=== DEBUG FILTRAGEM PRODUTOS ===');
     console.log('Descrição buscada:', descricao);
@@ -1217,41 +1258,42 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       produto.descricao.toLowerCase().includes(descricao.toLowerCase())
     );
     
+    // Definir qual campo está ativo ANTES de atualizar as sugestões
+    setCampoProdutoAtivo(index);
+    
     console.log('Produtos com descrição similar:', produtosFiltrados.length);
     console.log('Primeiros produtos encontrados:', produtosFiltrados.slice(0, 3));
 
-    // TEMPORÁRIO: Para debug, mostrar todos os produtos sem filtro
+    // Filtrar por fornecedor/fábrica se necessário
     if (formData.tipo === 'estoque') {
-      console.log('🔧 MODO DEBUG: Mostrando todos os produtos sem filtro para teste');
-      console.log('Produtos disponíveis:', produtosFiltrados);
-      
-      // Por enquanto, retornar todos os produtos para teste
-      // produtosFiltrados = produtosFiltrados; // Já está assim
-    } else {
-      // Filtrar apenas produtos do fornecedor/fábrica selecionada
-      // Verificar se produto.fornecedor é ID ou nome
-      console.log('=== FILTRAGEM POR FORNECEDOR/FÁBRICA ===');
+      // Na tela de estoque, filtrar por fornecedor
       produtosFiltrados = produtosFiltrados.filter(produto => {
-        console.log(`🔍 Analisando produto: ${produto.descricao}`);
-        console.log(`   - Tipo do produto.fornecedor: ${typeof produto.fornecedor}`);
-        console.log(`   - Valor do produto.fornecedor: ${produto.fornecedor}`);
-        console.log(`   - Fornecedor/Fábrica selecionada: ${fornecedorSelecionado}`);
-        
-        // Na tela de cliente, comparar nomes de fábrica
+        // Verificar se produto.fornecedor é ID ou nome
         if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
           const fornecedorProduto = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
           if (fornecedorProduto) {
-            const match = fornecedorProduto.nomeFantasia === fornecedorSelecionado || 
-                         fornecedorProduto.razaoSocial === fornecedorSelecionado;
-            console.log(`   ✅ Fornecedor encontrado: ${fornecedorProduto.nomeFantasia}, Match: ${match}`);
-            return match;
+            return fornecedorProduto.nomeFantasia === fornecedorSelecionado || 
+                   fornecedorProduto.razaoSocial === fornecedorSelecionado;
           }
         }
         
         // Se produto.fornecedor for uma string (nome), comparar diretamente
-        const match = produto.fornecedor === fornecedorSelecionado;
-        console.log(`   ✅ Comparação direta: ${produto.fornecedor} === ${fornecedorSelecionado} = ${match}`);
-        return match;
+        return produto.fornecedor === fornecedorSelecionado;
+      });
+    } else {
+      // Na tela de cliente, filtrar por fábrica
+      produtosFiltrados = produtosFiltrados.filter(produto => {
+        // Verificar se produto.fornecedor é ID ou nome
+        if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
+          const fornecedorProduto = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
+          if (fornecedorProduto) {
+            return fornecedorProduto.nomeFantasia === fornecedorSelecionado || 
+                   fornecedorProduto.razaoSocial === fornecedorSelecionado;
+          }
+        }
+        
+        // Se produto.fornecedor for uma string (nome), comparar diretamente
+        return produto.fornecedor === fornecedorSelecionado;
       });
     }
     
@@ -1270,6 +1312,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     // Atualizar sugestões imediatamente
     console.log('✅ Produtos encontrados, atualizando sugestões:', produtosFiltrados.length);
     setSugestoesProdutos(produtosFiltrados);
+    
     console.log('=== FIM handleBuscarProduto ===');
   };
 
@@ -2379,7 +2422,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   </div>
                                 )}
                                 {sugestoesProdutos.length > 0 && campoProdutoAtivo === index && (
-                                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                  <div className="absolute z-[9999] w-full mt-1 bg-white border-2 border-blue-500 rounded-md shadow-2xl max-h-40 overflow-y-auto" style={{backgroundColor: 'white', border: '2px solid #3b82f6'}}>
                                     {sugestoesProdutos.map((produto, idx) => (
                                       <div
                                         key={idx}
@@ -2901,9 +2944,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   ⚠️
                                 </div>
                               )}
-                              </div>
+                              
                               {sugestoesProdutos.length > 0 && campoProdutoAtivo === index && (
-                                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                <div className="absolute z-[9999] w-full mt-1 bg-white border-2 border-blue-500 rounded-md shadow-2xl max-h-40 overflow-y-auto" style={{backgroundColor: 'white', border: '2px solid #3b82f6'}}>
                                   {sugestoesProdutos.map((produto, idx) => (
                                     <div
                                       key={idx}
@@ -2919,6 +2962,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   ))}
                                 </div>
                               )}
+                              </div>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap">
                               <input
@@ -3506,6 +3550,88 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
           </div>
         </div>
       )}
+      {/* Popup de Debug das Sugestões */}
+      {showDebugPopup && debugInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-blue-600">🔧 Debug - Sugestões de Produtos</h3>
+              <button
+                onClick={() => setShowDebugPopup(false)}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <h4 className="font-semibold text-gray-700 mb-2">Informações Gerais:</h4>
+                <div className="space-y-1">
+                  <p><strong>Timestamp:</strong> {debugInfo.timestamp}</p>
+                  <p><strong>Descrição digitada:</strong> "{debugInfo.descricao}"</p>
+                  <p><strong>Índice do campo:</strong> {debugInfo.index}</p>
+                  <p><strong>Tipo de OC:</strong> {debugInfo.tipoOC}</p>
+                  <p><strong>Fornecedor selecionado:</strong> {debugInfo.fornecedorSelecionado || 'Nenhum'}</p>
+                  <p><strong>Fábrica selecionada:</strong> {debugInfo.fabricaSelecionada || 'Nenhuma'}</p>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold text-gray-700 mb-2">Contadores:</h4>
+                <div className="space-y-1">
+                  <p><strong>Total de produtos:</strong> {debugInfo.totalProdutos}</p>
+                  <p><strong>Total de fornecedores:</strong> {debugInfo.totalFornecedores}</p>
+                  <p><strong>Produtos filtrados:</strong> {debugInfo.produtosFiltradosCount}</p>
+                  <p><strong>Sugestões atuais:</strong> {debugInfo.sugestoesAtuais}</p>
+                  <p><strong>Campo ativo:</strong> {debugInfo.campoProdutoAtivo}</p>
+                </div>
+              </div>
+            </div>
+            
+            {debugInfo.produtosFiltrados.length > 0 && (
+              <div className="mt-4">
+                <h4 className="font-semibold text-gray-700 mb-2">Primeiros Produtos Filtrados:</h4>
+                <div className="bg-gray-50 p-3 rounded text-xs">
+                  {debugInfo.produtosFiltrados.map((produto, idx) => (
+                    <div key={idx} className="mb-2 border-b pb-1">
+                      <strong>{produto.descricao}</strong> - Fornecedor: {produto.fornecedor} - Custo: R$ {produto.custoBruto?.toFixed(2) || '0.00'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="mt-4">
+              <h4 className="font-semibold text-gray-700 mb-2">FormData Completo:</h4>
+              <textarea
+                className="w-full h-32 p-2 border rounded text-xs font-mono bg-gray-50"
+                value={debugInfo.formDataCompleto}
+                readOnly
+              />
+            </div>
+            
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2));
+                  alert('Informações de debug copiadas para a área de transferência!');
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2"
+              >
+                📋 Copiar Debug
+              </button>
+              <button
+                onClick={() => setShowDebugPopup(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -11,6 +11,8 @@ const ListaOrdensCompra = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [ordemToDelete, setOrdemToDelete] = useState(null);
+  const [showDeleteProductModal, setShowDeleteProductModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
   const [menuAberto, setMenuAberto] = useState(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [filters, setFilters] = useState({
@@ -58,29 +60,58 @@ const ListaOrdensCompra = () => {
 
   // Carregar ordens do localStorage ao montar o componente
   useEffect(() => {
-    const ordensSalvas = localStorage.getItem('ordensCompra');
-    if (ordensSalvas) {
-      const ordens = JSON.parse(ordensSalvas);
-      
-      // CORREÇÃO: Adicionar ID para ordens que não têm
-      const ordensCorrigidas = ordens.map((ordem, index) => {
-        if (!ordem.id || ordem.id === undefined || ordem.id === null) {
-          return {
-            ...ordem,
-            id: Date.now() + index // ID único baseado em timestamp + índice
-          };
+    const carregarOrdens = () => {
+      const ordensSalvas = localStorage.getItem('ordensCompra');
+      if (ordensSalvas) {
+        const ordens = JSON.parse(ordensSalvas);
+        
+        // CORREÇÃO: Adicionar ID para ordens que não têm
+        const ordensCorrigidas = ordens.map((ordem, index) => {
+          if (!ordem.id || ordem.id === undefined || ordem.id === null) {
+            return {
+              ...ordem,
+              id: Date.now() + index // ID único baseado em timestamp + índice
+            };
+          }
+          return ordem;
+        });
+        
+        // Salvar ordens corrigidas se houve mudanças
+        if (ordensCorrigidas.some((ordem, index) => ordem.id !== ordens[index].id)) {
+          localStorage.setItem('ordensCompra', JSON.stringify(ordensCorrigidas));
+          setOrdensCompra(ordensCorrigidas);
+        } else {
+          setOrdensCompra(ordens);
         }
-        return ordem;
-      });
-      
-      // Salvar ordens corrigidas se houve mudanças
-      if (ordensCorrigidas.some((ordem, index) => ordem.id !== ordens[index].id)) {
-        localStorage.setItem('ordensCompra', JSON.stringify(ordensCorrigidas));
-        setOrdensCompra(ordensCorrigidas);
-      } else {
-        setOrdensCompra(ordens);
       }
-    }
+    };
+
+    // Carregar inicialmente
+    carregarOrdens();
+
+    // Listener para mudanças no localStorage (quando ordem é editada)
+    const handleStorageChange = (e) => {
+      if (e.key === 'ordensCompra') {
+        console.log('🔄 Detectada alteração nas ordens de compra, recarregando lista...');
+        carregarOrdens();
+      }
+    };
+
+    // Listener customizado para mudanças no mesmo tab
+    const handleCustomStorageChange = () => {
+      console.log('🔄 Detectada alteração customizada nas ordens de compra, recarregando lista...');
+      carregarOrdens();
+    };
+
+    // Adicionar listeners
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('ordensCompraChanged', handleCustomStorageChange);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('ordensCompraChanged', handleCustomStorageChange);
+    };
   }, []);
 
   // Salvar ordens no localStorage quando houver mudanças
@@ -249,10 +280,10 @@ const ListaOrdensCompra = () => {
       : String(bValue).localeCompare(String(aValue));
   });
 
-  const toggleMenu = (ordemId, event) => {
+  const toggleMenu = (linha, event) => {
     event.stopPropagation();
     
-    if (menuAberto === ordemId) {
+    if (menuAberto === linha.linhaId) {
       setMenuAberto(null);
     } else {
       const rect = event.currentTarget.getBoundingClientRect();
@@ -260,7 +291,9 @@ const ListaOrdensCompra = () => {
         x: rect.left,
         y: rect.bottom + 5
       });
-      setMenuAberto(ordemId);
+      setMenuAberto(linha.linhaId);
+      // Guardar informações da linha atual para usar no menu
+      window.linhaAtual = linha;
     }
   };
 
@@ -298,6 +331,65 @@ const ListaOrdensCompra = () => {
     setMenuAberto(null);
     setOrdemToDelete(id);
     setShowDeleteModal(true);
+  };
+
+  const handleDeleteProduct = (linha) => {
+    setMenuAberto(null);
+    setProductToDelete(linha);
+    setShowDeleteProductModal(true);
+  };
+
+  const confirmDeleteProduct = () => {
+    if (productToDelete) {
+      const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+      
+      // Encontrar a ordem que contém o produto
+      const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === productToDelete.id);
+      
+      if (ordemIndex !== -1) {
+        const ordem = ordensExistentes[ordemIndex];
+        
+        // Remover o produto específico da lista de itens
+        if (ordem.itens && ordem.itens.length > 0) {
+          const novosItens = ordem.itens.filter((_, index) => index !== productToDelete.indiceProduto);
+          
+          if (novosItens.length === 0) {
+            // Se não restaram produtos, excluir a ordem inteira
+            ordensExistentes.splice(ordemIndex, 1);
+          } else {
+            // Atualizar a ordem com os novos itens e recalcular valor
+            const novoValor = novosItens.reduce((total, item) => 
+              total + (item.valorTotal || (item.quantidade * item.valorUnitario) || 0), 0
+            );
+            
+            ordensExistentes[ordemIndex] = {
+              ...ordem,
+              itens: novosItens,
+              valor: novoValor,
+              dataAtualizacao: new Date().toISOString()
+            };
+          }
+          
+          // Salvar no localStorage
+          localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+          
+          // Atualizar o estado local
+          setOrdensCompra(ordensExistentes);
+          
+          // Disparar evento para sincronizar com outras telas
+          window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+        }
+      }
+      
+      // Fechar modal
+      setShowDeleteProductModal(false);
+      setProductToDelete(null);
+    }
+  };
+
+  const cancelDeleteProduct = () => {
+    setShowDeleteProductModal(false);
+    setProductToDelete(null);
   };
 
   const confirmDelete = () => {
@@ -758,7 +850,7 @@ const ListaOrdensCompra = () => {
                 <td className="px-4 py-3 whitespace-nowrap text-sm relative">
                   <div className="menu-dropdown">
                     <button
-                      onClick={(e) => toggleMenu(ordem.id, e)}
+                      onClick={(e) => toggleMenu(ordem, e)}
                       className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
                       title="Opções"
                     >
@@ -820,7 +912,7 @@ const ListaOrdensCompra = () => {
       </div>
 
       {/* Menu Dropdown Global */}
-      {menuAberto && ordemAtual && createPortal(
+      {menuAberto && window.linhaAtual && createPortal(
         <div 
           className="fixed z-[9999] bg-white rounded-md shadow-lg border border-gray-200 menu-actions"
           style={{
@@ -833,22 +925,37 @@ const ListaOrdensCompra = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleEdit(ordemAtual.id);
+                handleEdit(window.linhaAtual.id);
               }}
               className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
             >
               <FaEdit className="mr-3 text-blue-600" />
-              Editar
+              Editar Ordem
             </button>
+            
+            {/* Mostrar opção de excluir produto apenas se há produto específico e mais de um item na ordem */}
+            {window.linhaAtual.produtoAtual && window.linhaAtual.itens && window.linhaAtual.itens.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteProduct(window.linhaAtual);
+                }}
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
+              >
+                <FaTrash className="mr-3 text-orange-600" />
+                Excluir Produto
+              </button>
+            )}
+            
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleDelete(ordemAtual.id);
+                handleDelete(window.linhaAtual.id);
               }}
               className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
             >
               <FaTrash className="mr-3 text-red-600" />
-              Excluir
+              Excluir Ordem Completa
             </button>
           </div>
         </div>,
@@ -884,6 +991,45 @@ const ListaOrdensCompra = () => {
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão de Produto */}
+      {showDeleteProductModal && productToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0">
+                <FaExclamationTriangle className="h-6 w-6 text-orange-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Confirmar Exclusão do Produto
+              </h3>
+            </div>
+            
+            <p className="text-gray-600 mb-4">
+              Tem certeza que deseja excluir o produto <strong>{productToDelete.produtoAtual?.produto || productToDelete.produtoAtual?.descricao}</strong> desta ordem de compra?
+            </p>
+            
+            <p className="text-sm text-gray-500 mb-6">
+              O produto será removido da ordem {productToDelete.numero} e o valor total será recalculado automaticamente.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelDeleteProduct}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeleteProduct}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                Excluir Produto
               </button>
             </div>
           </div>

@@ -1488,9 +1488,12 @@ const NovoPedidoVenda = () => {
       
       // Notificar o usuário
       if (ordensCriadas.length === 1) {
-        alert(`✅ Ordem de compra ${proximaOC} criada automaticamente!\n\n${produtosSE.length} produto(s) SE foram incluídos na encomenda.`);
+        const ordem = ordensCriadas[0];
+        const quantidadeProdutos = ordem.itens.length;
+        alert(`✅ Ordem de compra ${ordem.oc} criada automaticamente!\n\n${quantidadeProdutos} produto(s) SE foram incluídos na encomenda para o fornecedor: ${ordem.fornecedor}`);
       } else {
-        alert(`✅ ${ordensCriadas.length} ordens de compra ${proximaOC} criadas automaticamente!\n\nProdutos agrupados por fornecedor para facilitar o gerenciamento.`);
+        const numerosOCs = ordensCriadas.map(o => o.oc).join(', ');
+        alert(`✅ ${ordensCriadas.length} ordens de compra criadas automaticamente!\n\nNúmeros: ${numerosOCs}\n\nProdutos agrupados por fornecedor para facilitar o gerenciamento.`);
       }
       
       return ordensCriadas;
