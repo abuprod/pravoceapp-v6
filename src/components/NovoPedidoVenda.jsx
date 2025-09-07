@@ -1590,6 +1590,9 @@ const NovoPedidoVenda = () => {
         // Atualizar pedido existente
         await pedidosVendaService.atualizar(id, dadosPedido);
         
+        // Notificar que o pedido foi atualizado
+        alert('✅ Pedido atualizado com sucesso!');
+        
         if (estaCancelando) {
           // Reverter estoque se está cancelando
           console.log('🚫 Processando cancelamento de pedido...');
@@ -1654,8 +1657,18 @@ const NovoPedidoVenda = () => {
       // Verificar se há produtos SE para criar ordem de compra automaticamente
       const produtosSE = formData.produtos.filter(p => p.sl === 'SE');
       if (produtosSE.length > 0) {
-        console.log('🛒 Produtos SE encontrados, criando ordem de compra automaticamente...');
-        await criarOrdemCompraAutomatica(dadosPedido, produtosSE);
+        // Verificar se já existem ordens de compra para este pedido
+        const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+        const ordensParaEstePedido = ordensExistentes.filter(oc => 
+          oc.pedidoVinculado === dadosPedido.numeroPedido
+        );
+        
+        if (ordensParaEstePedido.length === 0) {
+          console.log('🛒 Produtos SE encontrados, criando ordem de compra automaticamente...');
+          await criarOrdemCompraAutomatica(dadosPedido, produtosSE);
+        } else {
+          console.log(`⚠️ Já existem ${ordensParaEstePedido.length} ordem(ns) de compra para o pedido ${dadosPedido.numeroPedido}. Pulando criação automática.`);
+        }
       }
 
       // Permanecer na tela do pedido após salvar
