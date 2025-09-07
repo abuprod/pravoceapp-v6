@@ -1,7 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV, FaColumns, FaGripVertical } from 'react-icons/fa';
 import { createPortal } from 'react-dom';
+
+// Componente para item arrastável
+const DraggableColumnItem = ({ column, index, onToggle, onDragStart, onDragEnd, onDragOver, onDrop }) => {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragStart = (e) => {
+    setIsDragging(true);
+    e.dataTransfer.setData('text/plain', index);
+    onDragStart(index);
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    onDragEnd();
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    onDragOver(index);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    onDrop(dragIndex, index);
+  };
+
+  return (
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className={`flex items-center p-3 border border-gray-200 rounded-lg mb-2 cursor-move transition-all duration-200 ${
+        isDragging ? 'opacity-50 transform scale-95' : 'hover:bg-gray-50 hover:shadow-sm'
+      }`}
+    >
+      <FaGripVertical className="text-gray-400 mr-3 flex-shrink-0" />
+      <label className="flex items-center flex-grow cursor-pointer">
+        <input
+          type="checkbox"
+          checked={column.visible}
+          onChange={() => onToggle(column.key)}
+          className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+          onClick={(e) => e.stopPropagation()}
+        />
+        <span className="text-sm font-medium text-gray-700">{column.label}</span>
+      </label>
+    </div>
+  );
+};
 
 const ListaOrdensCompra = () => {
   const navigate = useNavigate();
@@ -15,6 +67,20 @@ const ListaOrdensCompra = () => {
   const [productToDelete, setProductToDelete] = useState(null);
   const [menuAberto, setMenuAberto] = useState(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [showColumnsModal, setShowColumnsModal] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [columnsConfig, setColumnsConfig] = useState([
+    { key: 'numero', label: 'Número', visible: true },
+    { key: 'tipo', label: 'Tipo', visible: true },
+    { key: 'data', label: 'Data', visible: true },
+    { key: 'fornecedor', label: 'Fornecedor', visible: true },
+    { key: 'vendedor', label: 'Vendedor', visible: true },
+    { key: 'status', label: 'Status', visible: true },
+    { key: 'produto', label: 'Produto', visible: true },
+    { key: 'valor', label: 'Valor', visible: true },
+    { key: 'prazo', label: 'Prazo', visible: true },
+    { key: 'pedido', label: 'PED', visible: true }
+  ]);
   const [filters, setFilters] = useState({
     tipo: '',
     status: [],
@@ -57,6 +123,14 @@ const ListaOrdensCompra = () => {
       .map(ordem => ordem.vendedor)
       .filter(vendedor => vendedor && vendedor.trim() !== '')
   )].sort();
+
+  // Carregar preferências de colunas do localStorage
+  useEffect(() => {
+    const columnsPrefs = localStorage.getItem('ordensCompraColumnsConfig');
+    if (columnsPrefs) {
+      setColumnsConfig(JSON.parse(columnsPrefs));
+    }
+  }, []);
 
   // Carregar ordens do localStorage ao montar o componente
   useEffect(() => {
@@ -189,6 +263,65 @@ const ListaOrdensCompra = () => {
       valorMin: '',
       valorMax: ''
     });
+  };
+
+  // Funções para controlar colunas
+  const handleColumnToggle = (columnKey) => {
+    setColumnsConfig(prev => 
+      prev.map(col => 
+        col.key === columnKey ? { ...col, visible: !col.visible } : col
+      )
+    );
+  };
+
+  const handleColumnReorder = (dragIndex, hoverIndex) => {
+    if (dragIndex === hoverIndex) return;
+    
+    setColumnsConfig(prev => {
+      const newColumns = [...prev];
+      const draggedColumn = newColumns[dragIndex];
+      newColumns.splice(dragIndex, 1);
+      newColumns.splice(hoverIndex, 0, draggedColumn);
+      return newColumns;
+    });
+  };
+
+  // Funções para drag and drop
+  const handleDragStart = (index) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const handleDragOver = (index) => {
+    // Não faz nada, apenas previne o comportamento padrão
+  };
+
+  const handleDrop = (dragIndex, hoverIndex) => {
+    handleColumnReorder(dragIndex, hoverIndex);
+  };
+
+  const saveColumnsPreferences = () => {
+    localStorage.setItem('ordensCompraColumnsConfig', JSON.stringify(columnsConfig));
+    setShowColumnsModal(false);
+  };
+
+  const resetColumns = () => {
+    const defaultColumns = [
+      { key: 'numero', label: 'Número', visible: true },
+      { key: 'tipo', label: 'Tipo', visible: true },
+      { key: 'data', label: 'Data', visible: true },
+      { key: 'fornecedor', label: 'Fornecedor', visible: true },
+      { key: 'vendedor', label: 'Vendedor', visible: true },
+      { key: 'status', label: 'Status', visible: true },
+      { key: 'produto', label: 'Produto', visible: true },
+      { key: 'valor', label: 'Valor', visible: true },
+      { key: 'prazo', label: 'Prazo', visible: true },
+      { key: 'pedido', label: 'PED', visible: true }
+    ];
+    setColumnsConfig(defaultColumns);
   };
 
   // Função para verificar se há filtros ativos
@@ -449,6 +582,12 @@ const ListaOrdensCompra = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Ordens de Compra</h1>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowColumnsModal(true)}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <FaColumns /> Ver Colunas
+          </button>
           <button
             onClick={() => setShowFilters(true)}
             className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
@@ -747,6 +886,75 @@ const ListaOrdensCompra = () => {
         </div>
       )}
 
+      {/* Modal de Seleção de Colunas */}
+      {showColumnsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md">
+            <div className="flex justify-between items-center p-6 pb-4 border-b">
+              <h3 className="text-lg font-semibold">Selecionar Colunas</h3>
+              <button
+                onClick={() => setShowColumnsModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-gray-600">
+                  Escolha e reordene as colunas arrastando:
+                </p>
+                <div className="flex items-center text-xs text-gray-500">
+                  <FaGripVertical className="mr-1" />
+                  Arraste para reordenar
+                </div>
+              </div>
+              
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {columnsConfig.map((column, index) => (
+                  <DraggableColumnItem
+                    key={column.key}
+                    column={column}
+                    index={index}
+                    onToggle={handleColumnToggle}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 pt-4 border-t bg-gray-50 rounded-b-lg">
+              <div className="flex justify-between">
+                <button
+                  onClick={resetColumns}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Mostrar Todas
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowColumnsModal(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={saveColumnsPreferences}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <div className="relative">
           <input
@@ -764,84 +972,23 @@ const ListaOrdensCompra = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort('numero')}
-              >
-                <div className="flex items-center">
-                Número
-                  {getSortIcon('numero')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort('tipo')}
-              >
-                <div className="flex items-center">
-                  Tipo
-                  {getSortIcon('tipo')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort('data')}
-              >
-                <div className="flex items-center">
-                  Data
-                  {getSortIcon('data')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort('fornecedor')}
-              >
-                <div className="flex items-center">
-                Fornecedor
-                  {getSortIcon('fornecedor')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort('vendedor')}
-              >
-                <div className="flex items-center">
-                Vendedor
-                  {getSortIcon('vendedor')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort('status')}
-              >
-                <div className="flex items-center">
-                Status
-                  {getSortIcon('status')}
-                </div>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Produto
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Valor
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort('prazoFinal')}
-              >
-                <div className="flex items-center">
-                  Prazo
-                  {getSortIcon('prazoFinal')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort('pedidoVinculado')}
-              >
-                <div className="flex items-center">
-                  PED
-                  {getSortIcon('pedidoVinculado')}
-                </div>
-              </th>
+              {columnsConfig.filter(col => col.visible).map(column => {
+                const sortKey = column.key === 'prazo' ? 'prazoFinal' : 
+                               column.key === 'pedido' ? 'pedidoVinculado' : column.key;
+                
+                return (
+                  <th 
+                    key={column.key}
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort(sortKey)}
+                  >
+                    <div className="flex items-center">
+                      {column.label}
+                      {getSortIcon(sortKey)}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -858,53 +1005,69 @@ const ListaOrdensCompra = () => {
                     </button>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => handleNumeroClick(ordem.id)}
-                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
-                  >
-                    {ordem.numero || ordem.oc || '-'}
-                  </button>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.tipo ? ordem.tipo.charAt(0).toUpperCase() + ordem.tipo.slice(1) : '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatarDataSemTimezone(ordem.data)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.fornecedor || ordem.fornecedorNome || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.vendedor || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(ordem.status)}`}>
-                    {(ordem.status || 'Em aberto').toUpperCase()}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.produtoAtual ? (
-                    <div>
-                      <div className="font-medium text-gray-900">{ordem.produtoAtual.produto || ordem.produtoAtual.descricao}</div>
-                      <div className="text-xs text-gray-500">Qtd: {ordem.produtoAtual.quantidade || 1}</div>
-                    </div>
-                  ) : '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  R$ {(ordem.valorProduto || ordem.valor || 0).toFixed(2)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div className="flex items-center">
-                    {formatarDataSemTimezone(ordem.prazoFinal)}
-                    {ordem.prazoAlteradoManualmente && (
-                      <span className="ml-1 text-red-500 font-bold" title="Prazo alterado manualmente">*</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ordem.pedidoVinculado || '-'}
-                </td>
+                {columnsConfig.filter(col => col.visible).map(column => {
+                  const renderCell = () => {
+                    switch (column.key) {
+                      case 'numero':
+                        return (
+                          <button
+                            onClick={() => handleNumeroClick(ordem.id)}
+                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+                          >
+                            {ordem.numero || ordem.oc || '-'}
+                          </button>
+                        );
+                      case 'tipo':
+                        return ordem.tipo ? ordem.tipo.charAt(0).toUpperCase() + ordem.tipo.slice(1) : '-';
+                      case 'data':
+                        return formatarDataSemTimezone(ordem.data);
+                      case 'fornecedor':
+                        return ordem.fornecedor || ordem.fornecedorNome || '-';
+                      case 'vendedor':
+                        return ordem.vendedor || '-';
+                      case 'status':
+                        return (
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(ordem.status)}`}>
+                            {(ordem.status || 'Em aberto').toUpperCase()}
+                          </span>
+                        );
+                      case 'produto':
+                        return ordem.produtoAtual ? (
+                          <div>
+                            <div className="font-medium text-gray-900">{ordem.produtoAtual.produto || ordem.produtoAtual.descricao}</div>
+                            <div className="text-xs text-gray-500">Qtd: {ordem.produtoAtual.quantidade || 1}</div>
+                          </div>
+                        ) : '-';
+                      case 'valor':
+                        return `R$ ${(ordem.valorProduto || ordem.valor || 0).toFixed(2)}`;
+                      case 'prazo':
+                        return (
+                          <div className="flex items-center">
+                            {formatarDataSemTimezone(ordem.prazoFinal)}
+                            {ordem.prazoAlteradoManualmente && (
+                              <span className="ml-1 text-red-500 font-bold" title="Prazo alterado manualmente">*</span>
+                            )}
+                          </div>
+                        );
+                      case 'pedido':
+                        return ordem.pedidoVinculado || '-';
+                      default:
+                        return '-';
+                    }
+                  };
+
+                  return (
+                    <td 
+                      key={column.key}
+                      className={`px-4 py-4 whitespace-nowrap text-sm ${
+                        column.key === 'numero' ? 'font-medium' : 
+                        column.key === 'status' ? '' : 'text-gray-500'
+                      }`}
+                    >
+                      {renderCell()}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
