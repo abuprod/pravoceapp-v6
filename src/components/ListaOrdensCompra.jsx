@@ -174,8 +174,40 @@ const ListaOrdensCompra = () => {
     );
   };
 
-  const filteredAndSortedOrdens = ordensCompra
-    .filter(ordem => {
+  // Expandir ordens em linhas por produto
+  const expandirOrdensPorProduto = (ordens) => {
+    const linhasExpandidas = [];
+    
+    ordens.forEach(ordem => {
+      if (ordem.itens && ordem.itens.length > 0) {
+        // Criar uma linha para cada produto
+        ordem.itens.forEach((item, index) => {
+          linhasExpandidas.push({
+            ...ordem,
+            // Adicionar informações do produto específico
+            produtoAtual: item,
+            indiceProduto: index,
+            // ID único para cada linha (ordem + produto)
+            linhaId: `${ordem.id}_${index}`,
+            // Valor específico do produto
+            valorProduto: item.valorTotal || (item.quantidade * item.valorUnitario) || 0
+          });
+        });
+      } else {
+        // Se não tem itens, manter a linha original
+        linhasExpandidas.push({
+          ...ordem,
+          linhaId: `${ordem.id}_0`,
+          valorProduto: ordem.valor || 0
+        });
+      }
+    });
+    
+    return linhasExpandidas;
+  };
+
+  const filteredAndSortedOrdens = expandirOrdensPorProduto(
+    ordensCompra.filter(ordem => {
       const matchesSearch = 
         (ordem.numero || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (ordem.fornecedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -200,22 +232,22 @@ const ListaOrdensCompra = () => {
 
       return matchesSearch && matchesTipo && matchesStatus && matchesFornecedor && matchesVendedor && matchesData && matchesValor;
     })
-    .sort((a, b) => {
-      if (!sortField) return 0;
-      
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-      
-      if (sortField === 'data') {
-        return sortDirection === 'asc' 
-          ? new Date(aValue) - new Date(bValue)
-          : new Date(bValue) - new Date(aValue);
-      }
-      
-      return sortDirection === 'asc'
-        ? String(aValue).localeCompare(String(bValue))
-        : String(bValue).localeCompare(String(aValue));
-    });
+  ).sort((a, b) => {
+    if (!sortField) return 0;
+    
+    const aValue = a[sortField];
+    const bValue = b[sortField];
+    
+    if (sortField === 'data') {
+      return sortDirection === 'asc' 
+        ? new Date(aValue) - new Date(bValue)
+        : new Date(bValue) - new Date(aValue);
+    }
+    
+    return sortDirection === 'asc'
+      ? String(aValue).localeCompare(String(bValue))
+      : String(bValue).localeCompare(String(aValue));
+  });
 
   const toggleMenu = (ordemId, event) => {
     event.stopPropagation();
@@ -695,6 +727,9 @@ const ListaOrdensCompra = () => {
                 </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Produto
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Valor
               </th>
               <th 
@@ -719,7 +754,7 @@ const ListaOrdensCompra = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredAndSortedOrdens.map((ordem) => (
-              <tr key={ordem.id || Date.now()} className="hover:bg-gray-50">
+              <tr key={ordem.linhaId || ordem.id || Date.now()} className="hover:bg-gray-50">
                 <td className="px-4 py-3 whitespace-nowrap text-sm relative">
                   <div className="menu-dropdown">
                     <button
@@ -757,7 +792,15 @@ const ListaOrdensCompra = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  R$ {(ordem.valor || 0).toFixed(2)}
+                  {ordem.produtoAtual ? (
+                    <div>
+                      <div className="font-medium text-gray-900">{ordem.produtoAtual.produto || ordem.produtoAtual.descricao}</div>
+                      <div className="text-xs text-gray-500">Qtd: {ordem.produtoAtual.quantidade || 1}</div>
+                    </div>
+                  ) : '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  R$ {(ordem.valorProduto || ordem.valor || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <div className="flex items-center">

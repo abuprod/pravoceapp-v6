@@ -1349,13 +1349,12 @@ const NovoPedidoVenda = () => {
 
       // Buscar próxima OC disponível
       const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-      const ultimaOC = ordensExistentes.reduce((max, oc) => {
+      let ultimaOC = ordensExistentes.reduce((max, oc) => {
         const numero = parseInt(oc.oc?.replace('A-', '') || '0');
         return numero > max ? numero : max;
       }, 0);
-      const proximaOC = `A-${String(ultimaOC + 1).padStart(4, '0')}`;
 
-      console.log('🔢 Próxima OC:', proximaOC);
+      console.log('🔢 Última OC encontrada:', ultimaOC);
 
       // Agrupar produtos por fornecedor para criar ordens separadas se necessário
       const produtosPorFornecedor = {};
@@ -1380,6 +1379,11 @@ const NovoPedidoVenda = () => {
       const ordensCriadas = [];
       
       for (const [fornecedor, produtos] of Object.entries(produtosPorFornecedor)) {
+        // Gerar número de OC único para cada fornecedor
+        ultimaOC++;
+        const proximaOC = `A-${String(ultimaOC).padStart(4, '0')}`;
+        
+        console.log('🔢 Gerando OC:', proximaOC, 'para fornecedor:', fornecedor);
         // Preparar itens da ordem de compra
         const itensOrdemCompra = produtos.map(produto => {
           const produtoCadastrado = produto.produtoCadastrado;
