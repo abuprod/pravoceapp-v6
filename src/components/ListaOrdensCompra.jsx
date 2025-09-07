@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV } from 'react-icons/fa';
+import { createPortal } from 'react-dom';
 
 const ListaOrdensCompra = () => {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ const ListaOrdensCompra = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [ordemToDelete, setOrdemToDelete] = useState(null);
+  const [menuAberto, setMenuAberto] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [filters, setFilters] = useState({
     tipo: '',
     status: [],
@@ -77,6 +80,18 @@ const ListaOrdensCompra = () => {
       localStorage.setItem('ordensCompra', JSON.stringify(ordensCompra));
     }
   }, [ordensCompra]);
+
+  // Fechar menu quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuAberto && !event.target.closest('.menu-actions')) {
+        setMenuAberto(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [menuAberto]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -166,24 +181,45 @@ const ListaOrdensCompra = () => {
         : String(bValue).localeCompare(String(aValue));
     });
 
+  const toggleMenu = (ordemId, event) => {
+    event.stopPropagation();
+    
+    if (menuAberto === ordemId) {
+      setMenuAberto(null);
+    } else {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setMenuPosition({
+        x: rect.left,
+        y: rect.bottom + 5
+      });
+      setMenuAberto(ordemId);
+    }
+  };
+
   const handleEdit = (id) => {
+    setMenuAberto(null);
     // Verificar se a ordem existe antes de navegar
     const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
     const ordemExiste = ordensSalvas.find(ordem => ordem.id == id);
     
     if (ordemExiste) {
-      navigate(`/ordens-compra/editar/${id}`);
+      setTimeout(() => {
+        navigate(`/ordens-compra/editar/${id}`);
+      }, 100);
     } else {
       alert(`Erro: Ordem com ID ${id} não encontrada!`);
     }
   };
 
   const handleView = (id) => {
-    navigate(`/ordens-compra/visualizar/${id}`);
+    setMenuAberto(null);
+    setTimeout(() => {
+      navigate(`/ordens-compra/visualizar/${id}`);
+    }, 100);
   };
 
-
   const handleDelete = (id) => {
+    setMenuAberto(null);
     setOrdemToDelete(id);
     setShowDeleteModal(true);
   };
@@ -236,6 +272,9 @@ const ListaOrdensCompra = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  // Encontrar a ordem atual do menu
+  const ordemAtual = ordensCompra.find(o => o.id == menuAberto);
 
   return (
     <div className="p-6">
@@ -462,6 +501,7 @@ const ListaOrdensCompra = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
               <th 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                 onClick={() => handleSort('numero')}
@@ -528,14 +568,22 @@ const ListaOrdensCompra = () => {
                   {getSortIcon('pedidoVinculado')}
                 </div>
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-Ações
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredAndSortedOrdens.map((ordem) => (
               <tr key={ordem.id || Date.now()} className="hover:bg-gray-50">
+                <td className="px-4 py-3 whitespace-nowrap text-sm relative">
+                  <div className="menu-dropdown">
+                    <button
+                      onClick={(e) => toggleMenu(ordem.id, e)}
+                      className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                      title="Opções"
+                    >
+                      <FaEllipsisV />
+                    </button>
+                  </div>
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {ordem.numero || ordem.oc || '-'}
                 </td>
@@ -567,31 +615,57 @@ Ações
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {ordem.pedidoVinculado || '-'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => handleView(ordem.id)}
-                    className="text-blue-600 hover:text-blue-900 mr-3"
-                  >
-                    <FaEye />
-                  </button>
-                  <button
-                    onClick={() => handleEdit(ordem.id)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-3"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(ordem.id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    <FaTrash />
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Menu Dropdown Global */}
+      {menuAberto && ordemAtual && createPortal(
+        <div 
+          className="fixed z-[9999] bg-white rounded-md shadow-lg border border-gray-200 menu-actions"
+          style={{
+            left: menuPosition.x,
+            top: menuPosition.y,
+            minWidth: '192px'
+          }}
+        >
+          <div className="py-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleView(ordemAtual.id);
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
+            >
+              <FaEye className="mr-3 text-blue-600" />
+              Visualizar
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit(ordemAtual.id);
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
+            >
+              <FaEdit className="mr-3 text-blue-600" />
+              Editar
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(ordemAtual.id);
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
+            >
+              <FaTrash className="mr-3 text-red-600" />
+              Excluir
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Modal de Confirmação de Exclusão */}
       {showDeleteModal && (
