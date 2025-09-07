@@ -20,6 +20,8 @@ const ListaOrdensCompra = () => {
     dataInicio: '',
     dataFim: '',
     fornecedor: '',
+    vendedor: [],
+    vendedorInput: '',
     valorMin: '',
     valorMax: ''
   });
@@ -46,6 +48,13 @@ const ListaOrdensCompra = () => {
     'Cancelado', 
     'Outro (ter obs)'
   ];
+
+  // Obter lista única de vendedores das ordens existentes
+  const vendedorOptions = [...new Set(
+    ordensCompra
+      .map(ordem => ordem.vendedor)
+      .filter(vendedor => vendedor && vendedor.trim() !== '')
+  )].sort();
 
   // Carregar ordens do localStorage ao montar o componente
   useEffect(() => {
@@ -117,6 +126,13 @@ const ListaOrdensCompra = () => {
           ? prev.status.filter(s => s !== valor)
           : [...prev.status, valor]
       }));
+    } else if (campo === 'vendedor') {
+      setFilters(prev => ({
+        ...prev,
+        vendedor: prev.vendedor.includes(valor) 
+          ? prev.vendedor.filter(v => v !== valor)
+          : [...prev.vendedor, valor]
+      }));
     } else {
       setFilters(prev => ({
         ...prev,
@@ -137,16 +153,33 @@ const ListaOrdensCompra = () => {
       dataInicio: '',
       dataFim: '',
       fornecedor: '',
+      vendedor: [],
+      vendedorInput: '',
       valorMin: '',
       valorMax: ''
     });
+  };
+
+  // Função para verificar se há filtros ativos
+  const hasActiveFilters = () => {
+    return (
+      filters.tipo !== '' ||
+      filters.status.length > 0 ||
+      filters.dataInicio !== '' ||
+      filters.dataFim !== '' ||
+      filters.fornecedor !== '' ||
+      filters.vendedor.length > 0 ||
+      filters.valorMin !== '' ||
+      filters.valorMax !== ''
+    );
   };
 
   const filteredAndSortedOrdens = ordensCompra
     .filter(ordem => {
       const matchesSearch = 
         (ordem.numero || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (ordem.fornecedor || '').toLowerCase().includes(searchTerm.toLowerCase());
+        (ordem.fornecedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (ordem.vendedor || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesTipo = !filters.tipo || ordem.tipo === filters.tipo;
       
@@ -156,13 +189,16 @@ const ListaOrdensCompra = () => {
       const matchesFornecedor = !filters.fornecedor || 
         (ordem.fornecedor || '').toLowerCase().includes(filters.fornecedor.toLowerCase());
       
+      const matchesVendedor = filters.vendedor.length === 0 || 
+        filters.vendedor.includes(ordem.vendedor);
+      
       const matchesData = (!filters.dataInicio || new Date(ordem.data) >= new Date(filters.dataInicio)) &&
         (!filters.dataFim || new Date(ordem.data) <= new Date(filters.dataFim));
 
       const matchesValor = (!filters.valorMin || (ordem.valor || 0) >= parseFloat(filters.valorMin)) &&
         (!filters.valorMax || (ordem.valor || 0) <= parseFloat(filters.valorMax));
 
-      return matchesSearch && matchesTipo && matchesStatus && matchesFornecedor && matchesData && matchesValor;
+      return matchesSearch && matchesTipo && matchesStatus && matchesFornecedor && matchesVendedor && matchesData && matchesValor;
     })
     .sort((a, b) => {
       if (!sortField) return 0;
@@ -295,6 +331,14 @@ const ListaOrdensCompra = () => {
           >
             <FaFilter /> Filtros
           </button>
+          {hasActiveFilters() && (
+            <button
+              onClick={limparFiltros}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+            >
+              <FaTimes /> Limpar Filtros
+            </button>
+          )}
         <button
           onClick={() => navigate('/ordens-compra/novo')}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -306,9 +350,9 @@ const ListaOrdensCompra = () => {
 
       {/* Modal de Filtros */}
       {showFilters && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 pb-4 border-b">
               <h3 className="text-lg font-semibold">Filtros</h3>
               <button
                 onClick={() => setShowFilters(false)}
@@ -318,7 +362,8 @@ const ListaOrdensCompra = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="space-y-4">
               {/* Filtro de Tipo */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
@@ -428,6 +473,88 @@ const ListaOrdensCompra = () => {
                 />
               </div>
 
+              {/* Filtro de Vendedor */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Vendedor</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={filters.vendedorInput || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFilters(prev => ({
+                        ...prev,
+                        vendedorInput: value
+                      }));
+                    }}
+                    onBlur={() => {
+                      if (filters.vendedorInput.trim()) {
+                        const newVendedor = filters.vendedorInput.trim();
+                        if (!filters.vendedor.includes(newVendedor)) {
+                          setFilters(prev => ({
+                            ...prev,
+                            vendedor: [...prev.vendedor, newVendedor],
+                            vendedorInput: ''
+                          }));
+                        } else {
+                          setFilters(prev => ({
+                            ...prev,
+                            vendedorInput: ''
+                          }));
+                        }
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && filters.vendedorInput.trim()) {
+                        e.preventDefault();
+                        const newVendedor = filters.vendedorInput.trim();
+                        if (!filters.vendedor.includes(newVendedor)) {
+                          setFilters(prev => ({
+                            ...prev,
+                            vendedor: [...prev.vendedor, newVendedor],
+                            vendedorInput: ''
+                          }));
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Digite o vendedor ou selecione da lista..."
+                    list="vendedor-options"
+                  />
+                  <datalist id="vendedor-options">
+                    {vendedorOptions.map(vendedor => (
+                      <option key={vendedor} value={vendedor} />
+                    ))}
+                  </datalist>
+                </div>
+                {filters.vendedor.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {filters.vendedor.map((vendedor, index) => (
+                      <span
+                        key={`${vendedor}-${index}`}
+                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800"
+                      >
+                        {vendedor}
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({
+                              ...prev,
+                              vendedor: prev.vendedor.filter((_, i) => i !== index)
+                            }));
+                          }}
+                          className="ml-1 text-green-600 hover:text-green-800"
+                        >
+                          <FaTimes className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-1 text-xs text-gray-500">
+                  💡 Digite um vendedor e clique fora ou pressione Enter para adicionar
+                </div>
+              </div>
+
               {/* Filtro de Data */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -473,21 +600,24 @@ const ListaOrdensCompra = () => {
                   />
                 </div>
               </div>
+              </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                onClick={limparFiltros}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Limpar Filtros
-              </button>
-              <button
-                onClick={aplicarFiltros}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Aplicar Filtros
-              </button>
+            <div className="p-6 pt-4 border-t bg-gray-50 rounded-b-lg">
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={limparFiltros}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Limpar Filtros
+                </button>
+                <button
+                  onClick={aplicarFiltros}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Aplicar Filtros
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -497,7 +627,7 @@ const ListaOrdensCompra = () => {
         <div className="relative">
           <input
             type="text"
-            placeholder="Buscar ordens de compra..."
+            placeholder="Buscar por número, fornecedor ou vendedor..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -544,6 +674,15 @@ const ListaOrdensCompra = () => {
                 <div className="flex items-center">
                 Fornecedor
                   {getSortIcon('fornecedor')}
+                </div>
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort('vendedor')}
+              >
+                <div className="flex items-center">
+                Vendedor
+                  {getSortIcon('vendedor')}
                 </div>
               </th>
               <th 
@@ -608,6 +747,9 @@ const ListaOrdensCompra = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {ordem.fornecedor || ordem.fornecedorNome || '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {ordem.vendedor || '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(ordem.status)}`}>
