@@ -27,16 +27,18 @@ const NovoPedidoVenda = () => {
       valor: '',
       observacoes: ''
     }],
-    contraEntrega: false,
+    contraEntrega: '',
     valorContraEntrega: '',
-    degustacaoDelivery: false,
-    observacoesDegustacao: '',
-    solicitaNF: false,
-    antiManchas: false,
+    formaPagamentoContraEntrega: '',
+    obsContraEntrega: '',
+    degustacaoDelivery: '',
+    observacoesDegustacaoDelivery: '',
+    antiManchas: '',
     valorAntiManchas: '',
     prestadorAntiManchas: '',
+    localAplicacaoAntiManchas: '',
     valorFrete: '',
-    retiradaAtoCompra: false,
+    retiradaAtoCompra: '',
     itensRetirados: '',
     observacoesVisiveis: '',
     observacoesInternas: '',
@@ -2341,11 +2343,11 @@ const NovoPedidoVenda = () => {
                       placeholder="Observações sobre o pagamento"
                     />
                   </div>
-                  <div className="flex items-end">
+                  <div className="flex items-center justify-start">
                     <button
                       type="button"
                       onClick={() => removeFormaPagamento(index)}
-                      className="text-red-600 hover:text-red-800 self-end"
+                      className="text-red-600 hover:text-red-800 p-2 mt-6"
                     >
                       <FaTrash />
                     </button>
@@ -2357,103 +2359,172 @@ const NovoPedidoVenda = () => {
             {/* Condicionais */}
             <div className="mt-6 bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold mb-4">Condicionais</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="contraEntrega"
-                      checked={formData.contraEntrega}
-                      onChange={handleChange}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label className="text-sm font-medium text-gray-700">Contra Entrega?</label>
-                  </div>
-                  {formData.contraEntrega && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Valor da Contra Entrega</label>
-                      <input
-                        type="number"
-                        name="valorContraEntrega"
-                        value={formData.valorContraEntrega}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="grid grid-cols-1 gap-6">
+                  
+                  {/* Contra Entrega */}
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-4 mb-4">
+                      <label className="text-sm font-medium text-gray-700 min-w-[180px]">
+                        Possui contra entrega?
+                      </label>
+                      <select
+                        name="contraEntrega"
+                        value={formData.contraEntrega}
                         onChange={handleChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="">Selecione</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                      </select>
                     </div>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="degustacaoDelivery"
-                      checked={formData.degustacaoDelivery}
-                      onChange={handleChange}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label className="text-sm font-medium text-gray-700">Degustação Delivery?</label>
+                    
+                    {formData.contraEntrega === 'sim' && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Valor da contra entrega
+                          </label>
+                          <input
+                            type="number"
+                            name="valorContraEntrega"
+                            value={formData.valorContraEntrega}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Forma de pagamento
+                          </label>
+                          <input
+                            type="text"
+                            name="formaPagamentoContraEntrega"
+                            value={formData.formaPagamentoContraEntrega}
+                            onChange={handleChange}
+                            placeholder="Ex: Dinheiro, PIX, Cartão..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Observações
+                          </label>
+                          <textarea
+                            name="obsContraEntrega"
+                            value={formData.obsContraEntrega}
+                            onChange={handleChange}
+                            rows="2"
+                            placeholder="Observações sobre a contra entrega..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {formData.degustacaoDelivery && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Observações sobre Degustação</label>
-                      <textarea
-                        name="observacoesDegustacao"
-                        value={formData.observacoesDegustacao}
+
+                  {/* Anti-Manchas */}
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-4 mb-4">
+                      <label className="text-sm font-medium text-gray-700 min-w-[180px]">
+                        Anti-Manchas
+                      </label>
+                      <select
+                        name="antiManchas"
+                        value={formData.antiManchas}
                         onChange={handleChange}
-                        rows="3"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="">Selecione</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                      </select>
                     </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="solicitaNF"
-                    checked={formData.solicitaNF}
-                    onChange={handleChange}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label className="text-sm font-medium text-gray-700">Solicita NF?</label>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="antiManchas"
-                      checked={formData.antiManchas}
-                      onChange={handleChange}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label className="text-sm font-medium text-gray-700">Anti-Manchas?</label>
+                    
+                    {formData.antiManchas === 'sim' && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Valor do Anti-Manchas
+                          </label>
+                          <input
+                            type="number"
+                            name="valorAntiManchas"
+                            value={formData.valorAntiManchas}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Prestador
+                          </label>
+                          <input
+                            type="text"
+                            name="prestadorAntiManchas"
+                            value={formData.prestadorAntiManchas}
+                            onChange={handleChange}
+                            placeholder="Nome do prestador..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Local de Aplicação
+                          </label>
+                          <input
+                            type="text"
+                            name="localAplicacaoAntiManchas"
+                            value={formData.localAplicacaoAntiManchas}
+                            onChange={handleChange}
+                            placeholder="Local onde será aplicado..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {formData.antiManchas && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Valor do Anti-Manchas</label>
-                        <input
-                          type="number"
-                          name="valorAntiManchas"
-                          value={formData.valorAntiManchas}
-                          onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
+
+                  {/* Degustação Delivery */}
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-4 mb-4">
+                      <label className="text-sm font-medium text-gray-700 min-w-[180px]">
+                        Degustação Delivery
+                      </label>
+                      <select
+                        name="degustacaoDelivery"
+                        value={formData.degustacaoDelivery}
+                        onChange={handleChange}
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="">Selecione</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                      </select>
+                    </div>
+                    
+                    {formData.degustacaoDelivery === 'sim' && (
+                      <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Observações
+                          </label>
+                          <textarea
+                            name="observacoesDegustacaoDelivery"
+                            value={formData.observacoesDegustacaoDelivery}
+                            onChange={handleChange}
+                            rows="3"
+                            placeholder="Observações sobre a degustação delivery..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Prestador</label>
-                        <input
-                          type="text"
-                          name="prestadorAntiManchas"
-                          value={formData.prestadorAntiManchas}
-                          onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                    </>
-                  )}
+                    )}
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -2461,40 +2532,63 @@ const NovoPedidoVenda = () => {
             {/* Logística e Retirada */}
             <div className="mt-6 bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold mb-4">Logística e Retirada</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Valor do Frete</label>
-                  <input
-                    type="number"
-                    name="valorFrete"
-                    value={formData.valorFrete}
-                    onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="retiradaAtoCompra"
-                      checked={formData.retiradaAtoCompra}
-                      onChange={handleChange}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label className="text-sm font-medium text-gray-700">Retirou no Ato da Compra?</label>
-                  </div>
-                  {formData.retiradaAtoCompra && (
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="grid grid-cols-1 gap-6">
+                  
+                  {/* Valor do Frete */}
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Itens e Quantidade Retirados</label>
-                      <textarea
-                        name="itensRetirados"
-                        value={formData.itensRetirados}
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Valor do Frete
+                      </label>
+                      <input
+                        type="number"
+                        name="valorFrete"
+                        value={formData.valorFrete}
                         onChange={handleChange}
-                        rows="3"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="0,00"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                  )}
+                  </div>
+
+                  {/* Retirou no Ato da Compra */}
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-4 mb-4">
+                      <label className="text-sm font-medium text-gray-700 min-w-[180px]">
+                        Retirou no ato da compra?
+                      </label>
+                      <select
+                        name="retiradaAtoCompra"
+                        value={formData.retiradaAtoCompra}
+                        onChange={handleChange}
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="">Selecione</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                      </select>
+                    </div>
+                    
+                    {formData.retiradaAtoCompra === 'sim' && (
+                      <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Itens e Quantidade Retirada:
+                          </label>
+                          <textarea
+                            name="itensRetirados"
+                            value={formData.itensRetirados}
+                            onChange={handleChange}
+                            rows="3"
+                            placeholder="Descreva os itens e quantidades retiradas..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               </div>
             </div>

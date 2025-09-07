@@ -55,7 +55,18 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     data: new Date().toISOString().split('T')[0],
     // Novos campos para Dados de Pós Recebimento
     entradas: [],
-    datasEntrega: []
+    datasEntrega: [],
+    // Campos para Condicionais
+    contraEntrega: '',
+    valorContraEntrega: '',
+    formaPagamentoContraEntrega: '',
+    obsContraEntrega: '',
+    antiManchas: '',
+    valorAntiManchas: '',
+    prestadorAntiManchas: '',
+    localAplicacaoAntiManchas: '',
+    degustacaoDelivery: '',
+    observacoesDegustacaoDelivery: ''
   });
 
   const [pedidoOriginal, setPedidoOriginal] = useState(null);
@@ -3261,7 +3272,180 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                 </div>
               </div>
 
-              {/* Seção 4 - Observações */}
+              {/* Seção 4 - Condicionais */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">Condicionais</h2>
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <div className="grid grid-cols-1 gap-6">
+                    
+                    {/* Contra Entrega */}
+                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                      <div className="flex items-center gap-4 mb-4">
+                        <label className="text-sm font-medium text-gray-700 min-w-[180px]">
+                          Possui contra entrega?
+                        </label>
+                        <select
+                          name="contraEntrega"
+                          value={formData.contraEntrega}
+                          onChange={handleChange}
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                          <option value="">Selecione</option>
+                          <option value="sim">Sim</option>
+                          <option value="nao">Não</option>
+                        </select>
+                      </div>
+                      
+                      {formData.contraEntrega === 'sim' && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Valor da contra entrega
+                            </label>
+                            <input
+                              type="number"
+                              name="valorContraEntrega"
+                              value={formData.valorContraEntrega}
+                              onChange={handleChange}
+                              placeholder="0,00"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Forma de pagamento
+                            </label>
+                            <input
+                              type="text"
+                              name="formaPagamentoContraEntrega"
+                              value={formData.formaPagamentoContraEntrega}
+                              onChange={handleChange}
+                              placeholder="Ex: Dinheiro, PIX, Cartão..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Observações
+                            </label>
+                            <textarea
+                              name="obsContraEntrega"
+                              value={formData.obsContraEntrega}
+                              onChange={handleChange}
+                              rows="2"
+                              placeholder="Observações sobre a contra entrega..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Anti-Manchas */}
+                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                      <div className="flex items-center gap-4 mb-4">
+                        <label className="text-sm font-medium text-gray-700 min-w-[180px]">
+                          Anti-Manchas
+                        </label>
+                        <select
+                          name="antiManchas"
+                          value={formData.antiManchas}
+                          onChange={handleChange}
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                          <option value="">Selecione</option>
+                          <option value="sim">Sim</option>
+                          <option value="nao">Não</option>
+                        </select>
+                      </div>
+                      
+                      {formData.antiManchas === 'sim' && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Valor do Anti-Manchas
+                            </label>
+                            <input
+                              type="number"
+                              name="valorAntiManchas"
+                              value={formData.valorAntiManchas}
+                              onChange={handleChange}
+                              placeholder="0,00"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Prestador
+                            </label>
+                            <input
+                              type="text"
+                              name="prestadorAntiManchas"
+                              value={formData.prestadorAntiManchas}
+                              onChange={handleChange}
+                              placeholder="Nome do prestador..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Local de Aplicação
+                            </label>
+                            <input
+                              type="text"
+                              name="localAplicacaoAntiManchas"
+                              value={formData.localAplicacaoAntiManchas}
+                              onChange={handleChange}
+                              placeholder="Local onde será aplicado..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Degustação Delivery */}
+                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                      <div className="flex items-center gap-4 mb-4">
+                        <label className="text-sm font-medium text-gray-700 min-w-[180px]">
+                          Degustação Delivery
+                        </label>
+                        <select
+                          name="degustacaoDelivery"
+                          value={formData.degustacaoDelivery}
+                          onChange={handleChange}
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                          <option value="">Selecione</option>
+                          <option value="sim">Sim</option>
+                          <option value="nao">Não</option>
+                        </select>
+                      </div>
+                      
+                      {formData.degustacaoDelivery === 'sim' && (
+                        <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Observações
+                            </label>
+                            <textarea
+                              name="observacoesDegustacaoDelivery"
+                              value={formData.observacoesDegustacaoDelivery}
+                              onChange={handleChange}
+                              rows="3"
+                              placeholder="Observações sobre a degustação delivery..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 5 - Observações */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-700 mb-4">Observações</h2>
                 <div className="grid grid-cols-1 gap-4">
