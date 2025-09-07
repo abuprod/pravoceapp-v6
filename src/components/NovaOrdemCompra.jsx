@@ -47,6 +47,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     prazoPagamento: '',
     observacoes: '',
     observacoesInternas: '',
+    informacoesPedidoVenda: '',
     itens: [],
     fabrica: '',
     fornecedor: '',
@@ -309,8 +310,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
             vendedor: pedidoData.vendedor || '',
             dataVenda: pedidoData.dataVenda || new Date().toISOString().split('T')[0],
             prazoFinal: pedidoData.dataVenda ? calcular45DiasUteis(pedidoData.dataVenda) : '',
-            observacoes: `Ordem de compra gerada automaticamente para o pedido de venda ${pedidoData.numeroPedido}`,
-            observacoesInternas: `Cliente: ${pedidoData.cliente}\nPedido: ${pedidoData.numeroPedido}\nVendedor: ${pedidoData.vendedor}`,
+            observacoes: '',
+            observacoesInternas: '',
+            informacoesPedidoVenda: `Ordem de compra gerada automaticamente para o pedido de venda ${pedidoData.numeroPedido}\n\nCliente: ${pedidoData.cliente}\nPedido: ${pedidoData.numeroPedido}\nVendedor: ${pedidoData.vendedor}`,
             itens: produtosProcessados,
             // Campos adicionais do pedido
             cliente: pedidoData.cliente,
@@ -2554,7 +2556,30 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
               {/* Linha divisória */}
               <hr className="border-gray-300 my-8" />
 
-                            {/* Seção 4 - Observações */}
+              {/* Seção 4 - Informações do Pedido de Venda */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">Informações do Pedido de Venda</h2>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Informações do Pedido de Venda</label>
+                    <textarea
+                      name="informacoesPedidoVenda"
+                      value={formData.informacoesPedidoVenda}
+                      onChange={handleChange}
+                      className="w-full px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                      rows="4"
+                      placeholder="Informações sobre o pedido de venda vinculado..."
+                      readOnly
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Linha divisória */}
+              <hr className="border-gray-300 my-8" />
+
+                            {/* Seção 5 - Observações */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-700 mb-4">Observações</h2>
                 
@@ -3043,7 +3068,29 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
               {/* Linha divisória */}
               <hr className="border-gray-300 my-8" />
 
-              {/* Seção 4 - Observações */}
+              {/* Seção 4 - Informações do Pedido de Venda */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">Informações do Pedido de Venda</h2>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Informações do Pedido de Venda</label>
+                    <textarea
+                      name="informacoesPedidoVenda"
+                      value={formData.informacoesPedidoVenda}
+                      onChange={handleChange}
+                      className="w-full px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                      rows="4"
+                      placeholder="Informações sobre o pedido de venda vinculado..."
+                      readOnly
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Linha divisória */}
+              <hr className="border-gray-300 my-8" />
+
+              {/* Seção 5 - Observações */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-700 mb-4">Observações</h2>
                 <div className="grid grid-cols-1 gap-4">
@@ -3197,7 +3244,29 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                 </div>
               </div>
 
-              {/* Seção 4 - Observações */}
+              {/* Seção 4 - Informações do Pedido de Venda */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">Informações do Pedido de Venda</h2>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Informações do Pedido de Venda</label>
+                    <textarea
+                      name="informacoesPedidoVenda"
+                      value={formData.informacoesPedidoVenda}
+                      onChange={handleChange}
+                      className="w-full px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                      rows="4"
+                      placeholder="Informações sobre o pedido de venda vinculado..."
+                      readOnly
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Linha divisória */}
+              <hr className="border-gray-300 my-8" />
+
+              {/* Seção 5 - Observações */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-700 mb-4">Observações</h2>
                 <div className="grid grid-cols-1 gap-4">
