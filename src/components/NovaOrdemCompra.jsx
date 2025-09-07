@@ -1746,7 +1746,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       name="status"
                       value={formData.status}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="aberto">Em aberto</option>
                       <option value="aprovado">Aprovado</option>
@@ -2647,7 +2647,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       name="status"
                       value={formData.status}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="aberto">Em aberto</option>
                       <option value="aprovado">Aprovado</option>
@@ -2752,7 +2752,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           setSugestoesFornecedores(sugestoes);
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Digite para buscar fornecedores..."
                     />
                     {sugestoesFornecedores && sugestoesFornecedores.length > 0 && (
@@ -3166,7 +3166,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           setSugestoesFornecedores(sugestoes);
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Digite para buscar fornecedores..."
                     />
                     {sugestoesFornecedores && sugestoesFornecedores.length > 0 && (
@@ -3264,7 +3264,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
             <textarea
               value={formData.itens[showObservacaoPopup]?.observacoes || ''}
               onChange={(e) => handleObservacaoChange(showObservacaoPopup, e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows="4"
             />
             <div className="mt-4 flex justify-end">

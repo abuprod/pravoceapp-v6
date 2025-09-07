@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV } from 'react-icons/fa';
 import { createPortal } from 'react-dom';
 
 const ListaOrdensCompra = () => {
@@ -211,11 +211,19 @@ const ListaOrdensCompra = () => {
     }
   };
 
-  const handleView = (id) => {
-    setMenuAberto(null);
-    setTimeout(() => {
-      navigate(`/ordens-compra/visualizar/${id}`);
-    }, 100);
+
+  const handleNumeroClick = (id) => {
+    // Verificar se a ordem existe antes de navegar
+    const ordensSalvas = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemExiste = ordensSalvas.find(ordem => ordem.id == id);
+    
+    if (ordemExiste) {
+      setTimeout(() => {
+        navigate(`/ordens-compra/editar/${id}`);
+      }, 100);
+    } else {
+      alert(`Erro: Ordem com ID ${id} não encontrada!`);
+    }
   };
 
   const handleDelete = (id) => {
@@ -584,8 +592,13 @@ const ListaOrdensCompra = () => {
                     </button>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {ordem.numero || ordem.oc || '-'}
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button
+                    onClick={() => handleNumeroClick(ordem.id)}
+                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+                  >
+                    {ordem.numero || ordem.oc || '-'}
+                  </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {ordem.tipo ? ordem.tipo.charAt(0).toUpperCase() + ordem.tipo.slice(1) : '-'}
@@ -632,16 +645,6 @@ const ListaOrdensCompra = () => {
           }}
         >
           <div className="py-1">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleView(ordemAtual.id);
-              }}
-              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
-            >
-              <FaEye className="mr-3 text-blue-600" />
-              Visualizar
-            </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();

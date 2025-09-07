@@ -139,6 +139,7 @@ const App = () => {
           <Route path="/ordens-compra" element={<ListaOrdensCompra />} />
           <Route path="/ordens-compra/novo" element={<NovaOrdemCompra />} />
           <Route path="/ordens-compra/editar/:id" element={<NovaOrdemCompra />} />
+          <Route path="/ordens-compra/visualizar/:id" element={<NovaOrdemCompra modoVisualizacao={true} />} />
           <Route path="/produtos" element={<ListaProdutos />} />
           <Route path="/produtos/novo" element={<NovoProduto />} />
           <Route path="/produtos/novo/:id" element={<NovoProduto />} />

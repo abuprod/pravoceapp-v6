@@ -374,6 +374,16 @@ const PedidosVenda = () => {
                           })()
                         : col.id === 'sl'
                         ? obterSiglasLocais(pedido)
+                        : col.id === 'numeroPedido'
+                        ? (
+                            <button
+                              onClick={() => handleEdit(pedido.id)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                              title="Clique para editar este pedido"
+                            >
+                              {pedido[col.id] || '-'}
+                            </button>
+                          )
                         : pedido[col.id] || '-'}
                     </td>
                   ))}
