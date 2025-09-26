@@ -1358,147 +1358,129 @@ const NovoPedidoVenda = () => {
 
       console.log('🔢 Última OC encontrada:', ultimaOC);
 
-      // Agrupar produtos por fornecedor para criar ordens separadas se necessário
-      const produtosPorFornecedor = {};
-      
-      produtosSE.forEach(produto => {
+      // Preparar todos os produtos SE para uma única ordem de compra
+      const produtosPreparados = produtosSE.map(produto => {
         const produtoCadastrado = produtosCadastrados.find(p => p.id === produto.produtoId);
-        const fornecedor = produtoCadastrado?.fornecedor || 'Fornecedor não identificado';
-        
-        if (!produtosPorFornecedor[fornecedor]) {
-          produtosPorFornecedor[fornecedor] = [];
-        }
-        
-        produtosPorFornecedor[fornecedor].push({
+        return {
           ...produto,
           produtoCadastrado
-        });
+        };
       });
 
-      console.log('🏭 Produtos agrupados por fornecedor:', produtosPorFornecedor);
+      console.log('📦 Produtos SE preparados:', produtosPreparados);
 
-      // Criar uma ordem de compra para cada fornecedor
-      const ordensCriadas = [];
+      // Gerar número de OC único para o pedido
+      ultimaOC++;
+      const proximaOC = `A-${String(ultimaOC).padStart(4, '0')}`;
       
-      for (const [fornecedor, produtos] of Object.entries(produtosPorFornecedor)) {
-        // Gerar número de OC único para cada fornecedor
-        ultimaOC++;
-        const proximaOC = `A-${String(ultimaOC).padStart(4, '0')}`;
+      console.log('🔢 Gerando OC única:', proximaOC, 'para o pedido:', dadosPedido.numeroPedido);
+      // Preparar itens da ordem de compra
+      const itensOrdemCompra = produtosPreparados.map(produto => {
+        const produtoCadastrado = produto.produtoCadastrado;
+        // Usar fornecedor específico do produto ou "Sem Cadastro" se não estiver cadastrado
+        const fornecedor = produtoCadastrado?.fornecedor || 'Sem Cadastro';
         
-        console.log('🔢 Gerando OC:', proximaOC, 'para fornecedor:', fornecedor);
-        // Preparar itens da ordem de compra
-        const itensOrdemCompra = produtos.map(produto => {
-          const produtoCadastrado = produto.produtoCadastrado;
-          
-          // Calcular valores com base no fornecedor e tributos
-          const valorUnitario = produto.valorUnitario || (produtoCadastrado?.custoLiquido || 0);
-          const quantidade = parseInt(produto.quantidade) || 1;
-          const valorTotal = quantidade * valorUnitario;
-          
-          return {
-            produto: produto.produto,
-            produtoId: produto.produtoId,
-            sku: produtoCadastrado?.sku || '',
-            categoria: produtoCadastrado?.categoria || '',
-            quantidade: quantidade,
-            valorUnitario: valorUnitario,
-            valorTotal: valorTotal,
-            fornecedor: fornecedor,
-            fornecedorId: produtoCadastrado?.fornecedorId || '',
-            fornecedorNome: fornecedor,
-            observacoes: produto.observacoes || '',
-            status: 'pendente',
-            // Campos adicionais do produto
-            descricao: produto.produto,
-            unidade: 'UN',
-            // Campos para cálculos futuros
-            custoUnitario: produtoCadastrado?.custoUnitario || 0,
-            margemLucro: produtoCadastrado?.margemLucro || 0,
-            tributos: produtoCadastrado?.tributos || [],
-            // Adicionar campos financeiros para preenchimento automático na interface
-            custoBruto: produtoCadastrado?.custoBruto || 0,
-            custoLiquido: produtoCadastrado?.custoLiquido || 0,
-            frete: produtoCadastrado?.frete || 0,
-            ipi: produtoCadastrado?.ipi || 0,
-            desconto: produtoCadastrado?.descontos || '',
-            tributoSelecionado: produtoCadastrado?.tributoSelecionado || '',
-            local: produto.sl || 'SE',
-            produtoNaoCadastrado: !produtoCadastrado
-          };
-        });
-
-        // Calcular valor total da ordem
-        const valorTotal = itensOrdemCompra.reduce((total, item) => total + item.valorTotal, 0);
-
-        // Criar dados da ordem de compra
-        const dadosOrdemCompra = {
-          id: Math.floor(Date.now() + Math.random() * 1000), // ID único inteiro para a ordem
-          tipo: 'cliente', // Mudado de 'encomenda' para 'cliente' conforme solicitado
-          status: 'Em aberto', // Status compatível com ListaOrdensCompra
-          dataVenda: dadosPedido.dataVenda || new Date().toISOString().split('T')[0],
-          dataEncomenda: '', // Deixar vazio conforme solicitado
-          oc: proximaOC,
-          numero: proximaOC, // Campo necessário para ListaOrdensCompra
-          pedidoVinculado: dadosPedido.numeroPedido,
-          vendedor: dadosPedido.vendedor || '',
-          obsNaoEntregue: '',
-          prazoFinal: calcular45DiasUteis(dadosPedido.dataVenda), // Calculado automaticamente
-          dataEntradaDeposito: '',
-          documentoFabrica: '',
-          entregaCliente: '',
-          prazoPagamento: '',
-          observacoes: '',
-          observacoesInternas: '',
-          informacoesPedidoVenda: `Ordem de compra gerada automaticamente para o pedido de venda ${dadosPedido.numeroPedido}\n\nCliente: ${dadosPedido.cliente}\nPedido: ${dadosPedido.numeroPedido}\nVendedor: ${dadosPedido.vendedor}`,
-          itens: itensOrdemCompra,
-          fabrica: fornecedor, // Usar o fornecedor como fábrica
-          fornecedor: fornecedor,
-          fornecedorNome: fornecedor,
-          data: new Date().toISOString().split('T')[0],
-          valor: valorTotal, // Campo necessário para ListaOrdensCompra
-          entradas: [],
-          datasEntrega: [],
-          // Campos adicionais para controle
-          origem: 'pedido_venda_automatico',
-          pedidoVendaId: dadosPedido.id,
-          cliente: dadosPedido.cliente,
-          clienteId: dadosPedido.clienteId,
-          clienteCpfCnpj: dadosPedido.clienteCpfCnpj,
-          clienteEmail: dadosPedido.clienteEmail,
-          clienteTelefone: dadosPedido.clienteTelefone,
-          // Campos de cálculo
+        // Calcular valores com base no fornecedor e tributos
+        const valorUnitario = produto.valorUnitario || (produtoCadastrado?.custoLiquido || 0);
+        const quantidade = parseInt(produto.quantidade) || 1;
+        const valorTotal = quantidade * valorUnitario;
+        
+        return {
+          produto: produto.produto,
+          produtoId: produto.produtoId,
+          sku: produtoCadastrado?.sku || '',
+          categoria: produtoCadastrado?.categoria || '',
+          quantidade: quantidade,
+          valorUnitario: valorUnitario,
           valorTotal: valorTotal,
-          quantidadeItens: itensOrdemCompra.length,
-          quantidadeTotal: itensOrdemCompra.reduce((total, item) => total + item.quantidade, 0),
-          // Campos para rastreamento
-          dataCriacao: new Date().toISOString(),
-          criadoPor: 'Sistema Automático',
-          ultimaAtualizacao: new Date().toISOString()
+          fornecedor: fornecedor,
+          fornecedorId: produtoCadastrado?.fornecedorId || '',
+          fornecedorNome: fornecedor,
+          observacoes: produto.observacoes || '',
+          status: 'pendente',
+          // Campos adicionais do produto
+          descricao: produto.produto,
+          unidade: 'UN',
+          // Campos para cálculos futuros
+          custoUnitario: produtoCadastrado?.custoUnitario || 0,
+          margemLucro: produtoCadastrado?.margemLucro || 0,
+          tributos: produtoCadastrado?.tributos || [],
+          // Adicionar campos financeiros para preenchimento automático na interface
+          custoBruto: produtoCadastrado?.custoBruto || 0,
+          custoLiquido: produtoCadastrado?.custoLiquido || 0,
+          frete: produtoCadastrado?.frete || 0,
+          ipi: produtoCadastrado?.ipi || 0,
+          desconto: produtoCadastrado?.descontos || '',
+          tributoSelecionado: produtoCadastrado?.tributoSelecionado || '',
+          local: produto.sl || 'SE',
+          produtoNaoCadastrado: !produtoCadastrado
         };
+      });
 
-        console.log('📋 Dados da ordem de compra criada:', dadosOrdemCompra);
+      // Calcular valor total da ordem
+      const valorTotal = itensOrdemCompra.reduce((total, item) => total + item.valorTotal, 0);
 
-        // Salvar a ordem de compra
-        ordensExistentes.push(dadosOrdemCompra);
-        localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
-        
-        ordensCriadas.push(dadosOrdemCompra);
-        console.log(`✅ Ordem de compra ${proximaOC} criada para fornecedor: ${fornecedor}`);
-      }
+      // Determinar o nome da fábrica principal (primeiro fornecedor válido ou "Sem Cadastro")
+      const fabricaPrincipal = itensOrdemCompra.length > 0 ? itensOrdemCompra[0].fornecedor : 'Sem Cadastro';
 
-      console.log(`🎉 Total de ordens de compra criadas: ${ordensCriadas.length}`);
+      // Criar dados da ordem de compra única
+      const dadosOrdemCompra = {
+        id: Math.floor(Date.now() + Math.random() * 1000), // ID único inteiro para a ordem
+        tipo: 'cliente', // Mudado de 'encomenda' para 'cliente' conforme solicitado
+        status: 'Em aberto', // Status compatível com ListaOrdensCompra
+        dataVenda: dadosPedido.dataVenda || new Date().toISOString().split('T')[0],
+        dataEncomenda: '', // Deixar vazio conforme solicitado
+        oc: proximaOC,
+        numero: proximaOC, // Campo necessário para ListaOrdensCompra
+        pedidoVinculado: dadosPedido.numeroPedido,
+        vendedor: dadosPedido.vendedor || '',
+        obsNaoEntregue: '',
+        prazoFinal: calcular45DiasUteis(dadosPedido.dataVenda), // Calculado automaticamente
+        dataEntradaDeposito: '',
+        documentoFabrica: '',
+        entregaCliente: '',
+        prazoPagamento: '',
+        observacoes: '',
+        observacoesInternas: '',
+        informacoesPedidoVenda: `Ordem de compra gerada automaticamente para o pedido de venda ${dadosPedido.numeroPedido}\n\nCliente: ${dadosPedido.cliente}\nPedido: ${dadosPedido.numeroPedido}\nVendedor: ${dadosPedido.vendedor}`,
+        itens: itensOrdemCompra,
+        fabrica: fabricaPrincipal, // Usar o primeiro fornecedor como fábrica principal
+        fornecedor: fabricaPrincipal,
+        fornecedorNome: fabricaPrincipal,
+        data: new Date().toISOString().split('T')[0],
+        valor: valorTotal, // Campo necessário para ListaOrdensCompra
+        entradas: [],
+        datasEntrega: [],
+        // Campos adicionais para controle
+        origem: 'pedido_venda_automatico',
+        pedidoVendaId: dadosPedido.id,
+        cliente: dadosPedido.cliente,
+        clienteId: dadosPedido.clienteId,
+        clienteCpfCnpj: dadosPedido.clienteCpfCnpj,
+        clienteEmail: dadosPedido.clienteEmail,
+        clienteTelefone: dadosPedido.clienteTelefone,
+        // Campos de cálculo
+        valorTotal: valorTotal,
+        quantidadeItens: itensOrdemCompra.length,
+        quantidadeTotal: itensOrdemCompra.reduce((total, item) => total + item.quantidade, 0),
+        // Campos para rastreamento
+        dataCriacao: new Date().toISOString(),
+        criadoPor: 'Sistema Automático',
+        ultimaAtualizacao: new Date().toISOString()
+      };
+
+      console.log('📋 Dados da ordem de compra criada:', dadosOrdemCompra);
+
+      // Salvar a ordem de compra
+      ordensExistentes.push(dadosOrdemCompra);
+      localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
       
-      // Notificar o usuário
-      if (ordensCriadas.length === 1) {
-        const ordem = ordensCriadas[0];
-        const quantidadeProdutos = ordem.itens.length;
-        alert(`✅ Ordem de compra ${ordem.oc} criada automaticamente!\n\n${quantidadeProdutos} produto(s) SE foram incluídos na encomenda para o fornecedor: ${ordem.fornecedor}`);
-      } else {
-        const numerosOCs = ordensCriadas.map(o => o.oc).join(', ');
-        alert(`✅ ${ordensCriadas.length} ordens de compra criadas automaticamente!\n\nNúmeros: ${numerosOCs}\n\nProdutos agrupados por fornecedor para facilitar o gerenciamento.`);
-      }
+      console.log(`✅ Ordem de compra ${proximaOC} criada para o pedido ${dadosPedido.numeroPedido}`);
       
-      return ordensCriadas;
+      // Não exibir popup de confirmação - apenas log no console
+      console.log(`🎉 Ordem de compra ${proximaOC} criada automaticamente com ${itensOrdemCompra.length} produto(s) SE`);
+      
+      return [dadosOrdemCompra];
 
     } catch (error) {
       console.error('❌ Erro ao criar ordem de compra automática:', error);

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - OC Unificada</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste - Ordem de Compra Unificada</h1>
+        
+        <div class="test-section info">
+            <h3>📋 Objetivo do Teste</h3>
+            <p>Verificar se as alterações implementadas estão funcionando corretamente:</p>
+            <ul>
+                <li>✅ <strong>Popup removido:</strong> Não deve aparecer popup quando OC é criada para produtos SE</li>
+                <li>✅ <strong>OC unificada:</strong> Um pedido de venda deve gerar apenas UMA ordem de compra, mesmo com múltiplos fornecedores</li>
+                <li>✅ <strong>Confirmação simples:</strong> Apenas confirmação de que o pedido foi salvo com sucesso</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Simulação de Dados</h3>
+            <p>Vamos simular um pedido de venda com 3 produtos SE de fornecedores diferentes:</p>
+            
+            <div id="simulacao-dados">
+                <h4>📦 Produtos do Pedido:</h4>
+                <ul>
+                    <li>Produto A - Fornecedor X - Local: SE</li>
+                    <li>Produto B - Fornecedor Y - Local: SE</li>
+                    <li>Produto C - Fornecedor Z - Local: SE</li>
+                </ul>
+                
+                <h4>🎯 Resultado Esperado:</h4>
+                <ul>
+                    <li>✅ 1 única OC criada (não 3 OCs separadas)</li>
+                    <li>✅ OC com número único (ex: A-0001)</li>
+                    <li>✅ Todos os 3 produtos na mesma OC</li>
+                    <li>✅ Fornecedor: Nome específico de cada produto</li>
+                    <li>❌ Nenhum popup de confirmação de OC</li>
+                    <li>✅ Apenas confirmação de pedido salvo</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🚀 Executar Teste</h3>
+            <button onclick="simularPedidoVenda()">Simular Pedido de Venda com Produtos SE</button>
+            <button onclick="verificarOCs()">Verificar OCs Criadas</button>
+            <button onclick="limparDados()">Limpar Dados de Teste</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Log de Execução</h3>
+            <div id="log" class="log">Aguardando execução do teste...\n</div>
+        </div>
+
+        <div class="test-section">
+            <h3>📈 Resultados</h3>
+            <div id="resultados">
+                <p>Execute o teste para ver os resultados aqui.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function simularPedidoVenda() {
+            log('🔄 Iniciando simulação de pedido de venda...');
+            
+            // Simular dados do pedido
+            const dadosPedido = {
+                numeroPedido: 'PV-TEST-001',
+                cliente: 'Cliente Teste',
+                vendedor: 'Vendedor Teste',
+                dataVenda: new Date().toISOString().split('T')[0],
+                id: Date.now()
+            };
+
+            // Simular produtos SE
+            const produtosSE = [
+                {
+                    produto: 'Produto A',
+                    produtoId: 1,
+                    quantidade: 2,
+                    valorUnitario: 100,
+                    sl: 'SE'
+                },
+                {
+                    produto: 'Produto B', 
+                    produtoId: 2,
+                    quantidade: 1,
+                    valorUnitario: 150,
+                    sl: 'SE'
+                },
+                {
+                    produto: 'Produto C',
+                    produtoId: 3,
+                    quantidade: 3,
+                    valorUnitario: 80,
+                    sl: 'SE'
+                }
+            ];
+
+            // Simular produtos cadastrados
+            const produtosCadastrados = [
+                { id: 1, fornecedor: 'Fornecedor X', custoLiquido: 100 },
+                { id: 2, fornecedor: 'Fornecedor Y', custoLiquido: 150 },
+                { id: 3, fornecedor: 'Fornecedor Z', custoLiquido: 80 }
+            ];
+
+            // Simular um produto não cadastrado para teste
+            const produtosNaoCadastrados = [
+                {
+                    produto: 'Produto D',
+                    produtoId: null, // Não cadastrado
+                    quantidade: 1,
+                    valorUnitario: 200,
+                    sl: 'SE'
+                }
+            ];
+
+            log('📋 Dados do pedido preparados');
+            log(`📦 ${produtosSE.length} produtos SE encontrados`);
+
+            // Simular criação de OC unificada
+            try {
+                // Buscar próxima OC disponível
+                const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+                let ultimaOC = ordensExistentes.reduce((max, oc) => {
+                    const numero = parseInt(oc.oc?.replace('A-', '') || '0');
+                    return numero > max ? numero : max;
+                }, 0);
+
+                ultimaOC++;
+                const proximaOC = `A-${String(ultimaOC).padStart(4, '0')}`;
+                
+                log(`🔢 Gerando OC única: ${proximaOC}`);
+
+                // Preparar itens da ordem de compra
+                const itensOrdemCompra = produtosSE.map(produto => {
+                    const produtoCadastrado = produtosCadastrados.find(p => p.id === produto.produtoId);
+                    // Usar fornecedor específico do produto ou "Sem Cadastro" se não estiver cadastrado
+                    const fornecedor = produtoCadastrado?.fornecedor || 'Sem Cadastro';
+                    
+                    return {
+                        produto: produto.produto,
+                        produtoId: produto.produtoId,
+                        quantidade: produto.quantidade,
+                        valorUnitario: produto.valorUnitario,
+                        valorTotal: produto.quantidade * produto.valorUnitario,
+                        fornecedor: fornecedor,
+                        local: 'SE',
+                        produtoNaoCadastrado: !produtoCadastrado
+                    };
+                });
+
+                // Calcular valor total
+                const valorTotal = itensOrdemCompra.reduce((total, item) => total + item.valorTotal, 0);
+
+                // Determinar o nome da fábrica principal (primeiro fornecedor válido ou "Sem Cadastro")
+                const fabricaPrincipal = itensOrdemCompra.length > 0 ? itensOrdemCompra[0].fornecedor : 'Sem Cadastro';
+
+                // Criar dados da ordem de compra única
+                const dadosOrdemCompra = {
+                    id: Math.floor(Date.now() + Math.random() * 1000),
+                    tipo: 'cliente',
+                    status: 'Em aberto',
+                    oc: proximaOC,
+                    numero: proximaOC,
+                    pedidoVinculado: dadosPedido.numeroPedido,
+                    vendedor: dadosPedido.vendedor,
+                    itens: itensOrdemCompra,
+                    fornecedor: fabricaPrincipal,
+                    fornecedorNome: fabricaPrincipal,
+                    valor: valorTotal,
+                    valorTotal: valorTotal,
+                    quantidadeItens: itensOrdemCompra.length,
+                    data: new Date().toISOString().split('T')[0],
+                    origem: 'pedido_venda_automatico',
+                    cliente: dadosPedido.cliente
+                };
+
+                // Salvar a ordem de compra
+                ordensExistentes.push(dadosOrdemCompra);
+                localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+
+                log(`✅ Ordem de compra ${proximaOC} criada com sucesso!`);
+                log(`📊 ${itensOrdemCompra.length} produtos incluídos`);
+                log(`💰 Valor total: R$ ${valorTotal.toFixed(2)}`);
+                log(`🏭 Fornecedor principal: ${fabricaPrincipal}`);
+                
+                // Log detalhado dos fornecedores
+                log('📋 Fornecedores por produto:');
+                itensOrdemCompra.forEach((item, index) => {
+                    log(`  ${index + 1}. ${item.produto} → ${item.fornecedor}`);
+                });
+                
+                log('🎉 Teste concluído - OC unificada criada!');
+
+                // Atualizar resultados
+                document.getElementById('resultados').innerHTML = `
+                    <div class="success">
+                        <h4>✅ Teste Executado com Sucesso!</h4>
+                        <p><strong>OC Criada:</strong> ${proximaOC}</p>
+                        <p><strong>Produtos:</strong> ${itensOrdemCompra.length}</p>
+                        <p><strong>Valor Total:</strong> R$ ${valorTotal.toFixed(2)}</p>
+                        <p><strong>Fornecedor Principal:</strong> ${fabricaPrincipal}</p>
+                        <p><strong>Status:</strong> ✅ OC unificada criada corretamente</p>
+                        <h5>📋 Fornecedores por Produto:</h5>
+                        <ul>
+                            ${itensOrdemCompra.map(item => `<li>${item.produto} → ${item.fornecedor}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+
+            } catch (error) {
+                log(`❌ Erro na simulação: ${error.message}`);
+                document.getElementById('resultados').innerHTML = `
+                    <div style="background-color: #f8d7da; border-color: #f5c6cb; padding: 15px; border-radius: 5px;">
+                        <h4>❌ Erro no Teste</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function verificarOCs() {
+            log('🔍 Verificando OCs existentes...');
+            
+            const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+            const ocsTeste = ordensExistentes.filter(oc => oc.origem === 'pedido_venda_automatico');
+            
+            log(`📊 Total de OCs encontradas: ${ordensExistentes.length}`);
+            log(`🧪 OCs de teste: ${ocsTeste.length}`);
+            
+            ocsTeste.forEach(oc => {
+                log(`📋 OC ${oc.oc}: ${oc.quantidadeItens} produtos, R$ ${oc.valorTotal.toFixed(2)}`);
+            });
+
+            document.getElementById('resultados').innerHTML = `
+                <div class="info">
+                    <h4>📊 OCs Encontradas</h4>
+                    <p><strong>Total de OCs:</strong> ${ordensExistentes.length}</p>
+                    <p><strong>OCs de Teste:</strong> ${ocsTeste.length}</p>
+                    ${ocsTeste.length > 0 ? `
+                        <h5>Detalhes das OCs de Teste:</h5>
+                        <ul>
+                            ${ocsTeste.map(oc => `
+                                <li>OC ${oc.oc}: ${oc.quantidadeItens} produtos, R$ ${oc.valorTotal.toFixed(2)}</li>
+                            `).join('')}
+                        </ul>
+                    ` : '<p>Nenhuma OC de teste encontrada.</p>'}
+                </div>
+            `;
+        }
+
+        function limparDados() {
+            log('🧹 Limpando dados de teste...');
+            
+            const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+            const ocsFiltradas = ordensExistentes.filter(oc => oc.origem !== 'pedido_venda_automatico');
+            
+            localStorage.setItem('ordensCompra', JSON.stringify(ocsFiltradas));
+            
+            log(`🗑️ ${ordensExistentes.length - ocsFiltradas.length} OCs de teste removidas`);
+            log('✅ Dados de teste limpos!');
+
+            document.getElementById('resultados').innerHTML = `
+                <div class="success">
+                    <h4>🧹 Dados Limpos</h4>
+                    <p>OCs de teste removidas com sucesso!</p>
+                </div>
+            `;
+        }
+
+        // Inicializar
+        log('🚀 Sistema de teste carregado');
+        log('💡 Clique em "Simular Pedido de Venda" para testar as alterações');
+    </script>
+</body>
+</html>

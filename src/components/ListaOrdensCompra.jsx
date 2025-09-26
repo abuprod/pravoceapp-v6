@@ -1022,7 +1022,7 @@ const ListaOrdensCompra = () => {
                       case 'data':
                         return formatarDataSemTimezone(ordem.data);
                       case 'fornecedor':
-                        return ordem.fornecedor || ordem.fornecedorNome || '-';
+                        return ordem.produtoAtual?.fornecedor || ordem.produtoAtual?.fornecedorNome || ordem.fornecedor || ordem.fornecedorNome || '-';
                       case 'vendedor':
                         return ordem.vendedor || '-';
                       case 'status':
