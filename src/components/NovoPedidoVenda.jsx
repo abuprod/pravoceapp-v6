@@ -1343,6 +1343,146 @@ const NovoPedidoVenda = () => {
     return data.toISOString().split('T')[0];
   };
 
+  const atualizarOrdemCompraExistente = async (dadosPedido, produtosSE, ordemExistente) => {
+    try {
+      console.log('🔄 === ATUALIZANDO ORDEM DE COMPRA EXISTENTE ===');
+      console.log('📋 Pedido vinculado:', dadosPedido.numeroPedido);
+      console.log('📦 Novos produtos SE:', produtosSE);
+      console.log('🏷️ OC existente:', ordemExistente.oc);
+
+      // Preparar novos produtos SE
+      const novosProdutosPreparados = produtosSE.map(produto => {
+        const produtoCadastrado = produtosCadastrados.find(p => p.id === produto.produtoId);
+        
+        // Verificar se o produto já existe na OC
+        const produtoExistente = ordemExistente.itens?.find(item => 
+          item.produtoId === produto.produtoId
+        );
+        
+        if (produtoExistente) {
+          console.log(`⚠️ Produto ${produto.produto} já existe na OC. Atualizando quantidade.`);
+          // Se já existe, somar as quantidades
+          const novaQuantidade = (parseInt(produtoExistente.quantidade) || 0) + (parseInt(produto.quantidade) || 0);
+          return {
+            ...produtoExistente,
+            quantidade: novaQuantidade,
+            valorTotal: novaQuantidade * (produtoExistente.valorUnitario || 0)
+          };
+        } else {
+          console.log(`➕ Adicionando novo produto ${produto.produto} à OC.`);
+          // Produto novo - criar item completo
+          const quantidade = parseInt(produto.quantidade) || 1;
+          const valorUnitario = produtoCadastrado?.custoLiquido || 0;
+          const valorTotal = quantidade * valorUnitario;
+          
+          return {
+            produto: produto.produto,
+            produtoId: produto.produtoId || '',
+            sku: produtoCadastrado?.sku || '',
+            categoria: produtoCadastrado?.categoria || '',
+            quantidade: quantidade,
+            valorUnitario: valorUnitario,
+            valorTotal: valorTotal,
+            fornecedor: produtoCadastrado?.fornecedor || 'Fornecedor não identificado',
+            fornecedorId: produtoCadastrado?.fornecedorId || '',
+            fornecedorNome: produtoCadastrado?.fornecedor || 'Fornecedor não identificado',
+            observacoes: produto.observacoes || '',
+            status: 'pendente',
+            descricao: produto.produto,
+            unidade: produtoCadastrado?.unidade || 'UN',
+            custoUnitario: valorUnitario,
+            margemLucro: produtoCadastrado?.margemLucro || 0,
+            tributos: produtoCadastrado?.tributos || [],
+            local: produto.sl || 'SE'
+          };
+        }
+      });
+
+      // Criar lista de itens atualizada
+      const itensAtualizados = [...(ordemExistente.itens || [])];
+      
+      // Adicionar ou atualizar produtos
+      novosProdutosPreparados.forEach(novoProduto => {
+        const indiceExistente = itensAtualizados.findIndex(item => 
+          item.produtoId === novoProduto.produtoId
+        );
+        
+        if (indiceExistente >= 0) {
+          // Atualizar produto existente
+          itensAtualizados[indiceExistente] = novoProduto;
+        } else {
+          // Adicionar novo produto
+          itensAtualizados.push(novoProduto);
+        }
+      });
+
+      // Recalcular valor total da ordem
+      const novoValorTotal = itensAtualizados.reduce((total, item) => total + (item.valorTotal || 0), 0);
+
+      // Atualizar ordem existente
+      const ordemAtualizada = {
+        ...ordemExistente,
+        itens: itensAtualizados,
+        valorTotal: novoValorTotal,
+        valor: novoValorTotal,
+        quantidadeItens: itensAtualizados.length,
+        quantidadeTotal: itensAtualizados.reduce((total, item) => total + (item.quantidade || 0), 0),
+        ultimaAtualizacao: new Date().toISOString(),
+        observacoesInternas: (ordemExistente.observacoesInternas || '') + 
+          `\n\n[${new Date().toLocaleString()}] Produtos adicionados via edição do pedido ${dadosPedido.numeroPedido}`
+      };
+
+      console.log('📋 Ordem de compra atualizada:', ordemAtualizada);
+
+      // Salvar ordem atualizada
+      const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+      const indiceOrdem = ordensExistentes.findIndex(oc => oc.id === ordemExistente.id);
+      
+      if (indiceOrdem >= 0) {
+        ordensExistentes[indiceOrdem] = ordemAtualizada;
+        localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+        
+        console.log(`✅ Ordem de compra ${ordemExistente.oc} atualizada com ${novosProdutosPreparados.length} produto(s) SE`);
+        console.log(`🎉 ${novosProdutosPreparados.length} produto(s) adicionado(s) à OC ${ordemExistente.oc} do pedido ${dadosPedido.numeroPedido}`);
+        
+        // Disparar evento para atualizar a lista de ordens
+        window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+        
+        // Mostrar popup de debug com informações [[memory:8298539]] [[memory:8298528]]
+        const debugInfo = {
+          acao: "Produtos SE adicionados à OC existente",
+          pedido: dadosPedido.numeroPedido,
+          ocAtualizada: ordemExistente.oc,
+          produtosAdicionados: novosProdutosPreparados.map(p => ({
+            produto: p.produto,
+            quantidade: p.quantidade,
+            valorUnitario: p.valorUnitario,
+            valorTotal: p.valorTotal
+          })),
+          novoValorTotalOC: ordemAtualizada.valorTotal,
+          quantidadeTotalItens: ordemAtualizada.quantidadeItens,
+          dataAtualizacao: ordemAtualizada.ultimaAtualizacao
+        };
+        
+        const debugText = JSON.stringify(debugInfo, null, 2);
+        
+        if (window.confirm(`✅ ${novosProdutosPreparados.length} produto(s) SE adicionado(s) à OC ${ordemExistente.oc}!\n\nDeseja ver informações detalhadas de debug?`)) {
+          alert(`DEBUG - Atualização de OC:\n\n${debugText}`);
+        }
+        
+        return ordemAtualizada;
+      } else {
+        console.error('❌ Ordem de compra não encontrada para atualização');
+        return null;
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao atualizar ordem de compra existente:', error);
+      alert('❌ Erro ao atualizar ordem de compra existente. Verifique os dados e tente novamente.');
+      return null;
+    }
+  };
+
   const criarOrdemCompraAutomatica = async (dadosPedido, produtosSE) => {
     try {
       console.log('🛒 === CRIANDO ORDEM DE COMPRA AUTOMÁTICA ===');
@@ -1646,20 +1786,117 @@ const NovoPedidoVenda = () => {
         }
       }
 
-      // Verificar se há produtos SE para criar ordem de compra automaticamente
+      // LÓGICA SIMPLES: Verificar produtos SE e atualizar OC
       const produtosSE = formData.produtos.filter(p => p.sl === 'SE');
+      
       if (produtosSE.length > 0) {
-        // Verificar se já existem ordens de compra para este pedido
+        console.log('🔍 === PROCESSANDO PRODUTOS SE ===');
+        console.log('📦 Produtos SE encontrados:', produtosSE.length);
+        console.log('🔢 Número do pedido:', dadosPedido.numeroPedido);
+        
+        // Buscar ordens de compra existentes
         const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-        const ordensParaEstePedido = ordensExistentes.filter(oc => 
+        const ordemDoPedido = ordensExistentes.find(oc => 
           oc.pedidoVinculado === dadosPedido.numeroPedido
         );
         
-        if (ordensParaEstePedido.length === 0) {
-          console.log('🛒 Produtos SE encontrados, criando ordem de compra automaticamente...');
-          await criarOrdemCompraAutomatica(dadosPedido, produtosSE);
+        if (ordemDoPedido) {
+          console.log('✅ OC encontrada para o pedido:', ordemDoPedido.oc);
+          
+          // Se for edição, verificar produtos novos
+          if (isEdicao && pedidoExistente) {
+            const produtosSEAnteriores = (pedidoExistente.produtos || []).filter(p => p.sl === 'SE');
+            const novosProdutosSE = produtosSE.filter(produtoAtual => {
+              return !produtosSEAnteriores.some(produtoAnterior => 
+                produtoAnterior.produtoId === produtoAtual.produtoId
+              );
+            });
+            
+            if (novosProdutosSE.length > 0) {
+              console.log('➕ Novos produtos SE detectados:', novosProdutosSE.length);
+              
+              // Adicionar novos produtos à OC existente
+              const novosItens = novosProdutosSE.map(produto => {
+                const produtoCadastrado = produtosCadastrados.find(p => p.id === produto.produtoId);
+                const quantidade = parseInt(produto.quantidade) || 1;
+                
+                // Usar preços do produto cadastrado
+                const custoBruto = produtoCadastrado?.custoBruto || 0;
+                const custoLiquido = produtoCadastrado?.custoLiquido || 0;
+                const frete = produtoCadastrado?.frete || 0;
+                const ipi = produtoCadastrado?.ipi || 0;
+                const desconto = produtoCadastrado?.descontos || '';
+                const tributoSelecionado = produtoCadastrado?.tributoSelecionado || '';
+                
+                return {
+                  produto: produto.produto,
+                  produtoId: produto.produtoId || '',
+                  sku: produtoCadastrado?.sku || '',
+                  categoria: produtoCadastrado?.categoria || '',
+                  quantidade: quantidade,
+                  valorUnitario: custoLiquido,
+                  valorTotal: quantidade * custoLiquido,
+                  fornecedor: produtoCadastrado?.fornecedor || 'Fornecedor não identificado',
+                  fornecedorId: produtoCadastrado?.fornecedorId || '',
+                  fornecedorNome: produtoCadastrado?.fornecedor || 'Fornecedor não identificado',
+                  observacoes: produto.observacoes || '',
+                  status: 'pendente',
+                  descricao: produto.produto,
+                  unidade: produtoCadastrado?.unidade || 'UN',
+                  // Campos financeiros para preenchimento automático
+                  custoBruto: custoBruto,
+                  custoLiquido: custoLiquido,
+                  frete: frete,
+                  ipi: ipi,
+                  desconto: desconto,
+                  tributoSelecionado: tributoSelecionado,
+                  margemLucro: produtoCadastrado?.margemLucro || 0,
+                  tributos: produtoCadastrado?.tributos || [],
+                  local: produto.sl || 'SE',
+                  produtoNaoCadastrado: !produtoCadastrado
+                };
+              });
+              
+              // Atualizar OC
+              const itensAtualizados = [...(ordemDoPedido.itens || []), ...novosItens];
+              const novoValorTotal = itensAtualizados.reduce((total, item) => total + (item.valorTotal || 0), 0);
+              
+              // Preparar informações sobre os produtos adicionados
+              const produtosAdicionadosInfo = novosProdutosSE.map(p => 
+                `- ${p.produto} (Qtd: ${p.quantidade})`
+              ).join('\n');
+              
+              const informacaoAdicao = `\n\n[${new Date().toLocaleString()}] PRODUTOS ADICIONADOS VIA EDIÇÃO DO PEDIDO:\n${produtosAdicionadosInfo}`;
+
+              const ordemAtualizada = {
+                ...ordemDoPedido,
+                itens: itensAtualizados,
+                valorTotal: novoValorTotal,
+                valor: novoValorTotal,
+                quantidadeItens: itensAtualizados.length,
+                quantidadeTotal: itensAtualizados.reduce((total, item) => total + (item.quantidade || 0), 0),
+                ultimaAtualizacao: new Date().toISOString(),
+                // Atualizar campo "Informações do Pedido de Venda"
+                informacoesPedidoVenda: (ordemDoPedido.informacoesPedidoVenda || '') + informacaoAdicao
+              };
+              
+              // Salvar OC atualizada
+              const indiceOrdem = ordensExistentes.findIndex(oc => oc.id === ordemDoPedido.id);
+              ordensExistentes[indiceOrdem] = ordemAtualizada;
+              localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+              
+              // Disparar evento para atualizar lista
+              window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+              
+              console.log('✅ OC atualizada com sucesso!');
+              alert(`✅ ${novosProdutosSE.length} produto(s) SE adicionado(s) à OC ${ordemDoPedido.oc}!`);
+            }
+          } else {
+            console.log('⚠️ Não é edição ou não há pedido anterior');
+          }
         } else {
-          console.log(`⚠️ Já existem ${ordensParaEstePedido.length} ordem(ns) de compra para o pedido ${dadosPedido.numeroPedido}. Pulando criação automática.`);
+          console.log('🛒 Criando nova OC para produtos SE...');
+          await criarOrdemCompraAutomatica(dadosPedido, produtosSE);
         }
       }
 
