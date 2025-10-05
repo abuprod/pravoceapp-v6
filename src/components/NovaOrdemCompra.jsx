@@ -2292,28 +2292,31 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '6%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.00%'}}>
+                          
+                        </th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.11%'}}>
                           N.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8.17%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '25%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '46.72%'}}>
                           Descrição
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '15%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.00%'}}>
                           Fornecedor
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '9.00%'}}>
                           Custo Bruto Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '9.00%'}}>
                           Custo Líq. Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '9.00%'}}>
                           Custo Líq. Total
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '5.00%'}}>
                           Ações
                         </th>
                       </tr>
@@ -2323,46 +2326,46 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <React.Fragment key={index}>
                           <tr>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="relative menu-dropdown">
-                                  <button
-                                    onClick={() => toggleMenu('item', index)}
-                                    className="p-1 text-gray-600 hover:text-gray-800"
-                                    title="Menu"
-                                  >
-                                    <FaEllipsisV />
-                                  </button>
-                                  {menuAberto[`item-${index}`] && (
-                                    <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                      <button
-                                        onClick={() => abrirModalEntrada(index)}
-                                        className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
-                                      >
-                                        <FaCheck />
-                                        Dar entrada
-                                      </button>
-                                      <button
-                                        onClick={() => abrirModalEntrega(index)}
-                                        className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                                      >
-                                        <FaCalendarAlt />
-                                        Data Entrega
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          handleDeleteItem(index);
-                                          fecharMenu('item', index);
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                      >
-                                        <FaTrash />
-                                        Excluir Item
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                                <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                              <div className="relative menu-dropdown">
+                                <button
+                                  onClick={() => toggleMenu('item', index)}
+                                  className="p-1 text-gray-600 hover:text-gray-800"
+                                  title="Menu"
+                                >
+                                  <FaEllipsisV />
+                                </button>
+                                {menuAberto[`item-${index}`] && (
+                                  <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                    <button
+                                      onClick={() => abrirModalEntrada(index)}
+                                      className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
+                                    >
+                                      <FaCheck />
+                                      Dar entrada
+                                    </button>
+                                    <button
+                                      onClick={() => abrirModalEntrega(index)}
+                                      className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                                    >
+                                      <FaCalendarAlt />
+                                      Data Entrega
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        handleDeleteItem(index);
+                                        fecharMenu('item', index);
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                    >
+                                      <FaTrash />
+                                      Excluir Item
+                                    </button>
+                                  </div>
+                                )}
                               </div>
+                            </td>
+                            <td className="px-2 py-2 whitespace-nowrap text-center">
+                              <span className="text-sm font-medium text-gray-700">{index + 1}</span>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input
@@ -2855,28 +2858,31 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '6%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.00%'}}>
+                          
+                        </th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.11%'}}>
                           N.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8.17%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '25%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '46.72%'}}>
                           Descrição
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '15%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.00%'}}>
                           Fornecedor
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '9.00%'}}>
                           Custo Bruto Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '9.00%'}}>
                           Custo Líq. Unit.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '9.00%'}}>
                           Custo Líq. Total
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '5.00%'}}>
                           Ações
                         </th>
                       </tr>
@@ -2886,46 +2892,46 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <React.Fragment key={index}>
                           <tr>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="relative menu-dropdown">
-                                  <button
-                                    onClick={() => toggleMenu('item', index)}
-                                    className="p-1 text-gray-600 hover:text-gray-800"
-                                    title="Menu"
-                                  >
-                                    <FaEllipsisV />
-                                  </button>
-                                  {menuAberto[`item-${index}`] && (
-                                    <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                      <button
-                                        onClick={() => abrirModalEntrada(index)}
-                                        className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
-                                      >
-                                        <FaCheck />
-                                        Dar entrada
-                                      </button>
-                                      <button
-                                        onClick={() => abrirModalEntrega(index)}
-                                        className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                                      >
-                                        <FaCalendarAlt />
-                                        Data Entrega
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          handleDeleteItem(index);
-                                          fecharMenu('item', index);
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                      >
-                                        <FaTrash />
-                                        Excluir Item
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                                <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                              <div className="relative menu-dropdown">
+                                <button
+                                  onClick={() => toggleMenu('item', index)}
+                                  className="p-1 text-gray-600 hover:text-gray-800"
+                                  title="Menu"
+                                >
+                                  <FaEllipsisV />
+                                </button>
+                                {menuAberto[`item-${index}`] && (
+                                  <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                    <button
+                                      onClick={() => abrirModalEntrada(index)}
+                                      className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
+                                    >
+                                      <FaCheck />
+                                      Dar entrada
+                                    </button>
+                                    <button
+                                      onClick={() => abrirModalEntrega(index)}
+                                      className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                                    >
+                                      <FaCalendarAlt />
+                                      Data Entrega
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        handleDeleteItem(index);
+                                        fecharMenu('item', index);
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                    >
+                                      <FaTrash />
+                                      Excluir Item
+                                    </button>
+                                  </div>
+                                )}
                               </div>
+                            </td>
+                            <td className="px-2 py-2 whitespace-nowrap text-center">
+                              <span className="text-sm font-medium text-gray-700">{index + 1}</span>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input
