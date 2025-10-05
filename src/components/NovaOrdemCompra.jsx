@@ -1970,13 +1970,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
               {/* Linha divisória */}
               <hr className="border-gray-300 my-8" />
 
-              {/* Seção 3 - Dados Pós Recebimento */}
+              {/* Seção 3 - Datas de Entrada/Entrega */}
               <div className="mb-8">
                 <div 
                   className="flex items-center gap-3 cursor-pointer mb-4"
                   onClick={() => setDadosPosRecebimentoExpanded(!dadosPosRecebimentoExpanded)}
                 >
-                  <h2 className="text-xl font-semibold text-gray-700">Dados Pós Recebimento</h2>
+                  <h2 className="text-xl font-semibold text-gray-700">Datas de Entrada/Entrega</h2>
                   <button className="text-gray-500 hover:text-gray-700 transition-colors">
                     {dadosPosRecebimentoExpanded ? <FaChevronUp /> : <FaChevronDown />}
                   </button>
@@ -2285,8 +2285,11 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '40%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '25%'}}>
                           Descrição
+                        </th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '15%'}}>
+                          Fornecedor
                         </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Bruto Unit.
@@ -2379,6 +2382,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   </div>
                                 )}
                               </div>
+                            </td>
+                            <td className="px-2 py-2 whitespace-nowrap">
+                              <span className="text-sm text-gray-700">{item.fornecedorNome || item.fornecedor || '-'}</span>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap">
                               <input
@@ -2808,8 +2814,11 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '40%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '25%'}}>
                           Descrição
+                        </th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '15%'}}>
+                          Fornecedor
                         </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.5%'}}>
                           Custo Bruto Unit.
@@ -2903,6 +2912,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                 </div>
                               )}
                               </div>
+                            </td>
+                            <td className="px-2 py-2 whitespace-nowrap">
+                              <span className="text-sm text-gray-700">{item.fornecedorNome || item.fornecedor || '-'}</span>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap">
                               <input
