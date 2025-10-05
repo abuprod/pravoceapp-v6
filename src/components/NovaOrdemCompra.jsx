@@ -121,6 +121,25 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   // Estado para controlar menu de 3 pontinhos de cada item
   const [menuAberto, setMenuAberto] = useState({});
 
+  // Estados para controlar modais de entrada e entrega por item
+  const [modalEntradaAberto, setModalEntradaAberto] = useState(null);
+  const [modalEntregaAberto, setModalEntregaAberto] = useState(null);
+  const [entradaTemporaria, setEntradaTemporaria] = useState({
+    dataEntrada: '',
+    documentoFabrica: '',
+    dataDocumento: '',
+    observacao: ''
+  });
+  const [entregaTemporaria, setEntregaTemporaria] = useState({
+    data: '',
+    observacao: ''
+  });
+
+  // Estados para menu superior e modal de ocorrências
+  const [menuSuperiorAberto, setMenuSuperiorAberto] = useState(false);
+  const [modalOcorrenciasAberto, setModalOcorrenciasAberto] = useState(false);
+  const [filtroItemOcorrencia, setFiltroItemOcorrencia] = useState('todos');
+
   // Função para buscar a próxima OC disponível por tipo
   const buscarProximaOC = (tipo) => {
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
@@ -252,6 +271,20 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       }
     }
   }, [tipoPreSelecionado, id]);
+
+  // Fechar menu superior ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuSuperiorAberto && !event.target.closest('.relative')) {
+        setMenuSuperiorAberto(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuSuperiorAberto]);
 
   // Carregar fornecedores e produtos
   useEffect(() => {
@@ -663,6 +696,102 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       datasEntrega: prev.datasEntrega.filter((_, i) => i !== index)
     }));
     setShowConfirmDeleteEntrega(null);
+  };
+
+  // Funções para modais individualizados por item
+  const abrirModalEntrada = (itemIndex) => {
+    setModalEntradaAberto(itemIndex);
+    setEntradaTemporaria({
+      dataEntrada: '',
+      documentoFabrica: '',
+      dataDocumento: '',
+      observacao: ''
+    });
+    fecharMenu('item', itemIndex);
+  };
+
+  const abrirModalEntrega = (itemIndex) => {
+    setModalEntregaAberto(itemIndex);
+    setEntregaTemporaria({
+      data: '',
+      observacao: ''
+    });
+    fecharMenu('item', itemIndex);
+  };
+
+  const salvarEntradaItem = () => {
+    if (!entradaTemporaria.dataEntrada) {
+      alert('Por favor, preencha a data de entrada.');
+      return;
+    }
+
+    const novaEntrada = {
+      ...entradaTemporaria,
+      salvo: true,
+      editando: false,
+      itemIndex: modalEntradaAberto
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      entradas: [...(prev.entradas || []), novaEntrada]
+    }));
+
+    setModalEntradaAberto(null);
+    setEntradaTemporaria({
+      dataEntrada: '',
+      documentoFabrica: '',
+      dataDocumento: '',
+      observacao: ''
+    });
+  };
+
+  const salvarEntregaItem = () => {
+    if (!entregaTemporaria.data) {
+      alert('Por favor, preencha a data de entrega.');
+      return;
+    }
+
+    const novaEntrega = {
+      ...entregaTemporaria,
+      salvo: true,
+      editando: false,
+      itemIndex: modalEntregaAberto
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      datasEntrega: [...(prev.datasEntrega || []), novaEntrega]
+    }));
+
+    setModalEntregaAberto(null);
+    setEntregaTemporaria({
+      data: '',
+      observacao: ''
+    });
+  };
+
+  // Função para abrir modal de ocorrências
+  const abrirModalOcorrencias = () => {
+    setModalOcorrenciasAberto(true);
+    setMenuSuperiorAberto(false);
+    setFiltroItemOcorrencia('todos');
+  };
+
+  // Função para obter ocorrências filtradas
+  const obterOcorrenciasFiltradas = () => {
+    const entradas = formData.entradas || [];
+    const entregas = formData.datasEntrega || [];
+    
+    if (filtroItemOcorrencia === 'todos') {
+      return { entradas, entregas };
+    }
+    
+    const itemIndex = parseInt(filtroItemOcorrencia);
+    return {
+      entradas: entradas.filter(e => e.itemIndex === itemIndex),
+      entregas: entregas.filter(e => e.itemIndex === itemIndex)
+    };
   };
 
   const handleGerarOC = () => {
@@ -1835,6 +1964,28 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
             </div>
           )}
         </div>
+        
+        {/* Menu de 3 pontinhos no canto superior direito */}
+        <div className="relative">
+          <button
+            onClick={() => setMenuSuperiorAberto(!menuSuperiorAberto)}
+            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+            title="Menu"
+          >
+            <FaEllipsisV className="text-xl" />
+          </button>
+          {menuSuperiorAberto && (
+            <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+              <button
+                onClick={abrirModalOcorrencias}
+                className="w-full px-4 py-3 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-3 transition-colors"
+              >
+                <FaInfoCircle className="text-lg" />
+                <span className="font-medium">Ocorrências</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Seletor de Tipo quando nenhum tipo estiver selecionado */}
@@ -2123,372 +2274,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                     </>
                   </div>
 
-              {/* Linha divisória */}
-              <hr className="border-gray-300 my-8" />
-
-              {/* Seção 3 - Datas de Entrada/Entrega */}
-              <div className="mb-8">
-                <div 
-                  className="flex items-center gap-3 cursor-pointer mb-4"
-                  onClick={() => setDadosPosRecebimentoExpanded(!dadosPosRecebimentoExpanded)}
-                >
-                  <h2 className="text-xl font-semibold text-gray-700">Datas de Entrada/Entrega</h2>
-                  <button className="text-gray-500 hover:text-gray-700 transition-colors">
-                    {dadosPosRecebimentoExpanded ? <FaChevronUp /> : <FaChevronDown />}
-                  </button>
-                </div>
-                
-                {dadosPosRecebimentoExpanded && (
-                  <div className="space-y-6">
-                    {/* ENTRADAS */}
-                    <div>
-                      <div className="flex items-center gap-3 mb-3">
-                        <h3 className="text-lg font-medium text-gray-700">ENTRADAS</h3>
-                        <button
-                          onClick={handleAddEntrada}
-                          className="p-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 transition-colors"
-                          title="Adicionar entrada"
-                        >
-                          <FaPlus />
-                        </button>
-                      </div>
-                      <div className="space-y-3">
-                        {formData.entradas && formData.entradas.map((entrada, index) => (
-                          <div 
-                            key={index} 
-                            className={`p-4 rounded-lg border ${
-                              entrada.salvo 
-                                ? 'bg-green-50 border-green-200' 
-                                : 'bg-white border-gray-200'
-                            }`}
-                          >
-                            {entrada.editando ? (
-                              <div className="space-y-3">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada</label>
-                                    <div className="flex gap-2">
-                                      <input
-                                        type="date"
-                                        value={entrada.dataEntrada || ''}
-                                        onChange={(e) => handleEntradaChange(index, 'dataEntrada', e.target.value)}
-                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => handleEntradaChange(index, 'dataEntrada', new Date().toISOString().split('T')[0])}
-                                        className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
-                                        title="Definir data atual"
-                                      >
-                                        <FaCalendarAlt className="text-sm" />
-                                        Hoje
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">DOC FAB</label>
-                                    <input
-                                      type="text"
-                                      placeholder="Documento da fábrica"
-                                      value={entrada.documentoFabrica || ''}
-                                      onChange={(e) => handleEntradaChange(index, 'documentoFabrica', e.target.value)}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Data DOC (Emissão)</label>
-                                    <div className="flex gap-2">
-                                      <input
-                                        type="date"
-                                        value={entrada.dataDocumento || ''}
-                                        onChange={(e) => handleEntradaChange(index, 'dataDocumento', e.target.value)}
-                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => handleEntradaChange(index, 'dataDocumento', new Date().toISOString().split('T')[0])}
-                                        className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
-                                        title="Definir data atual"
-                                      >
-                                        <FaCalendarAlt className="text-sm" />
-                                        Hoje
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-                                  <textarea
-                                    placeholder="Observações..."
-                                    value={entrada.observacao || ''}
-                                    onChange={(e) => handleEntradaChange(index, 'observacao', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    rows="2"
-                                  />
-                                </div>
-                                <div className="flex justify-between items-center">
-                                  <div className="relative menu-dropdown">
-                                    <button
-                                      onClick={() => toggleMenu('entrada-edit', index)}
-                                      className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
-                                      title="Menu"
-                                    >
-                                      <FaEllipsisV />
-                                    </button>
-                                    {menuAberto[`entrada-edit-${index}`] && (
-                                      <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                        <button
-                                          onClick={() => {
-                                            handleEditarEntrada(index);
-                                            fecharMenu('entrada-edit', index);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                                        >
-                                          <FaInfoCircle />
-                                          Editar
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            handleRemoveEntrada(index);
-                                            fecharMenu('entrada-edit', index);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                        >
-                                          <FaTrash />
-                                          Excluir
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => handleSalvarEntrada(index)}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                                  >
-                                    Salvar
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                                  <div>
-                                    <span className="font-medium text-gray-700">Data Entrada:</span>
-                                    <p className="text-gray-600">{entrada.dataEntrada || '-'}</p>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">DOC FAB:</span>
-                                    <p className="text-gray-600">{entrada.documentoFabrica || '-'}</p>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Data DOC:</span>
-                                    <p className="text-gray-600">{entrada.dataDocumento || '-'}</p>
-                                  </div>
-                                </div>
-                                {entrada.observacao && (
-                                  <div>
-                                    <span className="font-medium text-gray-700">Observações:</span>
-                                    <p className="text-gray-600">{entrada.observacao}</p>
-                                  </div>
-                                )}
-                                <div className="flex justify-end pt-2">
-                                  <div className="relative menu-dropdown">
-                                    <button
-                                      onClick={() => toggleMenu('entrada-view', index)}
-                                      className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
-                                      title="Menu"
-                                    >
-                                      <FaEllipsisV />
-                                    </button>
-                                    {menuAberto[`entrada-view-${index}`] && (
-                                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                        <button
-                                          onClick={() => {
-                                            handleEditarEntrada(index);
-                                            fecharMenu('entrada-view', index);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                                        >
-                                          <FaInfoCircle />
-                                          Editar
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            handleRemoveEntrada(index);
-                                            fecharMenu('entrada-view', index);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                        >
-                                          <FaTrash />
-                                          Excluir
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* DATA ENTREGA CLIENTE */}
-                    <div>
-                      <div className="flex items-center gap-3 mb-3">
-                        <h3 className="text-lg font-medium text-gray-700">DATA ENTREGA CLIENTE</h3>
-                        <button
-                          onClick={handleAddDataEntrega}
-                          className="p-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 transition-colors"
-                          title="Adicionar entrega"
-                        >
-                          <FaPlus />
-                        </button>
-                      </div>
-                      <div className="space-y-3">
-                        {formData.datasEntrega && formData.datasEntrega.map((entrega, index) => (
-                          <div 
-                            key={index} 
-                            className={`p-4 rounded-lg border ${
-                              entrega.salvo 
-                                ? 'bg-green-50 border-green-200' 
-                                : 'bg-white border-gray-200'
-                            }`}
-                          >
-                            {entrega.editando ? (
-                              <div className="space-y-3">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrega</label>
-                                    <div className="flex gap-2">
-                                      <input
-                                        type="date"
-                                        value={entrega.data || ''}
-                                        onChange={(e) => handleDataEntregaChange(index, 'data', e.target.value)}
-                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDataEntregaChange(index, 'data', new Date().toISOString().split('T')[0])}
-                                        className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
-                                        title="Definir data atual"
-                                      >
-                                        <FaCalendarAlt className="text-sm" />
-                                        Hoje
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-                                    <textarea
-                                      placeholder="Observações..."
-                                      value={entrega.observacao || ''}
-                                      onChange={(e) => handleDataEntregaChange(index, 'observacao', e.target.value)}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      rows="2"
-                                    />
-                                  </div>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                  <div className="relative menu-dropdown">
-                                    <button
-                                      onClick={() => toggleMenu('entrega-edit', index)}
-                                      className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
-                                      title="Menu"
-                                    >
-                                      <FaEllipsisV />
-                                    </button>
-                                    {menuAberto[`entrega-edit-${index}`] && (
-                                      <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                        <button
-                                          onClick={() => {
-                                            handleEditarDataEntrega(index);
-                                            fecharMenu('entrega-edit', index);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                                        >
-                                          <FaInfoCircle />
-                                          Editar
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            handleRemoveDataEntrega(index);
-                                            fecharMenu('entrega-edit', index);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                        >
-                                          <FaTrash />
-                                          Excluir
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => handleSalvarDataEntrega(index)}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                                  >
-                                    Salvar
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                                  <div>
-                                    <span className="font-medium text-gray-700">Data Entrega:</span>
-                                    <p className="text-gray-600">{entrega.data || '-'}</p>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Observações:</span>
-                                    <p className="text-gray-600">{entrega.observacao || '-'}</p>
-                                  </div>
-                                </div>
-                                <div className="flex justify-end pt-2">
-                                  <div className="relative menu-dropdown">
-                                    <button
-                                      onClick={() => toggleMenu('entrega-view', index)}
-                                      className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
-                                      title="Menu"
-                                    >
-                                      <FaEllipsisV />
-                                    </button>
-                                    {menuAberto[`entrega-view-${index}`] && (
-                                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                        <button
-                                          onClick={() => {
-                                            handleEditarDataEntrega(index);
-                                            fecharMenu('entrega-view', index);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                                        >
-                                          <FaInfoCircle />
-                                          Editar
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            handleRemoveDataEntrega(index);
-                                            fecharMenu('entrega-view', index);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                        >
-                                          <FaTrash />
-                                          Excluir
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Linha divisória */}
-              <hr className="border-gray-300 my-8" />
 
                             {/* Seção 4 - Itens da Ordem */}
               <div className="mb-8">
@@ -2549,6 +2334,20 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   </button>
                                   {menuAberto[`item-${index}`] && (
                                     <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                      <button
+                                        onClick={() => abrirModalEntrada(index)}
+                                        className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
+                                      >
+                                        <FaCheck />
+                                        Dar entrada
+                                      </button>
+                                      <button
+                                        onClick={() => abrirModalEntrega(index)}
+                                        className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                                      >
+                                        <FaCalendarAlt />
+                                        Data Entrega
+                                      </button>
                                       <button
                                         onClick={() => {
                                           handleDeleteItem(index);
@@ -3098,6 +2897,20 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   </button>
                                   {menuAberto[`item-${index}`] && (
                                     <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                      <button
+                                        onClick={() => abrirModalEntrada(index)}
+                                        className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
+                                      >
+                                        <FaCheck />
+                                        Dar entrada
+                                      </button>
+                                      <button
+                                        onClick={() => abrirModalEntrega(index)}
+                                        className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                                      >
+                                        <FaCalendarAlt />
+                                        Data Entrega
+                                      </button>
                                       <button
                                         onClick={() => {
                                           handleDeleteItem(index);
@@ -3942,6 +3755,348 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
           </div>
         </div>
       )}
+      {/* Modal de Dar Entrada */}
+      {modalEntradaAberto !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-green-600">
+                Dar Entrada - Item {modalEntradaAberto + 1}
+              </h3>
+              <button
+                onClick={() => setModalEntradaAberto(null)}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada *</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={entradaTemporaria.dataEntrada}
+                      onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataEntrada: e.target.value})}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setEntradaTemporaria({...entradaTemporaria, dataEntrada: new Date().toISOString().split('T')[0]})}
+                      className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                      title="Definir data atual"
+                    >
+                      <FaCalendarAlt className="text-sm" />
+                      Hoje
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Documento Fábrica</label>
+                  <input
+                    type="text"
+                    value={entradaTemporaria.documentoFabrica}
+                    onChange={(e) => setEntradaTemporaria({...entradaTemporaria, documentoFabrica: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Documento</label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={entradaTemporaria.dataDocumento}
+                    onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataDocumento: e.target.value})}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEntradaTemporaria({...entradaTemporaria, dataDocumento: new Date().toISOString().split('T')[0]})}
+                    className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                    title="Definir data atual"
+                  >
+                    <FaCalendarAlt className="text-sm" />
+                    Hoje
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <textarea
+                  value={entradaTemporaria.observacao}
+                  onChange={(e) => setEntradaTemporaria({...entradaTemporaria, observacao: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  rows="3"
+                  placeholder="Digite as observações da entrada..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setModalEntradaAberto(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarEntradaItem}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <FaCheck />
+                Salvar Entrada
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Data Entrega */}
+      {modalEntregaAberto !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-blue-600">
+                Data Entrega - Item {modalEntregaAberto + 1}
+              </h3>
+              <button
+                onClick={() => setModalEntregaAberto(null)}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrega *</label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={entregaTemporaria.data}
+                    onChange={(e) => setEntregaTemporaria({...entregaTemporaria, data: e.target.value})}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEntregaTemporaria({...entregaTemporaria, data: new Date().toISOString().split('T')[0]})}
+                    className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                    title="Definir data atual"
+                  >
+                    <FaCalendarAlt className="text-sm" />
+                    Hoje
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <textarea
+                  value={entregaTemporaria.observacao}
+                  onChange={(e) => setEntregaTemporaria({...entregaTemporaria, observacao: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                  placeholder="Digite as observações da entrega..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setModalEntregaAberto(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarEntregaItem}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <FaCalendarAlt />
+                Salvar Data Entrega
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ocorrências */}
+      {modalOcorrenciasAberto && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-5xl w-full max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-semibold text-blue-600">
+                📋 Ocorrências da Ordem de Compra
+              </h3>
+              <button
+                onClick={() => setModalOcorrenciasAberto(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Filtro por Item */}
+            <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filtrar por Item:
+              </label>
+              <select
+                value={filtroItemOcorrencia}
+                onChange={(e) => setFiltroItemOcorrencia(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="todos">Todos os Itens</option>
+                {formData.itens.map((item, index) => (
+                  <option key={index} value={index}>
+                    Item {index + 1} - {item.descricao || 'Sem descrição'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {(() => {
+              const { entradas, entregas } = obterOcorrenciasFiltradas();
+              
+              return (
+                <div className="space-y-6">
+                  {/* Seção de Entradas */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <FaCheck className="text-green-600 text-xl" />
+                      <h4 className="text-xl font-semibold text-gray-700">
+                        Entradas ({entradas.length})
+                      </h4>
+                    </div>
+                    
+                    {entradas.length === 0 ? (
+                      <div className="bg-gray-50 p-6 rounded-lg text-center text-gray-500">
+                        Nenhuma entrada registrada
+                        {filtroItemOcorrencia !== 'todos' && ' para este item'}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {entradas.map((entrada, index) => (
+                          <div 
+                            key={index}
+                            className="bg-green-50 border border-green-200 p-4 rounded-lg"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                  Item {entrada.itemIndex + 1}
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  {formData.itens[entrada.itemIndex]?.descricao || 'Item removido'}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-700">Data Entrada:</span>
+                                <p className="text-gray-900 mt-1">
+                                  {entrada.dataEntrada ? new Date(entrada.dataEntrada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">Documento Fábrica:</span>
+                                <p className="text-gray-900 mt-1">{entrada.documentoFabrica || '-'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">Data Documento:</span>
+                                <p className="text-gray-900 mt-1">
+                                  {entrada.dataDocumento ? new Date(entrada.dataDocumento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {entrada.observacao && (
+                              <div className="mt-3 pt-3 border-t border-green-200">
+                                <span className="font-medium text-gray-700">Observações:</span>
+                                <p className="text-gray-900 mt-1">{entrada.observacao}</p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Linha divisória */}
+                  <hr className="border-gray-300" />
+
+                  {/* Seção de Entregas */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <FaCalendarAlt className="text-blue-600 text-xl" />
+                      <h4 className="text-xl font-semibold text-gray-700">
+                        Datas de Entrega ({entregas.length})
+                      </h4>
+                    </div>
+                    
+                    {entregas.length === 0 ? (
+                      <div className="bg-gray-50 p-6 rounded-lg text-center text-gray-500">
+                        Nenhuma data de entrega registrada
+                        {filtroItemOcorrencia !== 'todos' && ' para este item'}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {entregas.map((entrega, index) => (
+                          <div 
+                            key={index}
+                            className="bg-blue-50 border border-blue-200 p-4 rounded-lg"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                  Item {entrega.itemIndex + 1}
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  {formData.itens[entrega.itemIndex]?.descricao || 'Item removido'}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-700">Data Entrega:</span>
+                                <p className="text-gray-900 mt-1">
+                                  {entrega.data ? new Date(entrega.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">Observações:</span>
+                                <p className="text-gray-900 mt-1">{entrega.observacao || '-'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setModalOcorrenciasAberto(false)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Popup de Debug das Sugestões */}
       {showDebugPopup && debugInfo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
