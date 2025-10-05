@@ -775,7 +775,66 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   const abrirModalOcorrencias = () => {
     setModalOcorrenciasAberto(true);
     setMenuSuperiorAberto(false);
-    setFiltroItemOcorrencia('todos');
+  };
+
+  // Função para determinar o status do item baseado em entradas e entregas
+  const getStatusItem = (itemIndex) => {
+    if (!formData.entradas && !formData.datasEntrega) {
+      return 'pending'; // Amarelo - sem entrada
+    }
+
+    // Verificar se há entrada para este item específico
+    const temEntrada = formData.entradas && formData.entradas.some(entrada => 
+      entrada.itemIndex === itemIndex && entrada.dataEntrada
+    );
+
+    // Verificar se há entrega para este item específico
+    const temEntrega = formData.datasEntrega && formData.datasEntrega.some(entrega => 
+      entrega.itemIndex === itemIndex && entrega.data
+    );
+
+    if (temEntrega) {
+      return 'delivered'; // Verde - com entrega
+    } else if (temEntrada) {
+      return 'received'; // Lilás - com entrada
+    } else {
+      return 'pending'; // Amarelo - sem entrada
+    }
+  };
+
+  // Função para renderizar a bolinha de status
+  const renderStatusItem = (itemIndex) => {
+    const status = getStatusItem(itemIndex);
+    
+    let colorClass = '';
+    let title = '';
+    
+    switch (status) {
+      case 'pending':
+        colorClass = 'bg-yellow-400';
+        title = 'Aguardando entrada';
+        break;
+      case 'received':
+        colorClass = 'bg-purple-500';
+        title = 'Entrada registrada';
+        break;
+      case 'delivered':
+        colorClass = 'bg-green-500';
+        title = 'Entregue';
+        break;
+      default:
+        colorClass = 'bg-gray-400';
+        title = 'Status desconhecido';
+    }
+
+    return (
+      <div className="flex items-center justify-center">
+        <div 
+          className={`w-4 h-4 rounded-full ${colorClass}`}
+          title={title}
+        />
+      </div>
+    );
   };
 
   // Função para obter ocorrências filtradas
@@ -2298,10 +2357,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.11%'}}>
                           N.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8.17%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.00%'}}>
+                          Status
+                        </th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '7.17%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '46.72%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '45.72%'}}>
                           Descrição
                         </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.00%'}}>
@@ -2366,6 +2428,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                            </td>
+                            <td className="px-2 py-2 whitespace-nowrap text-center">
+                              {renderStatusItem(index)}
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input
@@ -2864,10 +2929,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.11%'}}>
                           N.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8.17%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.00%'}}>
+                          Status
+                        </th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '7.17%'}}>
                           Qtd.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '46.72%'}}>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '45.72%'}}>
                           Descrição
                         </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '11.00%'}}>
@@ -2932,6 +3000,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                            </td>
+                            <td className="px-2 py-2 whitespace-nowrap text-center">
+                              {renderStatusItem(index)}
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV, FaColumns, FaGripVertical } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV, FaColumns, FaGripVertical, FaCheck, FaCalendarAlt, FaClipboardList } from 'react-icons/fa';
 import { createPortal } from 'react-dom';
 
 // Componente para item arrastável
@@ -67,6 +67,20 @@ const ListaOrdensCompra = () => {
   const [productToDelete, setProductToDelete] = useState(null);
   const [menuAberto, setMenuAberto] = useState(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [showEntradaModal, setShowEntradaModal] = useState(false);
+  const [showEntregaModal, setShowEntregaModal] = useState(false);
+  const [showOcorrenciasModal, setShowOcorrenciasModal] = useState(false);
+  const [ordemModalAtual, setOrdemModalAtual] = useState(null);
+  const [entradaTemporaria, setEntradaTemporaria] = useState({
+    dataEntrada: '',
+    documentoFabrica: '',
+    dataDocumento: '',
+    observacao: ''
+  });
+  const [entregaTemporaria, setEntregaTemporaria] = useState({
+    data: '',
+    observacao: ''
+  });
   const [showColumnsModal, setShowColumnsModal] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [columnsConfig, setColumnsConfig] = useState([
@@ -76,6 +90,7 @@ const ListaOrdensCompra = () => {
     { key: 'fornecedor', label: 'Fornecedor', visible: true },
     { key: 'vendedor', label: 'Vendedor', visible: true },
     { key: 'status', label: 'Status', visible: true },
+    { key: 'statusItem', label: '•', visible: true },
     { key: 'produto', label: 'Produto', visible: true },
     { key: 'valor', label: 'Valor', visible: true },
     { key: 'prazo', label: 'Prazo', visible: true },
@@ -128,7 +143,29 @@ const ListaOrdensCompra = () => {
   useEffect(() => {
     const columnsPrefs = localStorage.getItem('ordensCompraColumnsConfig');
     if (columnsPrefs) {
-      setColumnsConfig(JSON.parse(columnsPrefs));
+      const savedConfig = JSON.parse(columnsPrefs);
+      
+      // Verificar se a coluna statusItem existe, se não, adicionar
+      const statusItemIndex = savedConfig.findIndex(col => col.key === 'statusItem');
+      
+      if (statusItemIndex === -1) {
+        // Adicionar coluna statusItem após a coluna 'status'
+        const statusIndex = savedConfig.findIndex(col => col.key === 'status');
+        const newConfig = [...savedConfig];
+        newConfig.splice(statusIndex + 1, 0, { key: 'statusItem', label: '•', visible: true });
+        setColumnsConfig(newConfig);
+        // Salvar a configuração atualizada
+        localStorage.setItem('ordensCompraColumnsConfig', JSON.stringify(newConfig));
+        console.log('✅ Coluna de status de item adicionada automaticamente');
+      } else {
+        // Se a coluna existe mas está oculta, torná-la visível
+        if (!savedConfig[statusItemIndex].visible) {
+          savedConfig[statusItemIndex].visible = true;
+          localStorage.setItem('ordensCompraColumnsConfig', JSON.stringify(savedConfig));
+          console.log('✅ Coluna de status de item ativada automaticamente');
+        }
+        setColumnsConfig(savedConfig);
+      }
     }
   }, []);
 
@@ -316,6 +353,7 @@ const ListaOrdensCompra = () => {
       { key: 'fornecedor', label: 'Fornecedor', visible: true },
       { key: 'vendedor', label: 'Vendedor', visible: true },
       { key: 'status', label: 'Status', visible: true },
+      { key: 'statusItem', label: '•', visible: true },
       { key: 'produto', label: 'Produto', visible: true },
       { key: 'valor', label: 'Valor', visible: true },
       { key: 'prazo', label: 'Prazo', visible: true },
@@ -472,6 +510,176 @@ const ListaOrdensCompra = () => {
     setShowDeleteProductModal(true);
   };
 
+  const handleAbrirEntrada = (linha) => {
+    setMenuAberto(null);
+    setOrdemModalAtual(linha);
+    setEntradaTemporaria({
+      dataEntrada: '',
+      documentoFabrica: '',
+      dataDocumento: '',
+      observacao: ''
+    });
+    setShowEntradaModal(true);
+  };
+
+  const handleAbrirEntrega = (linha) => {
+    setMenuAberto(null);
+    setOrdemModalAtual(linha);
+    setEntregaTemporaria({
+      data: '',
+      observacao: ''
+    });
+    setShowEntregaModal(true);
+  };
+
+  const handleAbrirOcorrencias = (linha) => {
+    setMenuAberto(null);
+    setOrdemModalAtual(linha);
+    setShowOcorrenciasModal(true);
+  };
+
+  const salvarEntradaLista = () => {
+    if (!entradaTemporaria.dataEntrada) {
+      alert('Por favor, preencha a data de entrada.');
+      return;
+    }
+
+    if (!ordemModalAtual) return;
+
+    // Buscar a ordem completa no localStorage
+    const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    
+    if (ordemIndex === -1) {
+      alert('Ordem não encontrada!');
+      return;
+    }
+
+    const ordem = ordensExistentes[ordemIndex];
+    
+    // Criar nova entrada
+    const novaEntrada = {
+      ...entradaTemporaria,
+      salvo: true,
+      editando: false,
+      itemIndex: ordemModalAtual.indiceProduto || 0,
+      produto: ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao
+    };
+
+    // Adicionar às entradas da ordem
+    const entradasAtualizadas = [...(ordem.entradas || []), novaEntrada];
+    
+    // Criar ocorrência
+    const novaOcorrencia = {
+      tipo: 'Entrada de Produto',
+      descricao: `Entrada registrada para ${novaEntrada.produto || 'produto'}. Documento: ${novaEntrada.documentoFabrica || 'N/A'}. Data: ${novaEntrada.dataEntrada}`,
+      data: new Date().toISOString(),
+      detalhes: novaEntrada
+    };
+
+    // Adicionar às ocorrências
+    const ocorrenciasAtualizadas = [...(ordem.ocorrencias || []), novaOcorrencia];
+
+    // Atualizar ordem
+    ordensExistentes[ordemIndex] = {
+      ...ordem,
+      entradas: entradasAtualizadas,
+      ocorrencias: ocorrenciasAtualizadas,
+      dataAtualizacao: new Date().toISOString()
+    };
+
+    // Salvar no localStorage
+    localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+    
+    // Atualizar estado local
+    setOrdensCompra(ordensExistentes);
+    
+    // Disparar evento para sincronizar
+    window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+
+    // Fechar modal e limpar
+    setShowEntradaModal(false);
+    setOrdemModalAtual(null);
+    setEntradaTemporaria({
+      dataEntrada: '',
+      documentoFabrica: '',
+      dataDocumento: '',
+      observacao: ''
+    });
+
+    alert('Entrada salva com sucesso!');
+  };
+
+  const salvarEntregaLista = () => {
+    if (!entregaTemporaria.data) {
+      alert('Por favor, preencha a data de entrega.');
+      return;
+    }
+
+    if (!ordemModalAtual) return;
+
+    // Buscar a ordem completa no localStorage
+    const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    
+    if (ordemIndex === -1) {
+      alert('Ordem não encontrada!');
+      return;
+    }
+
+    const ordem = ordensExistentes[ordemIndex];
+    
+    // Criar nova entrega
+    const novaEntrega = {
+      ...entregaTemporaria,
+      salvo: true,
+      editando: false,
+      itemIndex: ordemModalAtual.indiceProduto || 0,
+      produto: ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao
+    };
+
+    // Adicionar às datas de entrega da ordem
+    const entregasAtualizadas = [...(ordem.datasEntrega || []), novaEntrega];
+    
+    // Criar ocorrência
+    const novaOcorrencia = {
+      tipo: 'Atualização de Entrega',
+      descricao: `Data de entrega atualizada para ${novaEntrega.produto || 'produto'}. Nova data: ${novaEntrega.data}`,
+      data: new Date().toISOString(),
+      detalhes: novaEntrega
+    };
+
+    // Adicionar às ocorrências
+    const ocorrenciasAtualizadas = [...(ordem.ocorrencias || []), novaOcorrencia];
+
+    // Atualizar ordem
+    ordensExistentes[ordemIndex] = {
+      ...ordem,
+      datasEntrega: entregasAtualizadas,
+      ocorrencias: ocorrenciasAtualizadas,
+      dataAtualizacao: new Date().toISOString()
+    };
+
+    // Salvar no localStorage
+    localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+    
+    // Atualizar estado local
+    setOrdensCompra(ordensExistentes);
+    
+    // Disparar evento para sincronizar
+    window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+
+    // Fechar modal e limpar
+    setShowEntregaModal(false);
+    setOrdemModalAtual(null);
+    setEntregaTemporaria({
+      data: '',
+      observacao: ''
+    });
+
+    alert('Data de entrega salva com sucesso!');
+  };
+
   const confirmDeleteProduct = () => {
     if (productToDelete) {
       const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
@@ -574,8 +782,69 @@ const ListaOrdensCompra = () => {
     }
   };
 
-  // Encontrar a ordem atual do menu
-  const ordemAtual = ordensCompra.find(o => o.id == menuAberto);
+  // Função para determinar o status do item baseado em entradas e entregas
+  const getStatusItem = (ordem, produtoAtual, indiceProduto) => {
+    // Se não há dados de entradas e entregas, retorna pendente
+    if (!ordem.entradas && !ordem.datasEntrega) {
+      return 'pending'; // Amarelo - sem entrada
+    }
+
+    // Verificar se há entrada para este produto específico
+    const temEntrada = ordem.entradas && ordem.entradas.some(entrada => 
+      entrada.itemIndex === (indiceProduto || 0) && entrada.dataEntrada
+    );
+
+    // Verificar se há entrega para este produto específico
+    const temEntrega = ordem.datasEntrega && ordem.datasEntrega.some(entrega => 
+      entrega.itemIndex === (indiceProduto || 0) && entrega.data
+    );
+
+    if (temEntrega) {
+      return 'delivered'; // Verde - com entrega
+    } else if (temEntrada) {
+      return 'received'; // Lilás - com entrada
+    } else {
+      return 'pending'; // Amarelo - sem entrada
+    }
+  };
+
+  // Função para renderizar a bolinha de status
+  const renderStatusItem = (ordem, produtoAtual, indiceProduto) => {
+    const status = getStatusItem(ordem, produtoAtual, indiceProduto);
+    
+    let colorClass = '';
+    let title = '';
+    
+    switch (status) {
+      case 'pending':
+        colorClass = 'bg-yellow-400';
+        title = 'Aguardando entrada';
+        break;
+      case 'received':
+        colorClass = 'bg-purple-500';
+        title = 'Entrada registrada';
+        break;
+      case 'delivered':
+        colorClass = 'bg-green-500';
+        title = 'Entregue';
+        break;
+      default:
+        colorClass = 'bg-yellow-400'; // Sempre mostrar amarelo por padrão
+        title = 'Aguardando entrada';
+    }
+
+    return (
+      <div className="flex items-center justify-center">
+        <div 
+          className={`w-5 h-5 rounded-full ${colorClass} shadow-sm`}
+          title={title}
+        />
+      </div>
+    );
+  };
+
+  // Encontrar a ordem atual do menu (removido para evitar conflito com estado)
+  // const ordemModalAtual = ordensCompra.find(o => o.id == menuAberto);
 
   return (
     <div className="p-6">
@@ -979,12 +1248,14 @@ const ListaOrdensCompra = () => {
                 return (
                   <th 
                     key={column.key}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer ${
+                      column.key === 'statusItem' ? 'text-center w-16' : 'text-left'
+                    }`}
                     onClick={() => handleSort(sortKey)}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center justify-center">
                       {column.label}
-                      {getSortIcon(sortKey)}
+                      {column.key !== 'statusItem' && getSortIcon(sortKey)}
                     </div>
                   </th>
                 );
@@ -1031,6 +1302,8 @@ const ListaOrdensCompra = () => {
                             {(ordem.status || 'Em aberto').toUpperCase()}
                           </span>
                         );
+                      case 'statusItem':
+                        return renderStatusItem(ordem, ordem.produtoAtual, ordem.indiceProduto);
                       case 'produto':
                         return ordem.produtoAtual ? (
                           <div>
@@ -1061,7 +1334,8 @@ const ListaOrdensCompra = () => {
                       key={column.key}
                       className={`px-4 py-4 whitespace-nowrap text-sm ${
                         column.key === 'numero' ? 'font-medium' : 
-                        column.key === 'status' ? '' : 'text-gray-500'
+                        column.key === 'status' ? '' : 
+                        column.key === 'statusItem' ? 'text-center' : 'text-gray-500'
                       }`}
                     >
                       {renderCell()}
@@ -1094,6 +1368,39 @@ const ListaOrdensCompra = () => {
             >
               <FaEdit className="mr-3 text-blue-600" />
               Editar Ordem
+            </button>
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAbrirEntrada(window.linhaAtual);
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
+            >
+              <FaCheck className="mr-3 text-green-600" />
+              Dar entrada
+            </button>
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAbrirEntrega(window.linhaAtual);
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
+            >
+              <FaCalendarAlt className="mr-3 text-blue-600" />
+              Data entrega
+            </button>
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAbrirOcorrencias(window.linhaAtual);
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
+            >
+              <FaClipboardList className="mr-3 text-purple-600" />
+              Ocorrências
             </button>
             
             {/* Mostrar opção de excluir produto apenas se há produto específico e mais de um item na ordem */}
@@ -1193,6 +1500,278 @@ const ListaOrdensCompra = () => {
                 className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
               >
                 Excluir Produto
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Dar Entrada */}
+      {showEntradaModal && ordemModalAtual && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-green-600">
+                Dar Entrada - OC {ordemModalAtual.numero || ordemModalAtual.oc}
+              </h3>
+              <button
+                onClick={() => setShowEntradaModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-gray-600">
+                <strong>Produto:</strong> {ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao || 'N/A'}
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada *</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={entradaTemporaria.dataEntrada}
+                      onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataEntrada: e.target.value})}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setEntradaTemporaria({...entradaTemporaria, dataEntrada: new Date().toISOString().split('T')[0]})}
+                      className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                      title="Definir data atual"
+                    >
+                      <FaCalendarAlt className="text-sm" />
+                      Hoje
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Documento Fábrica</label>
+                  <input
+                    type="text"
+                    value={entradaTemporaria.documentoFabrica}
+                    onChange={(e) => setEntradaTemporaria({...entradaTemporaria, documentoFabrica: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Número do documento"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Documento</label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={entradaTemporaria.dataDocumento}
+                    onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataDocumento: e.target.value})}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEntradaTemporaria({...entradaTemporaria, dataDocumento: new Date().toISOString().split('T')[0]})}
+                    className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                    title="Definir data atual"
+                  >
+                    <FaCalendarAlt className="text-sm" />
+                    Hoje
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <textarea
+                  value={entradaTemporaria.observacao}
+                  onChange={(e) => setEntradaTemporaria({...entradaTemporaria, observacao: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  rows="3"
+                  placeholder="Digite as observações da entrada..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowEntradaModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarEntradaLista}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <FaCheck />
+                Salvar Entrada
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Data Entrega */}
+      {showEntregaModal && ordemModalAtual && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-blue-600">
+                Data Entrega - OC {ordemModalAtual.numero || ordemModalAtual.oc}
+              </h3>
+              <button
+                onClick={() => setShowEntregaModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-gray-600">
+                <strong>Produto:</strong> {ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao || 'N/A'}
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrega *</label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={entregaTemporaria.data}
+                    onChange={(e) => setEntregaTemporaria({...entregaTemporaria, data: e.target.value})}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEntregaTemporaria({...entregaTemporaria, data: new Date().toISOString().split('T')[0]})}
+                    className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                    title="Definir data atual"
+                  >
+                    <FaCalendarAlt className="text-sm" />
+                    Hoje
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <textarea
+                  value={entregaTemporaria.observacao}
+                  onChange={(e) => setEntregaTemporaria({...entregaTemporaria, observacao: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                  placeholder="Digite as observações da entrega..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowEntregaModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarEntregaLista}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <FaCalendarAlt />
+                Salvar Data Entrega
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ocorrências */}
+      {showOcorrenciasModal && ordemModalAtual && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0">
+                <FaClipboardList className="h-6 w-6 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Ocorrências - OC {ordemModalAtual.numero || ordemModalAtual.oc}
+              </h3>
+            </div>
+            
+            <div className="mb-6">
+              <h4 className="font-medium text-gray-700 mb-3">Histórico de Ocorrências:</h4>
+              <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                {ordemModalAtual.ocorrencias && ordemModalAtual.ocorrencias.length > 0 ? (
+                  <div className="space-y-3">
+                    {ordemModalAtual.ocorrencias.map((ocorrencia, index) => (
+                      <div key={index} className="border-l-4 border-purple-500 pl-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
+                            <p className="text-sm text-gray-600">{ocorrencia.descricao}</p>
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {new Date(ocorrencia.data).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">Nenhuma ocorrência registrada.</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <h4 className="font-medium text-gray-700 mb-3">Nova Ocorrência:</h4>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <option value="">Selecione o tipo</option>
+                    <option value="entrada">Entrada de Produto</option>
+                    <option value="entrega">Atualização de Entrega</option>
+                    <option value="observacao">Observação</option>
+                    <option value="problema">Problema</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
+                  <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    rows="3"
+                    placeholder="Descreva a ocorrência..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowOcorrenciasModal(false);
+                  setOrdemAtual(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Fechar
+              </button>
+              <button
+                onClick={() => {
+                  // Aqui você pode implementar a lógica para adicionar ocorrência
+                  alert('Funcionalidade de adicionar ocorrência será implementada!');
+                  setShowOcorrenciasModal(false);
+                  setOrdemAtual(null);
+                }}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Adicionar Ocorrência
               </button>
             </div>
           </div>
