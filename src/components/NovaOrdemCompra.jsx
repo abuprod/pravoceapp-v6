@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { pedidosVendaService } from '../services/database';
 import { 
   FaPlus, 
   FaSave, 
@@ -16,7 +17,8 @@ import {
   FaPaperPlane,
   FaPrint,
   FaArrowLeft,
-  FaCalendarAlt
+  FaCalendarAlt,
+  FaEllipsisV
 } from 'react-icons/fa';
 
 // Adicionar estilo global para remover o ícone de calendário
@@ -47,6 +49,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     prazoPagamento: '',
     observacoes: '',
     observacoesInternas: '',
+    observacoesVisiveis: '',
     informacoesPedidoVenda: '',
     itens: [],
     fabrica: '',
@@ -72,6 +75,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   const [pedidoOriginal, setPedidoOriginal] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [prazoAlteradoManualmente, setPrazoAlteradoManualmente] = useState(false);
+  const [informacoesPedidoAtualizadas, setInformacoesPedidoAtualizadas] = useState('');
   const [showChangesAlert, setShowChangesAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -113,6 +117,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   // Estado para debug popup
   const [debugInfo, setDebugInfo] = useState(null);
   const [showDebugPopup, setShowDebugPopup] = useState(false);
+
+  // Estado para controlar menu de 3 pontinhos de cada item
+  const [menuAberto, setMenuAberto] = useState({});
 
   // Função para buscar a próxima OC disponível por tipo
   const buscarProximaOC = (tipo) => {
@@ -259,6 +266,22 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     setColaboradores(colaboradoresSalvos);
   }, []);
 
+  // Buscar informações atualizadas do pedido de venda quando necessário
+  useEffect(() => {
+    const buscarInformacoesPedido = async () => {
+      if (formData.tipo === 'cliente' && formData.pedidoVinculado) {
+        try {
+          const informacoes = await gerarInformacoesPedidoVenda();
+          setInformacoesPedidoAtualizadas(informacoes);
+        } catch (error) {
+          console.error('Erro ao buscar informações do pedido:', error);
+        }
+      }
+    };
+
+    buscarInformacoesPedido();
+  }, [formData.pedidoVinculado, formData.tipo]);
+
   // Carregar dados do pedido automaticamente quando não há id (modo criação)
   useEffect(() => {
     if (!id) {
@@ -356,7 +379,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
             prazoFinal: pedidoData.dataVenda ? calcular45DiasUteis(pedidoData.dataVenda) : '',
             observacoes: '',
             observacoesInternas: '',
-            informacoesPedidoVenda: `Ordem de compra gerada automaticamente para o pedido de venda ${pedidoData.numeroPedido}\n\nCliente: ${pedidoData.cliente}\nPedido: ${pedidoData.numeroPedido}\nVendedor: ${pedidoData.vendedor}`,
+            informacoesPedidoVenda: `Ordem de compra gerada automaticamente para o pedido de venda ${pedidoData.numeroPedido}\n\nCliente: ${pedidoData.cliente}\nPedido: ${pedidoData.numeroPedido}${pedidoData.observacoes ? `\n\nObservações do Pedido:\n${pedidoData.observacoes}` : ''}${pedidoData.observacoesInternas ? `\n\nObservações Internas:\n${pedidoData.observacoesInternas}` : ''}${produtosProcessados.some(p => p.observacoes) ? `\n\nObservações dos Produtos:\n${produtosProcessados.filter(p => p.observacoes).map((p, i) => `${i + 1}. ${p.descricao}: ${p.observacoes}`).join('\n')}` : ''}`,
             itens: produtosProcessados,
             // Campos adicionais do pedido
             cliente: pedidoData.cliente,
@@ -561,6 +584,21 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
   const handleRemoveEntrada = (index) => {
     setShowConfirmDeleteEntrada(index);
+  };
+
+  // Funções para controlar menu de 3 pontinhos
+  const toggleMenu = (itemType, index) => {
+    setMenuAberto(prev => ({
+      ...prev,
+      [`${itemType}-${index}`]: !prev[`${itemType}-${index}`]
+    }));
+  };
+
+  const fecharMenu = (itemType, index) => {
+    setMenuAberto(prev => ({
+      ...prev,
+      [`${itemType}-${index}`]: false
+    }));
   };
 
   const handleConfirmDeleteEntrada = (index) => {
@@ -1226,15 +1264,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     let fornecedorId = null;
     
     if (formData.tipo === 'estoque') {
-      // Na tela de estoque, verificar fornecedor
-      if (!formData.fornecedor) {
-        console.log('⚠️ Nenhum fornecedor selecionado na tela de estoque');
-        console.log('🔍 FormData.fornecedor:', formData.fornecedor);
-        console.log('🔍 FormData.fornecedorId:', formData.fornecedorId);
-        setSugestoesProdutos([]);
-        setCampoProdutoAtivo(null);
-        return;
-      } else {
+      // Na tela de estoque, verificar fornecedor (opcional)
+      if (formData.fornecedor) {
         fornecedorId = formData.fornecedor;
         // Buscar o nome do fornecedor para comparação
         const fornecedorEncontrado = fornecedores.find(f => f.id === parseInt(formData.fornecedor));
@@ -1242,18 +1273,16 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
         console.log('✅ Fornecedor encontrado na tela de estoque:', fornecedorEncontrado);
         console.log('ID do fornecedor:', fornecedorId);
         console.log('Nome do fornecedor:', fornecedorSelecionado);
+      } else {
+        console.log('ℹ️ Nenhum fornecedor selecionado - buscando todos os produtos');
       }
     } else {
-      // Na tela de cliente, verificar fábrica
-      if (!formData.fabrica) {
-        console.log('⚠️ Nenhuma fábrica selecionada na tela de cliente');
-        console.log('🔍 FormData.fabrica:', formData.fabrica);
-        setSugestoesProdutos([]);
-        setCampoProdutoAtivo(null);
-        return;
-      } else {
+      // Na tela de cliente, verificar fábrica (opcional)
+      if (formData.fabrica) {
         fornecedorSelecionado = formData.fabrica;
         console.log('✅ Fábrica selecionada na tela de cliente:', fornecedorSelecionado);
+      } else {
+        console.log('ℹ️ Nenhuma fábrica selecionada - buscando todos os produtos');
       }
     }
 
@@ -1275,37 +1304,41 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     console.log('Produtos com descrição similar:', produtosFiltrados.length);
     console.log('Primeiros produtos encontrados:', produtosFiltrados.slice(0, 3));
 
-    // Filtrar por fornecedor/fábrica se necessário
-    if (formData.tipo === 'estoque') {
-      // Na tela de estoque, filtrar por fornecedor
-      produtosFiltrados = produtosFiltrados.filter(produto => {
-        // Verificar se produto.fornecedor é ID ou nome
-        if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
-          const fornecedorProduto = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
-          if (fornecedorProduto) {
-            return fornecedorProduto.nomeFantasia === fornecedorSelecionado || 
-                   fornecedorProduto.razaoSocial === fornecedorSelecionado;
+    // Filtrar por fornecedor/fábrica se necessário (só se estiver selecionado)
+    if (fornecedorSelecionado) {
+      if (formData.tipo === 'estoque') {
+        // Na tela de estoque, filtrar por fornecedor
+        produtosFiltrados = produtosFiltrados.filter(produto => {
+          // Verificar se produto.fornecedor é ID ou nome
+          if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
+            const fornecedorProduto = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
+            if (fornecedorProduto) {
+              return fornecedorProduto.nomeFantasia === fornecedorSelecionado || 
+                     fornecedorProduto.razaoSocial === fornecedorSelecionado;
+            }
           }
-        }
-        
-        // Se produto.fornecedor for uma string (nome), comparar diretamente
-        return produto.fornecedor === fornecedorSelecionado;
-      });
+          
+          // Se produto.fornecedor for uma string (nome), comparar diretamente
+          return produto.fornecedor === fornecedorSelecionado;
+        });
+      } else {
+        // Na tela de cliente, filtrar por fábrica
+        produtosFiltrados = produtosFiltrados.filter(produto => {
+          // Verificar se produto.fornecedor é ID ou nome
+          if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
+            const fornecedorProduto = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
+            if (fornecedorProduto) {
+              return fornecedorProduto.nomeFantasia === fornecedorSelecionado || 
+                     fornecedorProduto.razaoSocial === fornecedorSelecionado;
+            }
+          }
+          
+          // Se produto.fornecedor for uma string (nome), comparar diretamente
+          return produto.fornecedor === fornecedorSelecionado;
+        });
+      }
     } else {
-      // Na tela de cliente, filtrar por fábrica
-      produtosFiltrados = produtosFiltrados.filter(produto => {
-        // Verificar se produto.fornecedor é ID ou nome
-        if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
-          const fornecedorProduto = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
-          if (fornecedorProduto) {
-            return fornecedorProduto.nomeFantasia === fornecedorSelecionado || 
-                   fornecedorProduto.razaoSocial === fornecedorSelecionado;
-          }
-        }
-        
-        // Se produto.fornecedor for uma string (nome), comparar diretamente
-        return produto.fornecedor === fornecedorSelecionado;
-      });
+      console.log('ℹ️ Nenhum fornecedor/fábrica selecionado - mostrando todos os produtos');
     }
     
     console.log('=== RESULTADO FINAL ===');
@@ -1410,6 +1443,52 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     
     handleItemChange(index, 'tributoSelecionado', produto.tributoSelecionado || '');
     console.log('✅ Tributo selecionado aplicado:', produto.tributoSelecionado || '');
+    
+    // Preencher fornecedor no item
+    if (produto.fornecedor) {
+      handleItemChange(index, 'fornecedor', produto.fornecedor);
+      handleItemChange(index, 'fornecedorNome', produto.fornecedor);
+      console.log('✅ Fornecedor do item aplicado:', produto.fornecedor);
+    }
+    
+    // Preencher fornecedor/fábrica automaticamente se não estiver selecionado
+    console.log('🔍 DEBUG - Verificando preenchimento automático:');
+    console.log('  - produto.fornecedor:', produto.fornecedor);
+    console.log('  - formData.fornecedor:', formData.fornecedor);
+    console.log('  - formData.fabrica:', formData.fabrica);
+    console.log('  - formData.tipo:', formData.tipo);
+    
+    if (produto.fornecedor && !formData.fornecedor && !formData.fabrica) {
+      console.log('🏭 Preenchendo fornecedor automaticamente:', produto.fornecedor);
+      
+      if (formData.tipo === 'estoque') {
+        // Para estoque, buscar pelo ID ou nome do fornecedor
+        let fornecedorEncontrado = null;
+        
+        if (typeof produto.fornecedor === 'number' || !isNaN(produto.fornecedor)) {
+          fornecedorEncontrado = fornecedores.find(f => f.id === parseInt(produto.fornecedor));
+        } else {
+          fornecedorEncontrado = fornecedores.find(f => 
+            f.nomeFantasia === produto.fornecedor || f.razaoSocial === produto.fornecedor
+          );
+        }
+        
+        if (fornecedorEncontrado) {
+          setFormData(prev => ({
+            ...prev,
+            fornecedor: fornecedorEncontrado.id
+          }));
+          console.log('✅ Fornecedor preenchido automaticamente:', fornecedorEncontrado.nomeFantasia);
+        }
+      } else {
+        // Para cliente, usar o nome da fábrica diretamente
+        setFormData(prev => ({
+          ...prev,
+          fabrica: produto.fornecedor
+        }));
+        console.log('✅ Fábrica preenchida automaticamente:', produto.fornecedor);
+      }
+    }
     
     console.log('📋 Item atualizado:', itemAtualizado);
     console.log('🛒 === FIM handleSelecionarProduto ===');
@@ -1544,6 +1623,69 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     };
   }, []);
 
+  // Função para gerar informações do pedido de venda dinamicamente
+  const gerarInformacoesPedidoVenda = async () => {
+    if (!formData.pedidoVinculado || !formData.cliente) return '';
+    
+    let informacoes = `Ordem de compra gerada automaticamente para o pedido de venda\n\nCliente: ${formData.cliente}`;
+    
+    try {
+      // Buscar dados atualizados do pedido de venda no Firestore
+      const pedidosVenda = await pedidosVendaService.buscarTodos();
+      const pedidoAtualizado = pedidosVenda.find(p => p.numeroPedido === formData.pedidoVinculado);
+      
+      if (pedidoAtualizado) {
+        // Usar observações atualizadas do pedido de venda
+        if (pedidoAtualizado.observacoes) {
+          informacoes += `\n\nObservações do Pedido:\n${pedidoAtualizado.observacoes}`;
+        }
+        
+        if (pedidoAtualizado.observacoesInternas) {
+          informacoes += `\n\n⚠️ Observações Internas:\n${pedidoAtualizado.observacoesInternas}`;
+        }
+        
+        // Usar observações atualizadas dos produtos do pedido de venda
+        if (pedidoAtualizado.produtos && pedidoAtualizado.produtos.length > 0) {
+          const produtosComObservacoes = pedidoAtualizado.produtos.filter(produto => produto.observacoes && produto.observacoes.trim());
+          if (produtosComObservacoes.length > 0) {
+            informacoes += `\n\n⚠️ Observações dos Produtos:\n${produtosComObservacoes.map((produto, i) => `${i + 1}. ${produto.produto}: ${produto.observacoes}`).join('\n')}`;
+          }
+        }
+      } else {
+        // Fallback para dados locais se não encontrar no Firestore
+        if (formData.observacoes) {
+          informacoes += `\n\nObservações do Pedido:\n${formData.observacoes}`;
+        }
+        
+        if (formData.observacoesInternas) {
+          informacoes += `\n\n⚠️ Observações Internas:\n${formData.observacoesInternas}`;
+        }
+        
+        const produtosComObservacoes = formData.itens.filter(item => item.observacoes && item.observacoes.trim());
+        if (produtosComObservacoes.length > 0) {
+          informacoes += `\n\n⚠️ Observações dos Produtos:\n${produtosComObservacoes.map((item, i) => `${i + 1}. ${item.descricao}: ${item.observacoes}`).join('\n')}`;
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados atualizados do pedido:', error);
+      // Fallback para dados locais em caso de erro
+      if (formData.observacoes) {
+        informacoes += `\n\nObservações do Pedido:\n${formData.observacoes}`;
+      }
+      
+      if (formData.observacoesInternas) {
+        informacoes += `\n\n⚠️ Observações Internas:\n${formData.observacoesInternas}`;
+      }
+      
+      const produtosComObservacoes = formData.itens.filter(item => item.observacoes && item.observacoes.trim());
+      if (produtosComObservacoes.length > 0) {
+        informacoes += `\n\n⚠️ Observações dos Produtos:\n${produtosComObservacoes.map((item, i) => `${i + 1}. ${item.descricao}: ${item.observacoes}`).join('\n')}`;
+      }
+    }
+    
+    return informacoes;
+  };
+
   // Função para calcular 45 dias úteis a partir de uma data
   const calcular45DiasUteis = (dataInicial) => {
     if (!dataInicial) return '';
@@ -1621,6 +1763,20 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       setSugestoesProdutos([]);
     }
   }, [campoProdutoAtivo]);
+
+  // Fechar menu quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.menu-dropdown')) {
+        setMenuAberto({});
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
 
   // Mostrar loading enquanto carrega dados de edição
   if (isLoading) {
@@ -2071,21 +2227,38 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   />
                                 </div>
                                 <div className="flex justify-between items-center">
-                                  <div className="flex gap-2">
+                                  <div className="relative menu-dropdown">
                                     <button
-                                      onClick={() => handleEditarEntrada(index)}
-                                      className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
-                                      title="Editar"
+                                      onClick={() => toggleMenu('entrada-edit', index)}
+                                      className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
+                                      title="Menu"
                                     >
-                                      <FaInfoCircle />
+                                      <FaEllipsisV />
                                     </button>
-                                    <button
-                                      onClick={() => handleRemoveEntrada(index)}
-                                      className="p-2 text-red-600 hover:text-red-800 transition-colors"
-                                      title="Deletar"
-                                    >
-                                      <FaTrash />
-                                    </button>
+                                    {menuAberto[`entrada-edit-${index}`] && (
+                                      <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                        <button
+                                          onClick={() => {
+                                            handleEditarEntrada(index);
+                                            fecharMenu('entrada-edit', index);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                                        >
+                                          <FaInfoCircle />
+                                          Editar
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            handleRemoveEntrada(index);
+                                            fecharMenu('entrada-edit', index);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                        >
+                                          <FaTrash />
+                                          Excluir
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                   <button
                                     onClick={() => handleSalvarEntrada(index)}
@@ -2117,21 +2290,40 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                     <p className="text-gray-600">{entrada.observacao}</p>
                                   </div>
                                 )}
-                                <div className="flex justify-end gap-2 pt-2">
-                                  <button
-                                    onClick={() => handleEditarEntrada(index)}
-                                    className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
-                                    title="Editar"
-                                  >
-                                    <FaInfoCircle />
-                                  </button>
-                                  <button
-                                    onClick={() => handleRemoveEntrada(index)}
-                                    className="p-2 text-red-600 hover:text-red-800 transition-colors"
-                                    title="Deletar"
-                                  >
-                                    <FaTrash />
-                                  </button>
+                                <div className="flex justify-end pt-2">
+                                  <div className="relative menu-dropdown">
+                                    <button
+                                      onClick={() => toggleMenu('entrada-view', index)}
+                                      className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
+                                      title="Menu"
+                                    >
+                                      <FaEllipsisV />
+                                    </button>
+                                    {menuAberto[`entrada-view-${index}`] && (
+                                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                        <button
+                                          onClick={() => {
+                                            handleEditarEntrada(index);
+                                            fecharMenu('entrada-view', index);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                                        >
+                                          <FaInfoCircle />
+                                          Editar
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            handleRemoveEntrada(index);
+                                            fecharMenu('entrada-view', index);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                        >
+                                          <FaTrash />
+                                          Excluir
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -2197,21 +2389,38 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   </div>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                  <div className="flex gap-2">
+                                  <div className="relative menu-dropdown">
                                     <button
-                                      onClick={() => handleEditarDataEntrega(index)}
-                                      className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
-                                      title="Editar"
+                                      onClick={() => toggleMenu('entrega-edit', index)}
+                                      className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
+                                      title="Menu"
                                     >
-                                      <FaInfoCircle />
+                                      <FaEllipsisV />
                                     </button>
-                                    <button
-                                      onClick={() => handleRemoveDataEntrega(index)}
-                                      className="p-2 text-red-600 hover:text-red-800 transition-colors"
-                                      title="Deletar"
-                                    >
-                                      <FaTrash />
-                                    </button>
+                                    {menuAberto[`entrega-edit-${index}`] && (
+                                      <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                        <button
+                                          onClick={() => {
+                                            handleEditarDataEntrega(index);
+                                            fecharMenu('entrega-edit', index);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                                        >
+                                          <FaInfoCircle />
+                                          Editar
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            handleRemoveDataEntrega(index);
+                                            fecharMenu('entrega-edit', index);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                        >
+                                          <FaTrash />
+                                          Excluir
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                   <button
                                     onClick={() => handleSalvarDataEntrega(index)}
@@ -2233,21 +2442,40 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                     <p className="text-gray-600">{entrega.observacao || '-'}</p>
                                   </div>
                                 </div>
-                                <div className="flex justify-end gap-2 pt-2">
-                                  <button
-                                    onClick={() => handleEditarDataEntrega(index)}
-                                    className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
-                                    title="Editar"
-                                  >
-                                    <FaInfoCircle />
-                                  </button>
-                                  <button
-                                    onClick={() => handleRemoveDataEntrega(index)}
-                                    className="p-2 text-red-600 hover:text-red-800 transition-colors"
-                                    title="Deletar"
-                                  >
-                                    <FaTrash />
-                                  </button>
+                                <div className="flex justify-end pt-2">
+                                  <div className="relative menu-dropdown">
+                                    <button
+                                      onClick={() => toggleMenu('entrega-view', index)}
+                                      className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
+                                      title="Menu"
+                                    >
+                                      <FaEllipsisV />
+                                    </button>
+                                    {menuAberto[`entrega-view-${index}`] && (
+                                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                        <button
+                                          onClick={() => {
+                                            handleEditarDataEntrega(index);
+                                            fecharMenu('entrega-view', index);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                                        >
+                                          <FaInfoCircle />
+                                          Editar
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            handleRemoveDataEntrega(index);
+                                            fecharMenu('entrega-view', index);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                        >
+                                          <FaTrash />
+                                          Excluir
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -2310,7 +2538,32 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <React.Fragment key={index}>
                           <tr>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
-                              <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="relative menu-dropdown">
+                                  <button
+                                    onClick={() => toggleMenu('item', index)}
+                                    className="p-1 text-gray-600 hover:text-gray-800"
+                                    title="Menu"
+                                  >
+                                    <FaEllipsisV />
+                                  </button>
+                                  {menuAberto[`item-${index}`] && (
+                                    <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                      <button
+                                        onClick={() => {
+                                          handleDeleteItem(index);
+                                          fecharMenu('item', index);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                      >
+                                        <FaTrash />
+                                        Excluir Item
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                              </div>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input
@@ -2356,8 +2609,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                       ? 'border-orange-300 bg-orange-50' 
                                       : 'border-gray-300 bg-white'
                                   }`}
-                                  placeholder={formData.fabrica ? "Digite para buscar produtos..." : "Selecione uma fábrica primeiro..."}
-                                  disabled={!formData.fabrica}
+                                  placeholder="Digite para buscar produtos..."
+                                  disabled={false}
                                 />
                                 {item.produtoNaoCadastrado && (
                                   <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-1 rounded-full" title="Produto não cadastrado (local SE)">
@@ -2377,6 +2630,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                       >
                                         <div className="font-medium">{produto.descricao}</div>
                                         <div className="text-gray-600">Custo: R$ {produto.custoBruto?.toFixed(2) || '0.00'}</div>
+                                        <div className="text-gray-500 text-xs">Fornecedor: {produto.fornecedor || 'N/A'}</div>
                                       </div>
                                     ))}
                                   </div>
@@ -2433,12 +2687,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   className={`p-1 ${item.observacoes ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-800`}
                                 >
                                   <FaInfoCircle />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteItem(index)}
-                                  className="p-1 text-red-600 hover:text-red-800"
-                                >
-                                  <FaTrash />
                                 </button>
                               </div>
                             </td>
@@ -2574,23 +2822,23 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                 </div>
               </div>
 
-              {/* Informações do Pedido de Venda */}
-              <div className="mb-8">
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Informações do Pedido de Venda</label>
+              {/* Informações do Pedido de Venda - apenas para ordens SE */}
+              {formData.tipo === 'cliente' && formData.pedidoVinculado && (
+                <div className="mb-6 max-w-2xl">
+                  <div className="bg-yellow-100 border border-yellow-400 rounded p-3 shadow-sm">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Informações do Pedido de Venda</label>
                     <textarea
                       name="informacoesPedidoVenda"
-                      value={formData.informacoesPedidoVenda}
+                      value={informacoesPedidoAtualizadas}
                       onChange={handleChange}
-                      className="w-full px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                      rows="6"
+                      className="w-full px-3 py-2 text-sm border border-yellow-500 rounded focus:outline-none focus:ring-1 focus:ring-yellow-600 bg-yellow-50"
+                      rows="12"
                       placeholder="Informações sobre o pedido de venda vinculado..."
                       readOnly
                     />
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Botões de ação */}
               <div className="flex justify-end space-x-4 mt-6">
@@ -2839,7 +3087,32 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <React.Fragment key={index}>
                           <tr>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
-                              <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="relative menu-dropdown">
+                                  <button
+                                    onClick={() => toggleMenu('item', index)}
+                                    className="p-1 text-gray-600 hover:text-gray-800"
+                                    title="Menu"
+                                  >
+                                    <FaEllipsisV />
+                                  </button>
+                                  {menuAberto[`item-${index}`] && (
+                                    <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                      <button
+                                        onClick={() => {
+                                          handleDeleteItem(index);
+                                          fecharMenu('item', index);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                      >
+                                        <FaTrash />
+                                        Excluir Item
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                              </div>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input
@@ -2885,8 +3158,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                     ? 'border-orange-300 bg-orange-50' 
                                     : 'border-gray-300 bg-white'
                                 }`}
-                                placeholder={formData.fornecedor ? "Digite para buscar produtos..." : "Selecione um fornecedor primeiro..."}
-                                disabled={!formData.fornecedor}
+                                placeholder="Digite para buscar produtos..."
+                                disabled={false}
                               />
                               {item.produtoNaoCadastrado && (
                                 <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-1 rounded-full" title="Produto não cadastrado (local SE)">
@@ -2947,12 +3220,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                   className={`p-1 ${item.observacoes ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-800`}
                                 >
                                   <FaInfoCircle />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteItem(index)}
-                                  className="p-1 text-red-600 hover:text-red-800"
-                                >
-                                  <FaTrash />
                                 </button>
                               </div>
                             </td>
