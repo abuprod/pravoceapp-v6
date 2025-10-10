@@ -86,6 +86,7 @@ const ListaOrdensCompra = () => {
     data: '',
     texto: ''
   });
+  const [entradaEditandoIndex, setEntradaEditandoIndex] = useState(null);
   const [showColumnsModal, setShowColumnsModal] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [columnsConfig, setColumnsConfig] = useState([
@@ -615,28 +616,64 @@ const ListaOrdensCompra = () => {
 
     const ordem = ordensExistentes[ordemIndex];
     
-    // Criar nova entrada
-    const novaEntrada = {
-      ...entradaTemporaria,
-      salvo: true,
-      editando: false,
-      itemIndex: ordemModalAtual.indiceProduto || 0,
-      produto: ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao
-    };
+    let entradasAtualizadas;
+    let ocorrenciasAtualizadas;
 
-    // Adicionar às entradas da ordem
-    const entradasAtualizadas = [...(ordem.entradas || []), novaEntrada];
-    
-    // Criar ocorrência
-    const novaOcorrencia = {
-      tipo: 'Entrada de Produto',
-      descricao: `Entrada registrada para ${novaEntrada.produto || 'produto'}. Documento: ${novaEntrada.documentoFabrica || 'N/A'}. Data: ${novaEntrada.dataEntrada}`,
-      data: new Date().toISOString(),
-      detalhes: novaEntrada
-    };
+    // Se estiver editando uma entrada existente
+    if (entradaEditandoIndex !== null) {
+      // Atualizar entrada existente
+      const ocorrenciaAtual = ordem.ocorrencias[entradaEditandoIndex];
+      const entradaAtualizada = {
+        ...entradaTemporaria,
+        salvo: true,
+        editando: false,
+        itemIndex: ocorrenciaAtual.detalhes?.itemIndex || 0,
+        produto: ocorrenciaAtual.detalhes?.produto || ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao
+      };
 
-    // Adicionar às ocorrências
-    const ocorrenciasAtualizadas = [...(ordem.ocorrencias || []), novaOcorrencia];
+      // Atualizar ocorrência
+      ocorrenciasAtualizadas = ordem.ocorrencias.map((ocorrencia, idx) => 
+        idx === entradaEditandoIndex
+          ? {
+              ...ocorrencia,
+              descricao: `Entrada registrada para ${entradaAtualizada.produto || 'produto'}. Documento: ${entradaAtualizada.documentoFabrica || 'N/A'}. Data: ${entradaAtualizada.dataEntrada}`,
+              data: new Date().toISOString(),
+              detalhes: entradaAtualizada
+            }
+          : ocorrencia
+      );
+
+      // Atualizar entrada se existir
+      entradasAtualizadas = ordem.entradas ? ordem.entradas.map((entrada, idx) => {
+        const ocorrenciaIndex = ordem.ocorrencias.findIndex(oc => oc.detalhes === entrada);
+        return ocorrenciaIndex === entradaEditandoIndex ? entradaAtualizada : entrada;
+      }) : [entradaAtualizada];
+
+      setEntradaEditandoIndex(null);
+    } else {
+      // Criar nova entrada
+      const novaEntrada = {
+        ...entradaTemporaria,
+        salvo: true,
+        editando: false,
+        itemIndex: ordemModalAtual.indiceProduto || 0,
+        produto: ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao
+      };
+
+      // Adicionar às entradas da ordem
+      entradasAtualizadas = [...(ordem.entradas || []), novaEntrada];
+      
+      // Criar ocorrência
+      const novaOcorrencia = {
+        tipo: 'Entrada de Produto',
+        descricao: `Entrada registrada para ${novaEntrada.produto || 'produto'}. Documento: ${novaEntrada.documentoFabrica || 'N/A'}. Data: ${novaEntrada.dataEntrada}`,
+        data: new Date().toISOString(),
+        detalhes: novaEntrada
+      };
+
+      // Adicionar às ocorrências
+      ocorrenciasAtualizadas = [...(ordem.ocorrencias || []), novaOcorrencia];
+    }
 
     // Atualizar ordem
     ordensExistentes[ordemIndex] = {
@@ -652,18 +689,30 @@ const ListaOrdensCompra = () => {
     // Atualizar estado local
     setOrdensCompra(ordensExistentes);
     
+    // Atualizar ordemModalAtual se o modal de ocorrências estiver aberto
+    if (showOcorrenciasModal) {
+      setOrdemModalAtual({
+        ...ordemModalAtual,
+        ocorrencias: ocorrenciasAtualizadas
+      });
+    }
+    
     // Disparar evento para sincronizar
     window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
 
     // Fechar modal e limpar
     setShowEntradaModal(false);
-    setOrdemModalAtual(null);
+    if (!showOcorrenciasModal) {
+      setOrdemModalAtual(null);
+    }
     setEntradaTemporaria({
       dataEntrada: '',
       documentoFabrica: '',
       dataDocumento: '',
       observacao: ''
     });
+    setTipoOcorrenciaSelecionado('');
+    setEntradaEditandoIndex(null);
 
     alert('Entrada salva com sucesso!');
   };
@@ -846,6 +895,75 @@ const ListaOrdensCompra = () => {
     
     // Disparar evento para sincronizar
     window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+  };
+
+  // Função para editar ocorrência inline
+  const editarOcorrencia = (indexOcorrencia) => {
+    setEntradaEditandoIndex(indexOcorrencia);
+  };
+
+  // Função para salvar edição inline
+  const salvarEdicaoOcorrencia = (indexOcorrencia) => {
+    if (!ordemModalAtual) return;
+
+    // Buscar a ordem completa no localStorage
+    const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    
+    if (ordemIndex === -1) {
+      alert('Ordem não encontrada!');
+      return;
+    }
+
+    // Atualizar a ordem com as ocorrências modificadas do modal
+    ordensExistentes[ordemIndex] = {
+      ...ordensExistentes[ordemIndex],
+      ocorrencias: ordemModalAtual.ocorrencias,
+      dataAtualizacao: new Date().toISOString()
+    };
+
+    // Salvar no localStorage
+    localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+    
+    // Atualizar estado local
+    setOrdensCompra(ordensExistentes);
+    
+    // Atualizar ordemModalAtual
+    setOrdemModalAtual(ordensExistentes[ordemIndex]);
+    
+    // Disparar evento para sincronizar
+    window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+    
+    setEntradaEditandoIndex(null);
+    alert('Ocorrência atualizada com sucesso!');
+  };
+
+  // Função para cancelar edição inline
+  const cancelarEdicaoOcorrencia = () => {
+    setEntradaEditandoIndex(null);
+  };
+
+  // Função para atualizar campo de ocorrência durante edição
+  const atualizarCampoOcorrencia = (indexOcorrencia, campo, valor) => {
+    if (!ordemModalAtual) return;
+    
+    const ocorrenciasAtualizadas = ordemModalAtual.ocorrencias.map((ocorrencia, idx) => {
+      if (idx === indexOcorrencia) {
+        return {
+          ...ocorrencia,
+          detalhes: {
+            ...ocorrencia.detalhes,
+            [campo]: valor
+          }
+        };
+      }
+      return ocorrencia;
+    });
+
+    setOrdemModalAtual({
+      ...ordemModalAtual,
+      ocorrencias: ocorrenciasAtualizadas
+    });
   };
 
   const confirmDeleteProduct = () => {
@@ -2103,7 +2221,7 @@ const ListaOrdensCompra = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data Documento</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
                 <div className="flex gap-2">
                   <input
                     type="date"
@@ -2255,30 +2373,105 @@ const ListaOrdensCompra = () => {
                   <div className="space-y-3">
                     {ordemModalAtual.ocorrencias.map((ocorrencia, index) => (
                       <div key={index} className="border-l-4 border-purple-500 pl-4 pr-2 relative">
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
-                            <p className="text-sm text-gray-600">{ocorrencia.descricao}</p>
-                            {ocorrencia.detalhes?.observacao && (
-                              <div className="mt-2 pt-2 border-t border-purple-200">
-                                <p className="text-xs font-medium text-gray-700">Observações:</p>
-                                <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
+                        {entradaEditandoIndex === index && ocorrencia.tipo === 'Entrada de Produto' ? (
+                          // Modo de edição inline
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center mb-2">
+                              <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => salvarEdicaoOcorrencia(index)}
+                                  className="text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full p-1 transition-colors"
+                                  title="Salvar alterações"
+                                >
+                                  <FaCheck className="text-xs" />
+                                </button>
+                                <button
+                                  onClick={() => cancelarEdicaoOcorrencia()}
+                                  className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full p-1 transition-colors"
+                                  title="Cancelar edição"
+                                >
+                                  <FaTimes className="text-xs" />
+                                </button>
                               </div>
-                            )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Data Entrada</label>
+                                <input
+                                  type="date"
+                                  value={ocorrencia.detalhes?.dataEntrada || ''}
+                                  onChange={(e) => atualizarCampoOcorrencia(index, 'dataEntrada', e.target.value)}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Documento Fábrica</label>
+                                <input
+                                  type="text"
+                                  value={ocorrencia.detalhes?.documentoFabrica || ''}
+                                  onChange={(e) => atualizarCampoOcorrencia(index, 'documentoFabrica', e.target.value)}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  placeholder="Número do documento"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
+                              <input
+                                type="date"
+                                value={ocorrencia.detalhes?.dataDocumento || ''}
+                                onChange={(e) => atualizarCampoOcorrencia(index, 'dataDocumento', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Observações</label>
+                              <textarea
+                                value={ocorrencia.detalhes?.observacao || ''}
+                                onChange={(e) => atualizarCampoOcorrencia(index, 'observacao', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                rows="2"
+                                placeholder="Digite as observações..."
+                              />
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs text-gray-500">
-                              {new Date(ocorrencia.data).toLocaleDateString('pt-BR')}
-                            </span>
-                            <button
-                              onClick={() => excluirOcorrencia(index)}
-                              className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
-                              title="Excluir ocorrência"
-                            >
-                              <FaTimes className="text-xs" />
-                            </button>
+                        ) : (
+                          // Modo de visualização
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
+                              <p className="text-sm text-gray-600">{ocorrencia.descricao}</p>
+                              {ocorrencia.detalhes?.observacao && (
+                                <div className="mt-2 pt-2 border-t border-purple-200">
+                                  <p className="text-xs font-medium text-gray-700">Observações:</p>
+                                  <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-xs text-gray-500">
+                                {new Date(ocorrencia.data).toLocaleDateString('pt-BR')}
+                              </span>
+                              {ocorrencia.tipo === 'Entrada de Produto' && (
+                                <button
+                                  onClick={() => editarOcorrencia(index)}
+                                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
+                                  title="Editar ocorrência"
+                                >
+                                  <FaEdit className="text-xs" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => excluirOcorrencia(index)}
+                                className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
+                                title="Excluir ocorrência"
+                              >
+                                <FaTimes className="text-xs" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -2288,9 +2481,10 @@ const ListaOrdensCompra = () => {
               </div>
             </div>
             
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-700 mb-3">Nova Ocorrência:</h4>
-              <div className="space-y-4">
+            {entradaEditandoIndex === null && (
+              <div className="mb-6">
+                <h4 className="font-medium text-gray-700 mb-3">Nova Ocorrência:</h4>
+                <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
                   <select 
@@ -2343,7 +2537,7 @@ const ListaOrdensCompra = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Documento</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
                       <div className="flex gap-2">
                         <input
                           type="date"
@@ -2451,6 +2645,7 @@ const ListaOrdensCompra = () => {
                 )}
               </div>
             </div>
+            )}
 
             <div className="flex justify-end gap-3">
               <button
@@ -2458,6 +2653,13 @@ const ListaOrdensCompra = () => {
                   setShowOcorrenciasModal(false);
                   setOrdemModalAtual(null);
                   setTipoOcorrenciaSelecionado('');
+                  setEntradaEditandoIndex(null);
+                  setEntradaTemporaria({
+                    dataEntrada: '',
+                    documentoFabrica: '',
+                    dataDocumento: '',
+                    observacao: ''
+                  });
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
@@ -2467,12 +2669,11 @@ const ListaOrdensCompra = () => {
                 <button
                   onClick={() => {
                     salvarEntradaLista();
-                    setShowOcorrenciasModal(false);
                   }}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
                 >
                   <FaCheck />
-                  Salvar Entrada
+                  {entradaEditandoIndex !== null ? 'Salvar Alterações' : 'Salvar Entrada'}
                 </button>
               )}
               {tipoOcorrenciaSelecionado === 'entrega' && (

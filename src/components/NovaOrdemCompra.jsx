@@ -20,7 +20,8 @@ import {
   FaCalendarAlt,
   FaEllipsisV,
   FaTimes,
-  FaClipboardList
+  FaClipboardList,
+  FaPencilAlt
 } from 'react-icons/fa';
 
 // Adicionar estilo global para remover o ícone de calendário
@@ -141,6 +142,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     data: '',
     observacao: ''
   });
+  const [entradaEditandoIndex, setEntradaEditandoIndex] = useState(null);
   const [observacaoTemporaria, setObservacaoTemporaria] = useState({
     data: '',
     texto: ''
@@ -771,22 +773,36 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       return;
     }
 
-    if (itemSelecionadoOcorrencia === null) {
+    if (itemSelecionadoOcorrencia === null && entradaEditandoIndex === null) {
       alert('Por favor, selecione um item.');
       return;
     }
 
-    const novaEntrada = {
-      ...entradaTemporaria,
-      salvo: true,
-      editando: false,
-      itemIndex: itemSelecionadoOcorrencia
-    };
+    // Se estiver editando uma entrada existente
+    if (entradaEditandoIndex !== null) {
+      setFormData(prev => ({
+        ...prev,
+        entradas: prev.entradas.map((entrada, idx) => 
+          idx === entradaEditandoIndex 
+            ? { ...entradaTemporaria, salvo: true, editando: false, itemIndex: entrada.itemIndex }
+            : entrada
+        )
+      }));
+      setEntradaEditandoIndex(null);
+    } else {
+      // Criar nova entrada
+      const novaEntrada = {
+        ...entradaTemporaria,
+        salvo: true,
+        editando: false,
+        itemIndex: itemSelecionadoOcorrencia
+      };
 
-    setFormData(prev => ({
-      ...prev,
-      entradas: [...(prev.entradas || []), novaEntrada]
-    }));
+      setFormData(prev => ({
+        ...prev,
+        entradas: [...(prev.entradas || []), novaEntrada]
+      }));
+    }
 
     setEntradaTemporaria({
       dataEntrada: '',
@@ -795,6 +811,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       observacao: ''
     });
     setTipoOcorrenciaSelecionado('');
+    setItemSelecionadoOcorrencia(null);
     alert('Entrada salva com sucesso!');
   };
 
@@ -955,6 +972,31 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
         entradas: (prev.entradas || []).filter((_, idx) => idx !== indexEntrada)
       }));
     }
+  };
+
+  // Função para editar entrada inline
+  const editarEntrada = (indexEntrada) => {
+    setEntradaEditandoIndex(indexEntrada);
+  };
+
+  // Função para salvar edição inline
+  const salvarEdicaoEntrada = (indexEntrada) => {
+    setEntradaEditandoIndex(null);
+  };
+
+  // Função para cancelar edição inline
+  const cancelarEdicaoEntrada = () => {
+    setEntradaEditandoIndex(null);
+  };
+
+  // Função para atualizar campo de entrada durante edição
+  const atualizarCampoEntrada = (indexEntrada, campo, valor) => {
+    setFormData(prev => ({
+      ...prev,
+      entradas: prev.entradas.map((entrada, idx) => 
+        idx === indexEntrada ? { ...entrada, [campo]: valor } : entrada
+      )
+    }));
   };
 
   // Função para excluir entrega
@@ -3968,7 +4010,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data Documento</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
                 <div className="flex gap-2">
                   <input
                     type="date"
@@ -4101,6 +4143,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   setModalOcorrenciasAberto(false);
                   setItemSelecionadoOcorrencia(null);
                   setTipoOcorrenciaSelecionado('');
+                  setEntradaEditandoIndex(null);
+                  setEntradaTemporaria({
+                    dataEntrada: '',
+                    documentoFabrica: '',
+                    dataDocumento: '',
+                    observacao: ''
+                  });
                 }}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
               >
@@ -4175,7 +4224,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Documento</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
                       <div className="flex gap-2">
                         <input
                           type="date"
@@ -4376,39 +4425,138 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                     {formData.itens[entrada.itemIndex]?.descricao || 'Item removido'}
                                   </span>
                                 </div>
-                                <button
-                                  onClick={() => excluirEntrada(indexReal)}
-                                  className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
-                                  title="Excluir entrada"
-                                >
-                                  <FaTimes className="text-sm" />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  {entradaEditandoIndex === indexReal ? (
+                                    <>
+                                      <button
+                                        onClick={() => salvarEdicaoEntrada(indexReal)}
+                                        className="text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full p-1 transition-colors"
+                                        title="Salvar alterações"
+                                      >
+                                        <FaCheck className="text-sm" />
+                                      </button>
+                                      <button
+                                        onClick={() => cancelarEdicaoEntrada()}
+                                        className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full p-1 transition-colors"
+                                        title="Cancelar edição"
+                                      >
+                                        <FaTimes className="text-sm" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => editarEntrada(indexReal)}
+                                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
+                                        title="Editar entrada"
+                                      >
+                                        <FaPencilAlt className="text-sm" />
+                                      </button>
+                                      <button
+                                        onClick={() => excluirEntrada(indexReal)}
+                                        className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
+                                        title="Excluir entrada"
+                                      >
+                                        <FaTimes className="text-sm" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                  <span className="font-medium text-gray-700">Data Entrada:</span>
-                                  <p className="text-gray-900 mt-1">
-                                    {entrada.dataEntrada ? new Date(entrada.dataEntrada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                  </p>
+                              {entradaEditandoIndex === indexReal ? (
+                                // Modo de edição inline
+                                <div className="space-y-3">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada *</label>
+                                      <div className="flex gap-2">
+                                        <input
+                                          type="date"
+                                          value={entrada.dataEntrada}
+                                          onChange={(e) => atualizarCampoEntrada(indexReal, 'dataEntrada', e.target.value)}
+                                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => atualizarCampoEntrada(indexReal, 'dataEntrada', new Date().toISOString().split('T')[0])}
+                                          className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                                          title="Definir data atual"
+                                        >
+                                          <FaCalendarAlt className="text-sm" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Documento Fábrica</label>
+                                      <input
+                                        type="text"
+                                        value={entrada.documentoFabrica || ''}
+                                        onChange={(e) => atualizarCampoEntrada(indexReal, 'documentoFabrica', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        placeholder="Número do documento"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="date"
+                                        value={entrada.dataDocumento || ''}
+                                        onChange={(e) => atualizarCampoEntrada(indexReal, 'dataDocumento', e.target.value)}
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => atualizarCampoEntrada(indexReal, 'dataDocumento', new Date().toISOString().split('T')[0])}
+                                        className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                                        title="Definir data atual"
+                                      >
+                                        <FaCalendarAlt className="text-sm" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                                    <textarea
+                                      value={entrada.observacao || ''}
+                                      onChange={(e) => atualizarCampoEntrada(indexReal, 'observacao', e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                      rows="3"
+                                      placeholder="Digite as observações..."
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <span className="font-medium text-gray-700">Documento Fábrica:</span>
-                                  <p className="text-gray-900 mt-1">{entrada.documentoFabrica || '-'}</p>
-                                </div>
-                                <div>
-                                  <span className="font-medium text-gray-700">Data Documento:</span>
-                                  <p className="text-gray-900 mt-1">
-                                    {entrada.dataDocumento ? new Date(entrada.dataDocumento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                  </p>
-                                </div>
-                              </div>
-                            
-                              {entrada.observacao && (
-                                <div className="mt-3 pt-3 border-t border-green-200">
-                                  <span className="font-medium text-gray-700">Observações:</span>
-                                  <p className="text-gray-900 mt-1">{entrada.observacao}</p>
-                                </div>
+                              ) : (
+                                // Modo de visualização
+                                <>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                    <div>
+                                      <span className="font-medium text-gray-700">Data Entrada:</span>
+                                      <p className="text-gray-900 mt-1">
+                                        {entrada.dataEntrada ? new Date(entrada.dataEntrada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Documento Fábrica:</span>
+                                      <p className="text-gray-900 mt-1">{entrada.documentoFabrica || '-'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Data de emissão do doc.:</span>
+                                      <p className="text-gray-900 mt-1">
+                                        {entrada.dataDocumento ? new Date(entrada.dataDocumento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                
+                                  {entrada.observacao && (
+                                    <div className="mt-3 pt-3 border-t border-green-200">
+                                      <span className="font-medium text-gray-700">Observações:</span>
+                                      <p className="text-gray-900 mt-1">{entrada.observacao}</p>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           );
@@ -4491,7 +4639,18 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
             <div className="flex justify-end mt-6">
               <button
-                onClick={() => setModalOcorrenciasAberto(false)}
+                onClick={() => {
+                  setModalOcorrenciasAberto(false);
+                  setItemSelecionadoOcorrencia(null);
+                  setTipoOcorrenciaSelecionado('');
+                  setEntradaEditandoIndex(null);
+                  setEntradaTemporaria({
+                    dataEntrada: '',
+                    documentoFabrica: '',
+                    dataDocumento: '',
+                    observacao: ''
+                  });
+                }}
                 className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 Fechar
