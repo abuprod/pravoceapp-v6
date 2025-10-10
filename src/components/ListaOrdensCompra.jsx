@@ -71,6 +71,7 @@ const ListaOrdensCompra = () => {
   const [showEntregaModal, setShowEntregaModal] = useState(false);
   const [showOcorrenciasModal, setShowOcorrenciasModal] = useState(false);
   const [ordemModalAtual, setOrdemModalAtual] = useState(null);
+  const [tipoOcorrenciaSelecionado, setTipoOcorrenciaSelecionado] = useState('');
   const [entradaTemporaria, setEntradaTemporaria] = useState({
     dataEntrada: '',
     documentoFabrica: '',
@@ -577,6 +578,17 @@ const ListaOrdensCompra = () => {
   const handleAbrirOcorrencias = (linha) => {
     setMenuAberto(null);
     setOrdemModalAtual(linha);
+    setTipoOcorrenciaSelecionado('');
+    setEntradaTemporaria({
+      dataEntrada: '',
+      documentoFabrica: '',
+      dataDocumento: '',
+      observacao: ''
+    });
+    setEntregaTemporaria({
+      data: '',
+      observacao: ''
+    });
     setShowOcorrenciasModal(true);
   };
 
@@ -1812,28 +1824,6 @@ const ListaOrdensCompra = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleAbrirEntrada(window.linhaAtual);
-              }}
-              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
-            >
-              <FaCheck className="mr-3 text-green-600" />
-              Dar entrada
-            </button>
-            
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAbrirEntrega(window.linhaAtual);
-              }}
-              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
-            >
-              <FaCalendarAlt className="mr-3 text-blue-600" />
-              Data entrega
-            </button>
-            
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
                 handleAbrirOcorrencias(window.linhaAtual);
               }}
               className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
@@ -2181,6 +2171,12 @@ const ListaOrdensCompra = () => {
               </h3>
             </div>
             
+            <div className="mb-4">
+              <p className="text-gray-600">
+                <strong>Produto:</strong> {ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao || 'N/A'}
+              </p>
+            </div>
+            
             <div className="mb-6">
               <h4 className="font-medium text-gray-700 mb-3">Histórico de Ocorrências:</h4>
               <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
@@ -2226,22 +2222,124 @@ const ListaOrdensCompra = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <select 
+                    value={tipoOcorrenciaSelecionado}
+                    onChange={(e) => setTipoOcorrenciaSelecionado(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
                     <option value="">Selecione o tipo</option>
-                    <option value="entrada">Entrada de Produto</option>
-                    <option value="entrega">Atualização de Entrega</option>
-                    <option value="observacao">Observação</option>
-                    <option value="problema">Problema</option>
+                    <option value="entrada">Dar entrada</option>
+                    <option value="entrega">Data entrega</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    rows="3"
-                    placeholder="Descreva a ocorrência..."
-                  />
-                </div>
+
+                {/* Campos para Dar Entrada */}
+                {tipoOcorrenciaSelecionado === 'entrada' && (
+                  <div className="space-y-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada *</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            value={entradaTemporaria.dataEntrada}
+                            onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataEntrada: e.target.value})}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEntradaTemporaria({...entradaTemporaria, dataEntrada: new Date().toISOString().split('T')[0]})}
+                            className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                            title="Definir data atual"
+                          >
+                            <FaCalendarAlt className="text-sm" />
+                            Hoje
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Documento Fábrica</label>
+                        <input
+                          type="text"
+                          value={entradaTemporaria.documentoFabrica}
+                          onChange={(e) => setEntradaTemporaria({...entradaTemporaria, documentoFabrica: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          placeholder="Número do documento"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Documento</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={entradaTemporaria.dataDocumento}
+                          onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataDocumento: e.target.value})}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEntradaTemporaria({...entradaTemporaria, dataDocumento: new Date().toISOString().split('T')[0]})}
+                          className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                          title="Definir data atual"
+                        >
+                          <FaCalendarAlt className="text-sm" />
+                          Hoje
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                      <textarea
+                        value={entradaTemporaria.observacao}
+                        onChange={(e) => setEntradaTemporaria({...entradaTemporaria, observacao: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        rows="3"
+                        placeholder="Digite as observações da entrada..."
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Campos para Data Entrega */}
+                {tipoOcorrenciaSelecionado === 'entrega' && (
+                  <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrega *</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={entregaTemporaria.data}
+                          onChange={(e) => setEntregaTemporaria({...entregaTemporaria, data: e.target.value})}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEntregaTemporaria({...entregaTemporaria, data: new Date().toISOString().split('T')[0]})}
+                          className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                          title="Definir data atual"
+                        >
+                          <FaCalendarAlt className="text-sm" />
+                          Hoje
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                      <textarea
+                        value={entregaTemporaria.observacao}
+                        onChange={(e) => setEntregaTemporaria({...entregaTemporaria, observacao: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows="3"
+                        placeholder="Digite as observações da entrega..."
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2249,23 +2347,37 @@ const ListaOrdensCompra = () => {
               <button
                 onClick={() => {
                   setShowOcorrenciasModal(false);
-                  setOrdemAtual(null);
+                  setOrdemModalAtual(null);
+                  setTipoOcorrenciaSelecionado('');
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Fechar
               </button>
-              <button
-                onClick={() => {
-                  // Aqui você pode implementar a lógica para adicionar ocorrência
-                  alert('Funcionalidade de adicionar ocorrência será implementada!');
-                  setShowOcorrenciasModal(false);
-                  setOrdemAtual(null);
-                }}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                Adicionar Ocorrência
-              </button>
+              {tipoOcorrenciaSelecionado === 'entrada' && (
+                <button
+                  onClick={() => {
+                    salvarEntradaLista();
+                    setShowOcorrenciasModal(false);
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                >
+                  <FaCheck />
+                  Salvar Entrada
+                </button>
+              )}
+              {tipoOcorrenciaSelecionado === 'entrega' && (
+                <button
+                  onClick={() => {
+                    salvarEntregaLista();
+                    setShowOcorrenciasModal(false);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <FaCalendarAlt />
+                  Salvar Data Entrega
+                </button>
+              )}
             </div>
           </div>
         </div>

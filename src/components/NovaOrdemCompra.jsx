@@ -141,10 +141,15 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     observacao: ''
   });
 
-  // Estados para menu superior e modal de ocorrências
-  const [menuSuperiorAberto, setMenuSuperiorAberto] = useState(false);
+  // Estados para modal de ocorrências
   const [modalOcorrenciasAberto, setModalOcorrenciasAberto] = useState(false);
   const [filtroItemOcorrencia, setFiltroItemOcorrencia] = useState('todos');
+  const [tipoOcorrenciaSelecionado, setTipoOcorrenciaSelecionado] = useState('');
+  const [itemSelecionadoOcorrencia, setItemSelecionadoOcorrencia] = useState(null);
+  
+  // Estado para modal de confirmação de exclusão de item
+  const [showConfirmDeleteItem, setShowConfirmDeleteItem] = useState(false);
+  const [itemParaExcluir, setItemParaExcluir] = useState(null);
 
   // Função para buscar a próxima OC disponível por tipo
   const buscarProximaOC = (tipo) => {
@@ -272,19 +277,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     }
   }, [tipoPreSelecionado, id]);
 
-  // Fechar menu superior ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuSuperiorAberto && !event.target.closest('.relative')) {
-        setMenuSuperiorAberto(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [menuSuperiorAberto]);
+  // useEffect removido - menu superior não mais utilizado
 
   // Carregar fornecedores e produtos
   useEffect(() => {
@@ -765,10 +758,70 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     });
   };
 
-  // Função para abrir modal de ocorrências
-  const abrirModalOcorrencias = () => {
-    setModalOcorrenciasAberto(true);
-    setMenuSuperiorAberto(false);
+
+  // Funções para salvar entrada e entrega do modal de ocorrências
+  const salvarEntradaOcorrencia = () => {
+    if (!entradaTemporaria.dataEntrada) {
+      alert('Por favor, preencha a data de entrada.');
+      return;
+    }
+
+    if (itemSelecionadoOcorrencia === null) {
+      alert('Por favor, selecione um item.');
+      return;
+    }
+
+    const novaEntrada = {
+      ...entradaTemporaria,
+      salvo: true,
+      editando: false,
+      itemIndex: itemSelecionadoOcorrencia
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      entradas: [...(prev.entradas || []), novaEntrada]
+    }));
+
+    setEntradaTemporaria({
+      dataEntrada: '',
+      documentoFabrica: '',
+      dataDocumento: '',
+      observacao: ''
+    });
+    setTipoOcorrenciaSelecionado('');
+    alert('Entrada salva com sucesso!');
+  };
+
+  const salvarEntregaOcorrencia = () => {
+    if (!entregaTemporaria.data) {
+      alert('Por favor, preencha a data de entrega.');
+      return;
+    }
+
+    if (itemSelecionadoOcorrencia === null) {
+      alert('Por favor, selecione um item.');
+      return;
+    }
+
+    const novaEntrega = {
+      ...entregaTemporaria,
+      salvo: true,
+      editando: false,
+      itemIndex: itemSelecionadoOcorrencia
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      datasEntrega: [...(prev.datasEntrega || []), novaEntrega]
+    }));
+
+    setEntregaTemporaria({
+      data: '',
+      observacao: ''
+    });
+    setTipoOcorrenciaSelecionado('');
+    alert('Data de entrega salva com sucesso!');
   };
 
   // Função para determinar o status do item baseado em entradas e entregas
@@ -1304,14 +1357,31 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   };
 
   const handleDeleteItem = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      itens: prev.itens.filter((_, i) => i !== index)
-    }));
+    // Abrir modal de confirmação ao invés de excluir diretamente
+    setItemParaExcluir(index);
+    setShowConfirmDeleteItem(true);
+  };
+
+  const confirmarExclusaoItem = () => {
+    if (itemParaExcluir !== null) {
+      setFormData(prev => ({
+        ...prev,
+        itens: prev.itens.filter((_, i) => i !== itemParaExcluir)
+      }));
+      
+      // Limpar sugestões quando deletar item
+      setSugestoesProdutos([]);
+      setCampoProdutoAtivo(null);
+    }
     
-    // Limpar sugestões quando deletar item
-    setSugestoesProdutos([]);
-    setCampoProdutoAtivo(null);
+    // Fechar modal e limpar estado
+    setShowConfirmDeleteItem(false);
+    setItemParaExcluir(null);
+  };
+
+  const cancelarExclusaoItem = () => {
+    setShowConfirmDeleteItem(false);
+    setItemParaExcluir(null);
   };
 
   const handleEnviarFornecedor = () => {
@@ -2031,26 +2101,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
         </div>
         
         {/* Menu de 3 pontinhos no canto superior direito */}
-        <div className="relative">
-          <button
-            onClick={() => setMenuSuperiorAberto(!menuSuperiorAberto)}
-            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
-            title="Menu"
-          >
-            <FaEllipsisV className="text-xl" />
-          </button>
-          {menuSuperiorAberto && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-              <button
-                onClick={abrirModalOcorrencias}
-                className="w-full px-4 py-3 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-3 transition-colors"
-              >
-                <FaInfoCircle className="text-lg" />
-                <span className="font-medium">Ocorrências</span>
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Menu superior removido - ações disponíveis nos 3 pontinhos de cada item */}
       </div>
 
       {/* Seletor de Tipo quando nenhum tipo estiver selecionado */}
@@ -3756,6 +3807,39 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
         </div>
       )}
 
+      {/* Popup de Confirmação - Deletar Item */}
+      {showConfirmDeleteItem && itemParaExcluir !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <div className="flex items-center mb-4">
+              <FaExclamationCircle className="text-red-500 text-2xl mr-3" />
+              <h3 className="text-lg font-semibold text-red-600">Confirmar Exclusão</h3>
+            </div>
+            <p className="mb-6 text-gray-700">
+              Tem certeza que deseja excluir o <strong>Item {itemParaExcluir + 1}</strong>?
+              <br />
+              <strong>{formData.itens[itemParaExcluir]?.descricao || 'Sem descrição'}</strong>
+              <br /><br />
+              Esta ação não poderá ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelarExclusaoItem}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarExclusaoItem}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Popup de OC Duplicada */}
       {showDuplicateAlert && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -3966,17 +4050,179 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                 📋 Ocorrências da Ordem de Compra
               </h3>
               <button
-                onClick={() => setModalOcorrenciasAberto(false)}
+                onClick={() => {
+                  setModalOcorrenciasAberto(false);
+                  setItemSelecionadoOcorrencia(null);
+                  setTipoOcorrenciaSelecionado('');
+                }}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
               >
                 ×
               </button>
             </div>
 
-            {/* Filtro por Item */}
+            {/* Seção de Nova Ocorrência */}
+            <div className="mb-6 bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <h4 className="font-medium text-gray-700 mb-3">Nova Ocorrência:</h4>
+              
+              {/* Mostrar o item selecionado */}
+              {itemSelecionadoOcorrencia !== null && (
+                <div className="mb-4 bg-white p-3 rounded-lg border border-purple-300">
+                  <p className="text-sm text-gray-600">
+                    <strong>Item selecionado:</strong> Item {itemSelecionadoOcorrencia + 1} - {formData.itens[itemSelecionadoOcorrencia]?.descricao || 'Sem descrição'}
+                  </p>
+                </div>
+              )}
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Ocorrência</label>
+                  <select 
+                    value={tipoOcorrenciaSelecionado}
+                    onChange={(e) => setTipoOcorrenciaSelecionado(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    disabled={itemSelecionadoOcorrencia === null}
+                  >
+                    <option value="">Selecione o tipo</option>
+                    <option value="entrada">Dar entrada</option>
+                    <option value="entrega">Data entrega</option>
+                  </select>
+                </div>
+
+                {/* Campos para Dar Entrada */}
+                {tipoOcorrenciaSelecionado === 'entrada' && itemSelecionadoOcorrencia !== null && (
+                  <div className="space-y-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada *</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            value={entradaTemporaria.dataEntrada}
+                            onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataEntrada: e.target.value})}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEntradaTemporaria({...entradaTemporaria, dataEntrada: new Date().toISOString().split('T')[0]})}
+                            className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                            title="Definir data atual"
+                          >
+                            <FaCalendarAlt className="text-sm" />
+                            Hoje
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Documento Fábrica</label>
+                        <input
+                          type="text"
+                          value={entradaTemporaria.documentoFabrica}
+                          onChange={(e) => setEntradaTemporaria({...entradaTemporaria, documentoFabrica: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          placeholder="Número do documento"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Documento</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={entradaTemporaria.dataDocumento}
+                          onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataDocumento: e.target.value})}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEntradaTemporaria({...entradaTemporaria, dataDocumento: new Date().toISOString().split('T')[0]})}
+                          className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                          title="Definir data atual"
+                        >
+                          <FaCalendarAlt className="text-sm" />
+                          Hoje
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                      <textarea
+                        value={entradaTemporaria.observacao}
+                        onChange={(e) => setEntradaTemporaria({...entradaTemporaria, observacao: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        rows="3"
+                        placeholder="Digite as observações da entrada..."
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        onClick={salvarEntradaOcorrencia}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                      >
+                        <FaCheck />
+                        Salvar Entrada
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Campos para Data Entrega */}
+                {tipoOcorrenciaSelecionado === 'entrega' && itemSelecionadoOcorrencia !== null && (
+                  <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrega *</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={entregaTemporaria.data}
+                          onChange={(e) => setEntregaTemporaria({...entregaTemporaria, data: e.target.value})}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEntregaTemporaria({...entregaTemporaria, data: new Date().toISOString().split('T')[0]})}
+                          className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                          title="Definir data atual"
+                        >
+                          <FaCalendarAlt className="text-sm" />
+                          Hoje
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                      <textarea
+                        value={entregaTemporaria.observacao}
+                        onChange={(e) => setEntregaTemporaria({...entregaTemporaria, observacao: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows="3"
+                        placeholder="Digite as observações da entrega..."
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        onClick={salvarEntregaOcorrencia}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                      >
+                        <FaCalendarAlt />
+                        Salvar Data Entrega
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Filtro por Item para Histórico */}
             <div className="mb-6 bg-gray-50 p-4 rounded-lg">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filtrar por Item:
+                Filtrar Histórico por Item:
               </label>
               <select
                 value={filtroItemOcorrencia}
@@ -4252,23 +4498,25 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
             onClick={() => {
               const idx = menuItemAcoes.itemIndex;
               setMenuItemAcoes({ isOpen: false, itemIndex: null, position: { top: 0, left: 0 } });
-              abrirModalEntrada(idx);
+              // Definir o item selecionado diretamente
+              setItemSelecionadoOcorrencia(idx);
+              setTipoOcorrenciaSelecionado('');
+              setEntradaTemporaria({
+                dataEntrada: '',
+                documentoFabrica: '',
+                dataDocumento: '',
+                observacao: ''
+              });
+              setEntregaTemporaria({
+                data: '',
+                observacao: ''
+              });
+              setModalOcorrenciasAberto(true);
             }}
-            className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-purple-600 hover:bg-purple-50 flex items-center gap-2"
           >
-            <FaCheck />
-            Dar entrada
-          </button>
-          <button
-            onClick={() => {
-              const idx = menuItemAcoes.itemIndex;
-              setMenuItemAcoes({ isOpen: false, itemIndex: null, position: { top: 0, left: 0 } });
-              abrirModalEntrega(idx);
-            }}
-            className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-          >
-            <FaCalendarAlt />
-            Data Entrega
+            <FaInfoCircle />
+            Ocorrências
           </button>
           <button
             onClick={() => {
