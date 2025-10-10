@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaPlus, FaFilter, FaEllipsisV, FaEdit, FaTrash, FaSearch, FaTimes, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+import { FaPlus, FaFilter, FaEllipsisV, FaEdit, FaTrash, FaSearch, FaTimes, FaSort, FaSortUp, FaSortDown, FaExclamationTriangle } from 'react-icons/fa';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
 import { pedidosVendaService } from '../services/database';
@@ -36,6 +36,9 @@ const PedidosVenda = () => {
     valorMin: '',
     valorMax: ''
   });
+  const [itensSelecionados, setItensSelecionados] = useState([]);
+  const [showBulkActionsMenu, setShowBulkActionsMenu] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   // Carregar pedidos do Firestore
   useEffect(() => {
@@ -61,11 +64,14 @@ const PedidosVenda = () => {
       if (menuAberto && !event.target.closest('.menu-actions')) {
         setMenuAberto(null);
       }
+      if (showBulkActionsMenu && !event.target.closest('.bulk-actions-menu')) {
+        setShowBulkActionsMenu(false);
+      }
     };
 
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [menuAberto]);
+  }, [menuAberto, showBulkActionsMenu]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -338,6 +344,277 @@ const PedidosVenda = () => {
     });
   };
 
+  // Funções de seleção múltipla
+  const toggleItemSelecionado = (pedidoId) => {
+    setItensSelecionados(prev => {
+      if (prev.includes(pedidoId)) {
+        return prev.filter(id => id !== pedidoId);
+      } else {
+        return [...prev, pedidoId];
+      }
+    });
+  };
+
+  const toggleTodosSelecionados = () => {
+    if (itensSelecionados.length === filteredAndSortedPedidos.length) {
+      setItensSelecionados([]);
+    } else {
+      setItensSelecionados(filteredAndSortedPedidos.map(pedido => pedido.id));
+    }
+  };
+
+  // Função para excluir múltiplos itens
+  const handleBulkDelete = () => {
+    setShowBulkDeleteModal(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      // Reverter estoque para cada pedido selecionado
+      for (const pedidoId of itensSelecionados) {
+        const pedidoParaExcluir = pedidos.find(p => p.id === pedidoId);
+        if (pedidoParaExcluir) {
+          await reverterEstoque(pedidoParaExcluir);
+        }
+      }
+
+      // Excluir pedidos do Firestore
+      for (const pedidoId of itensSelecionados) {
+        await pedidosVendaService.deletar(pedidoId);
+      }
+      
+      // Atualizar estado local
+      const novosPedidos = pedidos.filter(pedido => !itensSelecionados.includes(pedido.id));
+      setPedidos(novosPedidos);
+      
+      // Limpar seleção
+      setItensSelecionados([]);
+      setShowBulkDeleteModal(false);
+      
+      alert(`✅ ${itensSelecionados.length} pedido(s) excluído(s) com sucesso! O estoque foi revertido automaticamente.`);
+    } catch (error) {
+      console.error('Erro ao excluir pedidos:', error);
+      alert('Erro ao excluir pedidos. Tente novamente.');
+    }
+  };
+
+  const cancelBulkDelete = () => {
+    setShowBulkDeleteModal(false);
+  };
+
+  // Função para imprimir pedidos selecionados
+  const handleBulkPrint = () => {
+    if (itensSelecionados.length === 0) {
+      alert('Selecione pelo menos um item para imprimir.');
+      return;
+    }
+
+    // Buscar os pedidos completos
+    const pedidosSelecionados = pedidos.filter(pedido => itensSelecionados.includes(pedido.id));
+
+    // Gerar HTML para impressão
+    gerarImpressao(pedidosSelecionados);
+    setShowBulkActionsMenu(false);
+  };
+
+  // Função para gerar impressão
+  const gerarImpressao = (pedidosParaImprimir) => {
+    const htmlImpressao = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Pedidos de Venda</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
+          body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 20pt;
+            color: #2563eb;
+          }
+          .pedido {
+            page-break-inside: avoid;
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+          }
+          .pedido-header {
+            background-color: #f3f4f6;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+          }
+          .pedido-numero {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 5px;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+          }
+          .info-item {
+            padding: 5px 0;
+          }
+          .info-label {
+            font-weight: bold;
+            color: #555;
+          }
+          .info-value {
+            color: #333;
+          }
+          .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 9pt;
+            font-weight: bold;
+            background-color: #e0e7ff;
+            color: #3730a3;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+          }
+          th {
+            background-color: #f3f4f6;
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #ddd;
+            font-size: 10pt;
+          }
+          td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            font-size: 10pt;
+          }
+          .total {
+            text-align: right;
+            font-weight: bold;
+            font-size: 12pt;
+            margin-top: 10px;
+            color: #2563eb;
+          }
+          @media print {
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .pedido { page-break-after: always; }
+            .pedido:last-child { page-break-after: auto; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>🛒 PEDIDOS DE VENDA</h1>
+          <p>Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+        </div>
+        ${pedidosParaImprimir.map(pedido => `
+          <div class="pedido">
+            <div class="pedido-header">
+              <div class="pedido-numero">Pedido Nº ${pedido.numeroPedido || 'S/N'}</div>
+              <span class="status">${pedido.situacao?.toUpperCase() || 'PENDENTE'}</span>
+            </div>
+            
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Data:</span>
+                <span class="info-value">${formatarData(pedido.dataCriacao)}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Cliente:</span>
+                <span class="info-value">${pedido.cliente || '-'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">CPF/CNPJ:</span>
+                <span class="info-value">${pedido.cpfCnpj || '-'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Vendedor:</span>
+                <span class="info-value">${pedido.vendedor || '-'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Local(is):</span>
+                <span class="info-value">${obterSiglasLocais(pedido)}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">OC Vinculada:</span>
+                <span class="info-value">${pedido.ocVinculada || '-'}</span>
+              </div>
+            </div>
+
+            ${pedido.produtos && pedido.produtos.length > 0 ? `
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 10%;">Código</th>
+                    <th style="width: 35%;">Produto</th>
+                    <th style="width: 10%;">Local</th>
+                    <th style="width: 10%;">Qtd</th>
+                    <th style="width: 15%;">Vlr. Unit.</th>
+                    <th style="width: 15%;">Vlr. Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pedido.produtos.map(produto => `
+                    <tr>
+                      <td>${produto.codigo || '-'}</td>
+                      <td>${produto.produto || produto.descricao || '-'}</td>
+                      <td>${produto.sl || '-'}</td>
+                      <td>${produto.quantidade || 1}</td>
+                      <td>R$ ${(parseFloat(produto.valorUnitario) || 0).toFixed(2)}</td>
+                      <td>R$ ${(parseFloat(produto.valorTotal) || (parseFloat(produto.quantidade) * parseFloat(produto.valorUnitario)) || 0).toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              <div class="total">Total do Pedido: ${formatarValor(pedido.valor)}</div>
+            ` : `
+              <p style="color: #666; font-style: italic;">Nenhum produto cadastrado neste pedido.</p>
+            `}
+
+            ${pedido.observacoes ? `
+              <div style="margin-top: 15px; padding: 10px; background-color: #f9fafb; border-left: 3px solid #2563eb;">
+                <strong>Observações:</strong>
+                <p style="margin: 5px 0 0 0;">${pedido.observacoes}</p>
+              </div>
+            ` : ''}
+          </div>
+        `).join('')}
+      </body>
+      </html>
+    `;
+
+    // Abrir janela de impressão
+    const janelaImpressao = window.open('', '_blank');
+    janelaImpressao.document.write(htmlImpressao);
+    janelaImpressao.document.close();
+    janelaImpressao.focus();
+    
+    // Aguardar um momento e então imprimir
+    setTimeout(() => {
+      janelaImpressao.print();
+    }, 500);
+  };
+
   // Filtrar e ordenar pedidos
   const filteredAndSortedPedidos = pedidos
     .filter(pedido => {
@@ -414,6 +691,56 @@ const PedidosVenda = () => {
             <FaPlus />
             Novo Pedido
           </Link>
+          
+          {/* Botão de menu de ações em lote */}
+          <div className="relative bulk-actions-menu">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowBulkActionsMenu(!showBulkActionsMenu);
+              }}
+              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2"
+              title="Ações em Lote"
+            >
+              <FaEllipsisV />
+            </button>
+            
+            {showBulkActionsMenu && (
+              <div className="absolute right-0 mt-2 bg-white rounded-md shadow-lg border border-gray-200 z-50 bulk-actions-menu whitespace-nowrap">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      handleBulkDelete();
+                      setShowBulkActionsMenu(false);
+                    }}
+                    disabled={itensSelecionados.length === 0}
+                    className={`flex items-center w-full px-4 py-2 text-sm whitespace-nowrap ${
+                      itensSelecionados.length === 0 
+                        ? 'text-gray-400 cursor-not-allowed' 
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <FaTrash className="mr-2 text-red-600 flex-shrink-0" />
+                    <span>Excluir Selecionados ({itensSelecionados.length})</span>
+                  </button>
+                  <button
+                    onClick={handleBulkPrint}
+                    disabled={itensSelecionados.length === 0}
+                    className={`flex items-center w-full px-4 py-2 text-sm whitespace-nowrap ${
+                      itensSelecionados.length === 0 
+                        ? 'text-gray-400 cursor-not-allowed' 
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <svg className="w-4 h-4 mr-2 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    <span>Imprimir Selecionados ({itensSelecionados.length})</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -614,6 +941,15 @@ const PedidosVenda = () => {
               <Droppable droppableId="colunas" direction="horizontal">
                 {(provided) => (
                   <tr ref={provided.innerRef} {...provided.droppableProps}>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                      <input
+                        type="checkbox"
+                        checked={itensSelecionados.length === filteredAndSortedPedidos.length && filteredAndSortedPedidos.length > 0}
+                        onChange={toggleTodosSelecionados}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        title="Selecionar todos"
+                      />
+                    </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
                     {colunas.map((col, idx) => (
                       <Draggable key={col.id} draggableId={col.id} index={idx}>
@@ -660,6 +996,15 @@ const PedidosVenda = () => {
             ) : (
               filteredAndSortedPedidos.map((pedido, idx) => (
                 <tr key={pedido.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    <input
+                      type="checkbox"
+                      checked={itensSelecionados.includes(pedido.id)}
+                      onChange={() => toggleItemSelecionado(pedido.id)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm relative">
                     <div className="menu-dropdown">
                       <button
@@ -739,6 +1084,45 @@ const PedidosVenda = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Modal de Confirmação de Exclusão em Lote */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0">
+                <FaExclamationTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Confirmar Exclusão em Lote
+              </h3>
+            </div>
+            
+            <p className="text-gray-600 mb-4">
+              Você está prestes a excluir <strong>{itensSelecionados.length}</strong> {itensSelecionados.length === 1 ? 'pedido selecionado' : 'pedidos selecionados'}.
+            </p>
+            
+            <p className="text-sm text-gray-500 mb-6">
+              Esta ação não poderá ser desfeita. Todos os pedidos selecionados serão removidos e o estoque será revertido automaticamente.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelBulkDelete}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmBulkDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Excluir Todos
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
