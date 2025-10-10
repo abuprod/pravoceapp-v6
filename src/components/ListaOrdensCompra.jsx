@@ -82,6 +82,10 @@ const ListaOrdensCompra = () => {
     data: '',
     observacao: ''
   });
+  const [observacaoTemporaria, setObservacaoTemporaria] = useState({
+    data: '',
+    texto: ''
+  });
   const [showColumnsModal, setShowColumnsModal] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [columnsConfig, setColumnsConfig] = useState([
@@ -732,6 +736,73 @@ const ListaOrdensCompra = () => {
     });
 
     alert('Data de entrega salva com sucesso!');
+  };
+
+  const salvarObservacaoLista = () => {
+    if (!observacaoTemporaria.data) {
+      alert('Por favor, preencha a data da observação.');
+      return;
+    }
+
+    if (!observacaoTemporaria.texto) {
+      alert('Por favor, preencha o texto da observação.');
+      return;
+    }
+
+    if (!ordemModalAtual) return;
+
+    // Buscar a ordem completa no localStorage
+    const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    
+    if (ordemIndex === -1) {
+      alert('Ordem não encontrada!');
+      return;
+    }
+
+    const ordem = ordensExistentes[ordemIndex];
+    
+    // Criar nova observação
+    const novaObservacao = {
+      tipo: 'Observação',
+      descricao: observacaoTemporaria.texto,
+      data: new Date().toISOString(),
+      detalhes: {
+        dataObservacao: observacaoTemporaria.data,
+        texto: observacaoTemporaria.texto,
+        itemIndex: ordemModalAtual.indiceProduto || 0,
+        produto: ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao
+      }
+    };
+
+    // Adicionar às ocorrências
+    const ocorrenciasAtualizadas = [...(ordem.ocorrencias || []), novaObservacao];
+
+    // Atualizar ordem
+    ordensExistentes[ordemIndex] = {
+      ...ordem,
+      ocorrencias: ocorrenciasAtualizadas,
+      dataAtualizacao: new Date().toISOString()
+    };
+
+    // Salvar no localStorage
+    localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+    
+    // Atualizar estado local
+    setOrdensCompra(ordensExistentes);
+    
+    // Disparar evento para sincronizar
+    window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+
+    // Fechar modal e limpar
+    setShowOcorrenciasModal(false);
+    setOrdemModalAtual(null);
+    setObservacaoTemporaria({
+      data: '',
+      texto: ''
+    });
+
+    alert('Observação salva com sucesso!');
   };
 
   // Função para excluir ocorrência
@@ -2230,6 +2301,7 @@ const ListaOrdensCompra = () => {
                     <option value="">Selecione o tipo</option>
                     <option value="entrada">Dar entrada</option>
                     <option value="entrega">Data entrega</option>
+                    <option value="observacao">Observação</option>
                   </select>
                 </div>
 
@@ -2340,6 +2412,43 @@ const ListaOrdensCompra = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Campos para Observação */}
+                {tipoOcorrenciaSelecionado === 'observacao' && (
+                  <div className="space-y-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={observacaoTemporaria.data}
+                          onChange={(e) => setObservacaoTemporaria({...observacaoTemporaria, data: e.target.value})}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setObservacaoTemporaria({...observacaoTemporaria, data: new Date().toISOString().split('T')[0]})}
+                          className="px-3 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors flex items-center gap-2"
+                          title="Definir data atual"
+                        >
+                          <FaCalendarAlt className="text-sm" />
+                          Hoje
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Observação *</label>
+                      <textarea
+                        value={observacaoTemporaria.texto}
+                        onChange={(e) => setObservacaoTemporaria({...observacaoTemporaria, texto: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                        rows="4"
+                        placeholder="Digite a observação..."
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2376,6 +2485,17 @@ const ListaOrdensCompra = () => {
                 >
                   <FaCalendarAlt />
                   Salvar Data Entrega
+                </button>
+              )}
+              {tipoOcorrenciaSelecionado === 'observacao' && (
+                <button
+                  onClick={() => {
+                    salvarObservacaoLista();
+                  }}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2"
+                >
+                  <FaClipboardList />
+                  Salvar Observação
                 </button>
               )}
             </div>
