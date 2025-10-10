@@ -36,7 +36,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   
   const [formData, setFormData] = useState({
     tipo: tipoPreSelecionado || '',
-    status: 'aberto',
+    status: 'em_aberto',
     dataVenda: new Date().toISOString().split('T')[0],
     dataEncomenda: new Date().toISOString().split('T')[0], // Preencher com data atual
     oc: '',
@@ -1020,34 +1020,34 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      aberto: 'bg-yellow-100 text-yellow-800',
-      aprovado: 'bg-green-100 text-green-800',
-      encomendado: 'bg-blue-100 text-blue-800',
-      deposito: 'bg-purple-100 text-purple-800',
-      aguardando_outra_oc: 'bg-orange-100 text-orange-800',
-      agendado: 'bg-indigo-100 text-indigo-800',
-      entregue_parcial: 'bg-cyan-100 text-cyan-800',
-      entregue: 'bg-green-100 text-green-800',
-      nao_entregue: 'bg-red-100 text-red-800',
-      cancelado: 'bg-red-100 text-red-800',
-      outro: 'bg-gray-100 text-gray-800'
+      'em_aberto': 'bg-yellow-100 text-yellow-800',
+      'aprovado': 'bg-green-100 text-green-800',
+      'encomendado': 'bg-blue-100 text-blue-800',
+      'em_deposito': 'bg-purple-100 text-purple-800',
+      'aguardando_outra_oc': 'bg-orange-100 text-orange-800',
+      'agendado': 'bg-indigo-100 text-indigo-800',
+      'entregue_parcial': 'bg-cyan-100 text-cyan-800',
+      'entregue': 'bg-green-100 text-green-800',
+      'nao_entregue': 'bg-red-100 text-red-800',
+      'cancelado': 'bg-red-100 text-red-800',
+      'outro': 'bg-gray-100 text-gray-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusLabel = (status) => {
     const labels = {
-      aberto: 'EM ABERTO',
-      aprovado: 'APROVADO',
-      encomendado: 'ENCOMENDADO',
-      deposito: 'EM DEPÓSITO',
-      aguardando_outra_oc: 'AGUARDANDO OUTRA OC',
-      agendado: 'AGENDADO',
-      entregue_parcial: 'ENTREGUE PARCIAL',
-      entregue: 'ENTREGUE',
-      nao_entregue: 'NÃO ENTREGUE',
-      cancelado: 'CANCELADO',
-      outro: 'OUTRO'
+      'em_aberto': 'EM ABERTO',
+      'aprovado': 'APROVADO',
+      'encomendado': 'ENCOMENDADO',
+      'em_deposito': 'EM DEPÓSITO',
+      'aguardando_outra_oc': 'AGUARDANDO OUTRA OC',
+      'agendado': 'AGENDADO',
+      'entregue_parcial': 'ENTREGUE PARCIAL',
+      'entregue': 'ENTREGUE',
+      'nao_entregue': 'NÃO ENTREGUE (TER OBS)',
+      'cancelado': 'CANCELADO',
+      'outro': 'OUTRO (TER OBS)'
     };
     return labels[status] || status.toUpperCase();
   };
@@ -2065,7 +2065,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   ...prev,
                   tipo: 'cliente',
                   oc: proximaOC,
-                  status: 'aberto'
+                  status: 'em_aberto'
                 }));
                 setNextOC(proximaOC);
               }}
@@ -2083,7 +2083,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   ...prev,
                   tipo: 'estoque',
                   oc: proximaOC,
-                  status: 'aberto'
+                  status: 'em_aberto'
                 }));
                 setNextOC(proximaOC);
               }}
@@ -2176,17 +2176,17 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       onChange={handleChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="aberto">Em aberto</option>
+                      <option value="em_aberto">Em aberto</option>
                       <option value="aprovado">Aprovado</option>
                       <option value="encomendado">Encomendado</option>
-                      <option value="deposito">Em depósito</option>
-                      <option value="aguardando_outra_oc">Aguardando outra oc</option>
+                      <option value="em_deposito">Em depósito</option>
+                      <option value="aguardando_outra_oc">Aguardando outra OC</option>
                       <option value="agendado">Agendado</option>
-                      <option value="entregue_parcial">Entregue parcial</option>
+                      <option value="entregue_parcial">Entregue Parcial</option>
                       <option value="entregue">Entregue</option>
-                      <option value="nao_entregue">Não entregue (ter obs)</option>
+                      <option value="nao_entregue">Não entregue (Ter obs)</option>
                       <option value="cancelado">Cancelado</option>
-                      <option value="outro">Outro (ter obs)</option>
+                      <option value="outro">Outro (Ter obs)</option>
                     </select>
                   </div>
                 </div>
@@ -2762,12 +2762,12 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       onChange={handleChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="aberto">Em aberto</option>
+                      <option value="em_aberto">Em aberto</option>
                       <option value="aprovado">Aprovado</option>
                       <option value="encomendado">Encomendado</option>
-                      <option value="deposito">Em depósito</option>
+                      <option value="em_deposito">Em depósito</option>
                       <option value="cancelado">Cancelado</option>
-                      <option value="outro">Outro (ter obs)</option>
+                      <option value="outro">Outro (Ter obs)</option>
                     </select>
                   </div>
 

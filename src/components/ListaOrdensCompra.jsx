@@ -126,13 +126,13 @@ const ListaOrdensCompra = () => {
     'Aprovado', 
     'Encomendado', 
     'Em depósito', 
-    'Aguardando outra oc', 
+    'Aguardando outra OC', 
     'Agendado', 
-    'Entregue parcial', 
+    'Entregue Parcial', 
     'Entregue', 
-    'Não entregue (ter obs)', 
+    'Não entregue (Ter obs)', 
     'Cancelado', 
-    'Outro (ter obs)'
+    'Outro (Ter obs)'
   ];
 
   // Obter lista única de vendedores das ordens existentes
@@ -472,9 +472,37 @@ const ListaOrdensCompra = () => {
       setMenuAberto(null);
     } else {
       const rect = event.currentTarget.getBoundingClientRect();
+      
+      // Calcular altura estimada do menu (baseado no número de opções)
+      const menuHeight = 240; // Altura estimada do menu dropdown
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      // Se não há espaço suficiente abaixo e há espaço acima, posicionar acima
+      let menuY;
+      if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+        menuY = rect.top - menuHeight - 5;
+      } else {
+        menuY = rect.bottom + 5;
+        
+        // Se ainda assim não há espaço suficiente abaixo, fazer scroll automático
+        if (spaceBelow < menuHeight) {
+          // Encontrar o container da tabela e fazer scroll para baixo
+          const tableContainer = document.querySelector('.overflow-x-auto');
+          if (tableContainer) {
+            const scrollAmount = menuHeight - spaceBelow + 20; // 20px de margem extra
+            tableContainer.scrollBy({
+              top: scrollAmount,
+              behavior: 'smooth'
+            });
+          }
+        }
+      }
+      
       setMenuPosition({
         x: rect.left,
-        y: rect.bottom + 5
+        y: menuY
       });
       setMenuAberto(linha.linhaId);
       // Guardar informações da linha atual para usar no menu
@@ -1084,32 +1112,45 @@ const ListaOrdensCompra = () => {
   };
 
   const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'em aberto':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'aprovado':
-        return 'bg-green-100 text-green-800';
-      case 'encomendado':
-        return 'bg-blue-100 text-blue-800';
-      case 'em depósito':
-        return 'bg-purple-100 text-purple-800';
-      case 'aguardando outra oc':
-        return 'bg-orange-100 text-orange-800';
-      case 'agendado':
-        return 'bg-indigo-100 text-indigo-800';
-      case 'entregue parcial':
-        return 'bg-cyan-100 text-cyan-800';
-      case 'entregue':
-        return 'bg-green-100 text-green-800';
-      case 'não entregue (ter obs)':
-        return 'bg-red-100 text-red-800';
-      case 'cancelado':
-        return 'bg-red-100 text-red-800';
-      case 'outro (ter obs)':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+    // Normalizar o status para comparação
+    const statusNormalizado = status?.toLowerCase().replace(/\s+/g, '_') || '';
+    
+    const colors = {
+      'em_aberto': 'bg-yellow-100 text-yellow-800',
+      'aprovado': 'bg-green-100 text-green-800',
+      'encomendado': 'bg-blue-100 text-blue-800',
+      'em_depósito': 'bg-purple-100 text-purple-800',
+      'aguardando_outra_oc': 'bg-orange-100 text-orange-800',
+      'agendado': 'bg-indigo-100 text-indigo-800',
+      'entregue_parcial': 'bg-cyan-100 text-cyan-800',
+      'entregue': 'bg-green-100 text-green-800',
+      'não_entregue_(ter_obs)': 'bg-red-100 text-red-800',
+      'cancelado': 'bg-red-100 text-red-800',
+      'outro_(ter_obs)': 'bg-gray-100 text-gray-800'
+    };
+    
+    return colors[statusNormalizado] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusLabel = (status) => {
+    // Normalizar o status para comparação
+    const statusNormalizado = status?.toLowerCase().replace(/\s+/g, '_') || '';
+    
+    const labels = {
+      'em_aberto': 'EM ABERTO',
+      'aprovado': 'APROVADO',
+      'encomendado': 'ENCOMENDADO',
+      'em_depósito': 'EM DEPÓSITO',
+      'aguardando_outra_oc': 'AGUARDANDO OUTRA OC',
+      'agendado': 'AGENDADO',
+      'entregue_parcial': 'ENTREGUE PARCIAL',
+      'entregue': 'ENTREGUE',
+      'não_entregue_(ter_obs)': 'NÃO ENTREGUE (TER OBS)',
+      'cancelado': 'CANCELADO',
+      'outro_(ter_obs)': 'OUTRO (TER OBS)'
+    };
+    
+    return labels[statusNormalizado] || status?.toUpperCase() || 'EM ABERTO';
   };
 
   // Função para determinar o status do item baseado em entradas e entregas
@@ -1697,7 +1738,7 @@ const ListaOrdensCompra = () => {
                       case 'status':
                         return (
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(ordem.status)}`}>
-                            {(ordem.status || 'Em aberto').toUpperCase()}
+                            {getStatusLabel(ordem.status)}
                           </span>
                         );
                       case 'statusItem':

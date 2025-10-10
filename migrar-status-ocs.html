@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migração de Status das OCs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background-color: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .warning {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #2196F3;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #1976D2;
+        }
+        button.danger {
+            background-color: #f44336;
+        }
+        button.danger:hover {
+            background-color: #d32f2f;
+        }
+        .log {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .log-item.success { color: #4CAF50; }
+        .log-item.warning { color: #ff9800; }
+        .log-item.error { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Migração de Status das Ordens de Compra</h1>
+        
+        <div class="info">
+            <strong>ℹ️ Sobre esta migração:</strong>
+            <p>Este script irá padronizar os status das Ordens de Compra existentes no sistema para os novos valores consistentes.</p>
+            <p><strong>Mapeamento:</strong></p>
+            <ul>
+                <li>"aberto" → "em_aberto"</li>
+                <li>"deposito" → "em_deposito"</li>
+                <li>Outros status permanecem iguais</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Atenção:</strong>
+            <p>Um backup será criado automaticamente antes da migração.</p>
+        </div>
+
+        <button onclick="analisarDados()">📊 Analisar Dados</button>
+        <button onclick="migrarStatus()">🚀 Migrar Status</button>
+        <button onclick="restaurarBackup()" class="danger">↩️ Restaurar Backup</button>
+
+        <div id="log" class="log" style="display: none;">
+            <strong>Log de Execução:</strong>
+            <div id="logContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const MAPEAMENTO_STATUS = {
+            'aberto': 'em_aberto',
+            'deposito': 'em_deposito',
+            'aprovado': 'aprovado',
+            'encomendado': 'encomendado',
+            'aguardando_outra_oc': 'aguardando_outra_oc',
+            'agendado': 'agendado',
+            'entregue_parcial': 'entregue_parcial',
+            'entregue': 'entregue',
+            'nao_entregue': 'nao_entregue',
+            'cancelado': 'cancelado',
+            'outro': 'outro'
+        };
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const logContent = document.getElementById('logContent');
+            logDiv.style.display = 'block';
+            
+            const logItem = document.createElement('div');
+            logItem.className = `log-item ${type}`;
+            logItem.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContent.appendChild(logItem);
+            
+            // Scroll to bottom
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function analisarDados() {
+            document.getElementById('logContent').innerHTML = '';
+            log('🔍 Iniciando análise dos dados...', 'info');
+
+            const ordensCompra = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+            
+            if (ordensCompra.length === 0) {
+                log('⚠️ Nenhuma ordem de compra encontrada no sistema.', 'warning');
+                return;
+            }
+
+            log(`✅ Total de ordens encontradas: ${ordensCompra.length}`, 'success');
+            
+            // Contar status
+            const statusCount = {};
+            ordensCompra.forEach(ordem => {
+                const status = ordem.status || 'sem_status';
+                statusCount[status] = (statusCount[status] || 0) + 1;
+            });
+
+            log('📊 Distribuição de status atual:', 'info');
+            Object.entries(statusCount).forEach(([status, count]) => {
+                const novoStatus = MAPEAMENTO_STATUS[status] || status;
+                const mudanca = novoStatus !== status ? ` → ${novoStatus}` : ' (sem mudança)';
+                log(`   ${status}: ${count} ordem(ns)${mudanca}`, 'info');
+            });
+
+            // Verificar quais ordens precisam de migração
+            const ordemsPrecisandoMigracao = ordensCompra.filter(ordem => {
+                const status = ordem.status || '';
+                return MAPEAMENTO_STATUS[status] && MAPEAMENTO_STATUS[status] !== status;
+            });
+
+            if (ordemsPrecisandoMigracao.length === 0) {
+                log('✅ Nenhuma ordem precisa de migração!', 'success');
+            } else {
+                log(`⚠️ ${ordemsPrecisandoMigracao.length} ordem(ns) precisa(m) de migração`, 'warning');
+            }
+        }
+
+        function migrarStatus() {
+            document.getElementById('logContent').innerHTML = '';
+            log('🚀 Iniciando migração de status...', 'info');
+
+            try {
+                // 1. Fazer backup
+                const ordensCompra = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+                
+                if (ordensCompra.length === 0) {
+                    log('⚠️ Nenhuma ordem de compra encontrada. Migração cancelada.', 'warning');
+                    return;
+                }
+
+                // Criar backup
+                const backupKey = `ordensCompra_backup_${Date.now()}`;
+                localStorage.setItem(backupKey, JSON.stringify(ordensCompra));
+                localStorage.setItem('ordensCompra_ultimo_backup', backupKey);
+                log(`💾 Backup criado: ${backupKey}`, 'success');
+
+                // 2. Migrar status
+                let ordemsMigradas = 0;
+                const ordensAtualizadas = ordensCompra.map(ordem => {
+                    const statusAtual = ordem.status || 'aberto';
+                    const novoStatus = MAPEAMENTO_STATUS[statusAtual] || statusAtual;
+                    
+                    if (novoStatus !== statusAtual) {
+                        ordemsMigradas++;
+                        log(`🔄 Migrando OC ${ordem.oc || ordem.numero || 'S/N'}: "${statusAtual}" → "${novoStatus}"`, 'info');
+                        return {
+                            ...ordem,
+                            status: novoStatus
+                        };
+                    }
+                    
+                    return ordem;
+                });
+
+                // 3. Salvar dados migrados
+                localStorage.setItem('ordensCompra', JSON.stringify(ordensAtualizadas));
+                
+                log('', 'info');
+                log('✅ MIGRAÇÃO CONCLUÍDA COM SUCESSO!', 'success');
+                log(`📊 Total de ordens: ${ordensCompra.length}`, 'success');
+                log(`✨ Ordens migradas: ${ordemsMigradas}`, 'success');
+                log(`💾 Backup disponível em: ${backupKey}`, 'success');
+                
+                if (ordemsMigradas === 0) {
+                    log('ℹ️ Nenhuma ordem precisava de migração', 'info');
+                }
+
+            } catch (error) {
+                log(`❌ ERRO durante a migração: ${error.message}`, 'error');
+                console.error('Erro na migração:', error);
+            }
+        }
+
+        function restaurarBackup() {
+            if (!confirm('⚠️ Tem certeza que deseja restaurar o backup? Isso irá desfazer todas as migrações realizadas.')) {
+                return;
+            }
+
+            document.getElementById('logContent').innerHTML = '';
+            log('🔙 Iniciando restauração do backup...', 'info');
+
+            try {
+                const ultimoBackupKey = localStorage.getItem('ordensCompra_ultimo_backup');
+                
+                if (!ultimoBackupKey) {
+                    log('❌ Nenhum backup encontrado!', 'error');
+                    return;
+                }
+
+                const backup = localStorage.getItem(ultimoBackupKey);
+                
+                if (!backup) {
+                    log(`❌ Backup ${ultimoBackupKey} não encontrado!`, 'error');
+                    return;
+                }
+
+                // Restaurar backup
+                localStorage.setItem('ordensCompra', backup);
+                
+                log(`✅ Backup ${ultimoBackupKey} restaurado com sucesso!`, 'success');
+                log('ℹ️ Recarregue a página para ver as mudanças no sistema', 'info');
+
+            } catch (error) {
+                log(`❌ ERRO ao restaurar backup: ${error.message}`, 'error');
+                console.error('Erro na restauração:', error);
+            }
+        }
+
+        // Executar análise automaticamente ao carregar a página
+        window.addEventListener('load', () => {
+            setTimeout(analisarDados, 500);
+        });
+    </script>
+</body>
+</html>
+
