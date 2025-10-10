@@ -72,7 +72,8 @@ const NovoPedidoVenda = () => {
   // Estado para menu dropdown dos 3 pontinhos
   const [menuAcoes, setMenuAcoes] = useState({
     isOpen: false,
-    produtoIndex: null
+    produtoIndex: null,
+    position: { top: 0, left: 0 }
   });
 
   // Debug: log do estado do menu
@@ -395,6 +396,10 @@ const NovoPedidoVenda = () => {
   // Fechar dropdown quando clicar fora
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Não fechar se clicar dentro do menu flutuante ou no botão de ações
+      if (event.target.closest('.menu-acoes-flutuante') || event.target.closest('.btn-acoes')) {
+        return;
+      }
       // Verificar se o clique foi fora dos elementos que devem fechar
       if (!event.target.closest('.relative')) {
         setMostrarSugestoesProduto(false);
@@ -404,7 +409,7 @@ const NovoPedidoVenda = () => {
         setMostrarSugestoesFornecedor(false);
         setFornecedorIndexAtual(null);
         // Fechar o menu de ações quando clicar fora
-        setMenuAcoes({ isOpen: false, produtoIndex: null });
+        setMenuAcoes({ isOpen: false, produtoIndex: null, position: { top: 0, left: 0 } });
       }
     };
 
@@ -792,7 +797,8 @@ const NovoPedidoVenda = () => {
     console.log('Abrindo menu para produto:', index);
     setMenuAcoes({
       isOpen: true,
-      produtoIndex: index
+      produtoIndex: index,
+      position: { top: 0, left: 0 }
     });
   };
 
@@ -800,7 +806,8 @@ const NovoPedidoVenda = () => {
     console.log('Fechando menu');
     setMenuAcoes({
       isOpen: false,
-      produtoIndex: null
+      produtoIndex: null,
+      position: { top: 0, left: 0 }
     });
   };
 
@@ -1485,18 +1492,18 @@ const NovoPedidoVenda = () => {
 
   const criarOrdemCompraAutomatica = async (dadosPedido, produtosSE) => {
     try {
-      console.log('🛒 === CRIANDO ORDEM DE COMPRA AUTOMÁTICA ===');
-      console.log('📋 Pedido vinculado:', dadosPedido.numeroPedido);
-      console.log('📦 Produtos SE:', produtosSE);
 
-      // Buscar próxima OC disponível
+      // Buscar próxima OC disponível (considerando TODAS as OCs: A, B e C)
       const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-      let ultimaOC = ordensExistentes.reduce((max, oc) => {
-        const numero = parseInt(oc.oc?.replace('A-', '') || '0');
-        return numero > max ? numero : max;
-      }, 0);
+      
+      const todasOCs = ordensExistentes
+        .filter(ordem => ordem.oc && ordem.oc.match(/^[ABC]-\d+$/))
+        .map(ordem => {
+          const match = ordem.oc.match(/^[ABC]-(\d+)$/);
+          return match ? parseInt(match[1]) : 0;
+        });
 
-      console.log('🔢 Última OC encontrada:', ultimaOC);
+      const ultimaOCNumero = todasOCs.length > 0 ? Math.max(...todasOCs) : 0;
 
       // Preparar todos os produtos SE para uma única ordem de compra
       const produtosPreparados = produtosSE.map(produto => {
@@ -1507,14 +1514,9 @@ const NovoPedidoVenda = () => {
         };
       });
 
-      console.log('📦 Produtos SE preparados:', produtosPreparados);
-
       // Gerar número de OC único para o pedido
-      ultimaOC++;
-      const proximaOC = `A-${String(ultimaOC).padStart(4, '0')}`;
-      
-      console.log('🔢 Gerando OC única:', proximaOC, 'para o pedido:', dadosPedido.numeroPedido);
-      // Preparar itens da ordem de compra
+      const proximaOCNumero = ultimaOCNumero + 1;
+      const proximaOC = `A-${String(proximaOCNumero).padStart(4, '0')}`;
       const itensOrdemCompra = produtosPreparados.map(produto => {
         const produtoCadastrado = produto.produtoCadastrado;
         // Usar fornecedor específico do produto ou "Sem Cadastro" se não estiver cadastrado
@@ -1564,18 +1566,20 @@ const NovoPedidoVenda = () => {
       const fabricaPrincipal = itensOrdemCompra.length > 0 ? itensOrdemCompra[0].fornecedor : 'Sem Cadastro';
 
       // Criar dados da ordem de compra única
+      const dataVendaFinal = dadosPedido.dataVenda || dadosPedido.dataCriacao || new Date().toISOString().split('T')[0];
+      
       const dadosOrdemCompra = {
         id: Math.floor(Date.now() + Math.random() * 1000), // ID único inteiro para a ordem
         tipo: 'cliente', // Mudado de 'encomenda' para 'cliente' conforme solicitado
         status: 'Em aberto', // Status compatível com ListaOrdensCompra
-        dataVenda: dadosPedido.dataVenda || new Date().toISOString().split('T')[0],
+        dataVenda: dataVendaFinal,
         dataEncomenda: '', // Deixar vazio conforme solicitado
         oc: proximaOC,
         numero: proximaOC, // Campo necessário para ListaOrdensCompra
         pedidoVinculado: dadosPedido.numeroPedido,
         vendedor: dadosPedido.vendedor || '',
         obsNaoEntregue: '',
-        prazoFinal: calcular45DiasUteis(dadosPedido.dataVenda), // Calculado automaticamente
+        prazoFinal: calcular45DiasUteis(dataVendaFinal), // Calculado automaticamente
         dataEntradaDeposito: '',
         documentoFabrica: '',
         entregaCliente: '',
@@ -1609,22 +1613,16 @@ const NovoPedidoVenda = () => {
         ultimaAtualizacao: new Date().toISOString()
       };
 
-      console.log('📋 Dados da ordem de compra criada:', dadosOrdemCompra);
-
       // Salvar a ordem de compra
       ordensExistentes.push(dadosOrdemCompra);
       localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
-      
-      console.log(`✅ Ordem de compra ${proximaOC} criada para o pedido ${dadosPedido.numeroPedido}`);
-      
-      // Não exibir popup de confirmação - apenas log no console
-      console.log(`🎉 Ordem de compra ${proximaOC} criada automaticamente com ${itensOrdemCompra.length} produto(s) SE`);
       
       return [dadosOrdemCompra];
 
     } catch (error) {
       console.error('❌ Erro ao criar ordem de compra automática:', error);
-      alert('❌ Erro ao criar ordem de compra automática. Verifique os dados e tente novamente.');
+      alert(`❌ Erro ao criar ordem de compra automática: ${error.message}`);
+      return null;
     }
   };
 
@@ -2259,62 +2257,38 @@ const NovoPedidoVenda = () => {
                       </tr>
                     ) : (
                       formData.produtos.map((produto, index) => {
-                        const isMenuOpen = menuAcoes.isOpen && menuAcoes.produtoIndex === index;
                         return (
-                          <tr key={index} className={isMenuOpen ? 'pb-20' : ''}>
+                          <tr key={index}>
                             <td className="px-2 py-2" style={{width: '2%'}}>
                               <div className="text-sm font-bold text-gray-600">{index + 1}</div>
                             </td>
                             <td className="px-2 py-2" style={{width: '3%'}}>
-                              <div className="relative">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    console.log('Clique no botão dos 3 pontinhos para produto:', index);
-                                    if (menuAcoes.isOpen && menuAcoes.produtoIndex === index) {
-                                      // Fechar menu se já estiver aberto para este produto
-                                      setMenuAcoes({ isOpen: false, produtoIndex: null });
-                                    } else {
-                                      // Abrir menu para este produto
-                                      setMenuAcoes({ isOpen: true, produtoIndex: index });
-                                    }
-                                  }}
-                                  className="text-gray-600 hover:text-gray-800 p-1"
-                                  title="Ações"
-                                >
-                                  <FaEllipsisH />
-                                </button>
-                                
-                                {/* Menu dropdown */}
-                                {menuAcoes.isOpen && menuAcoes.produtoIndex === index && (
-                                  <div className="absolute left-0 top-full mt-2 w-32 bg-white shadow-lg rounded-md border border-gray-200 z-[9999]">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        console.log('Editando produto:', index);
-                                        setMenuAcoes({ isOpen: false, produtoIndex: null });
-                                        editarProduto(index);
-                                      }}
-                                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                                    >
-                                      <FaEdit className="text-blue-600" />
-                                      Editar
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        console.log('Excluindo produto:', index);
-                                        setMenuAcoes({ isOpen: false, produtoIndex: null });
-                                        excluirProduto(index);
-                                      }}
-                                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                                    >
-                                      <FaTrash className="text-red-600" />
-                                      Excluir
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  console.log('Clique no botão dos 3 pontinhos para produto:', index);
+                                  if (menuAcoes.isOpen && menuAcoes.produtoIndex === index) {
+                                    // Fechar menu se já estiver aberto para este produto
+                                    setMenuAcoes({ isOpen: false, produtoIndex: null, position: { top: 0, left: 0 } });
+                                  } else {
+                                    // Calcular posição do botão
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    // Abrir menu para este produto
+                                    setMenuAcoes({ 
+                                      isOpen: true, 
+                                      produtoIndex: index,
+                                      position: {
+                                        top: rect.bottom + 5,
+                                        left: rect.left
+                                      }
+                                    });
+                                  }
+                                }}
+                                className="text-gray-600 hover:text-gray-800 p-1 btn-acoes"
+                                title="Ações"
+                              >
+                                <FaEllipsisH />
+                              </button>
                             </td>
                             <td className="px-2 py-2" style={{width: '4%'}}>
                               <div className="text-sm font-medium">{produto.sl?.toUpperCase()}</div>
@@ -2372,6 +2346,46 @@ const NovoPedidoVenda = () => {
                   </tbody>
                 </table>
               </div>
+              
+              {/* Menu dropdown flutuante */}
+              {menuAcoes.isOpen && (
+                <div 
+                  style={{
+                    position: 'fixed',
+                    top: `${menuAcoes.position.top}px`,
+                    left: `${menuAcoes.position.left}px`,
+                    zIndex: 9999
+                  }}
+                  className="w-32 bg-white shadow-lg rounded-md border border-gray-200 menu-acoes-flutuante"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const index = menuAcoes.produtoIndex;
+                      console.log('Editando produto:', index);
+                      fecharMenuAcoes();
+                      abrirModalProduto(index);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <FaEdit className="text-blue-600" />
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const index = menuAcoes.produtoIndex;
+                      console.log('Excluindo produto:', index);
+                      fecharMenuAcoes();
+                      removeProduto(index);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <FaTrash className="text-red-600" />
+                    Excluir
+                  </button>
+                </div>
+              )}
               
               {/* Totais - Posicionado na parte inferior direita */}
               {formData.produtos.length > 0 && (

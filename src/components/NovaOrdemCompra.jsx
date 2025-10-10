@@ -87,9 +87,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   const [showAnexoPopup, setShowAnexoPopup] = useState(null);
   const [documentosPorItem, setDocumentosPorItem] = useState({});
 
-  const [nextOCEstoque, setNextOCEstoque] = useState('B-0001');
-  const [nextOCAssistencia, setNextOCAssistencia] = useState('C-0001');
-
   const [itensEnviados, setItensEnviados] = useState({});
   const [itensSelecionados, setItensSelecionados] = useState({});
   const [fornecedores, setFornecedores] = useState([]);
@@ -121,6 +118,14 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 
   // Estado para controlar menu de 3 pontinhos de cada item
   const [menuAberto, setMenuAberto] = useState({});
+  // Menu flutuante dos itens (3 pontinhos)
+  const [menuItemAcoes, setMenuItemAcoes] = useState({
+    isOpen: false,
+    itemIndex: null,
+    position: { top: 0, left: 0 }
+  });
+  // Posição do dropdown de sugestões de produtos (flutuante)
+  const [sugestoesPosicao, setSugestoesPosicao] = useState({ top: 0, left: 0, width: 0 });
 
   // Estados para controlar modais de entrada e entrega por item
   const [modalEntradaAberto, setModalEntradaAberto] = useState(null);
@@ -263,13 +268,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
         status: 'aberto'
       }));
       
-      if (tipoPreSelecionado === 'cliente') {
-        setNextOC(proximaOC);
-      } else if (tipoPreSelecionado === 'estoque') {
-        setNextOCEstoque(proximaOC);
-      } else if (tipoPreSelecionado === 'assistencia') {
-        setNextOCAssistencia(proximaOC);
-      }
+      setNextOC(proximaOC);
     }
   }, [tipoPreSelecionado, id]);
 
@@ -534,30 +533,14 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     }
 
     if (name === 'tipo') {
-      if (value === 'cliente') {
-        const proximaOC = buscarProximaOC('cliente');
+      if (value === 'cliente' || value === 'estoque' || value === 'assistencia') {
+        const proximaOC = buscarProximaOC(value);
         setFormData(prev => ({
           ...prev,
           oc: proximaOC,
           status: 'aberto'
         }));
         setNextOC(proximaOC);
-      } else if (value === 'estoque') {
-        const proximaOC = buscarProximaOC('estoque');
-        setFormData(prev => ({
-          ...prev,
-          oc: proximaOC,
-          status: 'aberto'
-        }));
-        setNextOCEstoque(proximaOC);
-      } else if (value === 'assistencia') {
-        const proximaOC = buscarProximaOC('assistencia');
-        setFormData(prev => ({
-          ...prev,
-          oc: proximaOC,
-          status: 'aberto'
-        }));
-        setNextOCAssistencia(proximaOC);
       }
     }
 
@@ -621,7 +604,16 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   };
 
   // Funções para controlar menu de 3 pontinhos
-  const toggleMenu = (itemType, index) => {
+  const toggleMenu = (itemType, index, event) => {
+    // Abrir como menu flutuante com coordenadas do botão
+    const rect = event?.currentTarget?.getBoundingClientRect();
+    if (rect) {
+      setMenuItemAcoes({
+        isOpen: true,
+        itemIndex: index,
+        position: { top: rect.bottom + 6, left: rect.left }
+      });
+    }
     setMenuAberto(prev => ({
       ...prev,
       [`${itemType}-${index}`]: !prev[`${itemType}-${index}`]
@@ -633,6 +625,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       ...prev,
       [`${itemType}-${index}`]: false
     }));
+    setMenuItemAcoes({ isOpen: false, itemIndex: null, position: { top: 0, left: 0 } });
   };
 
   const handleConfirmDeleteEntrada = (index) => {
@@ -875,27 +868,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   };
 
   const handleGerarOC = () => {
-    if (formData.tipo === 'cliente') {
-      const proximaOC = buscarProximaOC('cliente');
+    if (formData.tipo) {
+      const proximaOC = buscarProximaOC(formData.tipo);
       setFormData(prev => ({
         ...prev,
         oc: proximaOC
       }));
       setNextOC(proximaOC);
-    } else if (formData.tipo === 'estoque') {
-      const proximaOC = buscarProximaOC('estoque');
-      setFormData(prev => ({
-        ...prev,
-        oc: proximaOC
-      }));
-      setNextOCEstoque(proximaOC);
-    } else if (formData.tipo === 'assistencia') {
-      const proximaOC = buscarProximaOC('assistencia');
-      setFormData(prev => ({
-        ...prev,
-        oc: proximaOC
-      }));
-      setNextOCAssistencia(proximaOC);
     }
   };
 
@@ -1938,14 +1917,20 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     }));
   };
 
-  // Event listeners para fechar sugestões
+  // Event listeners para fechar sugestões e menus flutuantes
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Não fechar ao clicar nas sugestões ou botão de ações
+      if (event.target.closest('.sugestoes-oc') || event.target.closest('.btn-acoes-oc') || event.target.closest('.menu-acoes-oc')) {
+        return;
+      }
       // Se clicar fora de qualquer campo de produto, fechar sugestões
       if (!event.target.closest('.campo-produto')) {
         setSugestoesProdutos([]);
         setCampoProdutoAtivo(null);
       }
+      // Fechar menu de ações dos itens
+      setMenuItemAcoes({ isOpen: false, itemIndex: null, position: { top: 0, left: 0 } });
     };
 
     const handleKeyDown = (event) => {
@@ -2100,7 +2085,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   oc: proximaOC,
                   status: 'aberto'
                 }));
-                setNextOCEstoque(proximaOC);
+                setNextOC(proximaOC);
               }}
               className="bg-green-600 hover:bg-green-700 text-white p-6 rounded-lg transition-colors"
             >
@@ -2118,7 +2103,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   oc: proximaOC,
                   status: 'aberto'
                 }));
-                setNextOCAssistencia(proximaOC);
+                setNextOC(proximaOC);
               }}
               className="bg-purple-600 hover:bg-purple-700 text-white p-6 rounded-lg transition-colors"
             >
@@ -2411,40 +2396,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <div className="relative menu-dropdown">
                                 <button
-                                  onClick={() => toggleMenu('item', index)}
-                                  className="p-1 text-gray-600 hover:text-gray-800"
+                                  onClick={(e) => toggleMenu('item', index, e)}
+                                  className="p-1 text-gray-600 hover:text-gray-800 btn-acoes-oc"
                                   title="Menu"
                                 >
                                   <FaEllipsisV />
                                 </button>
-                                {menuAberto[`item-${index}`] && (
-                                  <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                    <button
-                                      onClick={() => abrirModalEntrada(index)}
-                                      className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
-                                    >
-                                      <FaCheck />
-                                      Dar entrada
-                                    </button>
-                                    <button
-                                      onClick={() => abrirModalEntrega(index)}
-                                      className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                                    >
-                                      <FaCalendarAlt />
-                                      Data Entrega
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        handleDeleteItem(index);
-                                        fecharMenu('item', index);
-                                      }}
-                                      className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                    >
-                                      <FaTrash />
-                                      Excluir Item
-                                    </button>
-                                  </div>
-                                )}
+                                {/* Dropdown inline removido: menu flutuante global abaixo */}
                               </div>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
@@ -2472,15 +2430,25 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                     // Buscar produtos automaticamente enquanto digita
                                     if (valor.length >= 2) {
                                       handleBuscarProduto(valor, index);
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setSugestoesPosicao(prev => {
+                                        const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+                                        return (prev.top !== next.top || prev.left !== next.left || prev.width !== next.width) ? next : prev;
+                                      });
                                     } else {
                                       setSugestoesProdutos([]);
                                       setCampoProdutoAtivo(null);
                                     }
                                   }}
-                                  onFocus={() => {
+                                  onFocus={(e) => {
                                     // Se já há texto no campo, mostrar sugestões imediatamente
                                     if (item.descricao && item.descricao.length >= 2) {
                                       handleBuscarProduto(item.descricao, index);
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setSugestoesPosicao(prev => {
+                                        const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+                                        return (prev.top !== next.top || prev.left !== next.left || prev.width !== next.width) ? next : prev;
+                                      });
                                     }
                                   }}
                                   onBlur={() => {
@@ -2983,40 +2951,13 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <div className="relative menu-dropdown">
                                 <button
-                                  onClick={() => toggleMenu('item', index)}
-                                  className="p-1 text-gray-600 hover:text-gray-800"
+                                  onClick={(e) => toggleMenu('item', index, e)}
+                                  className="p-1 text-gray-600 hover:text-gray-800 btn-acoes-oc"
                                   title="Menu"
                                 >
                                   <FaEllipsisV />
                                 </button>
-                                {menuAberto[`item-${index}`] && (
-                                  <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                    <button
-                                      onClick={() => abrirModalEntrada(index)}
-                                      className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
-                                    >
-                                      <FaCheck />
-                                      Dar entrada
-                                    </button>
-                                    <button
-                                      onClick={() => abrirModalEntrega(index)}
-                                      className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                                    >
-                                      <FaCalendarAlt />
-                                      Data Entrega
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        handleDeleteItem(index);
-                                        fecharMenu('item', index);
-                                      }}
-                                      className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                    >
-                                      <FaTrash />
-                                      Excluir Item
-                                    </button>
-                                  </div>
-                                )}
+                                {/* Dropdown inline removido: menu flutuante global abaixo */}
                               </div>
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
@@ -3044,15 +2985,25 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                                     // Buscar produtos automaticamente enquanto digita
                                     if (valor.length >= 2) {
                                       handleBuscarProduto(valor, index);
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setSugestoesPosicao(prev => {
+                                        const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+                                        return (prev.top !== next.top || prev.left !== next.left || prev.width !== next.width) ? next : prev;
+                                      });
                                     } else {
                                       setSugestoesProdutos([]);
                                       setCampoProdutoAtivo(null);
                                     }
                                   }}
-                                  onFocus={() => {
+                                  onFocus={(e) => {
                                     // Se já há texto no campo, mostrar sugestões imediatamente
                                     if (item.descricao && item.descricao.length >= 2) {
                                     handleBuscarProduto(item.descricao, index);
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setSugestoesPosicao(prev => {
+                                      const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+                                      return (prev.top !== next.top || prev.left !== next.left || prev.width !== next.width) ? next : prev;
+                                    });
                                   }
                                 }}
                                 onBlur={() => {
@@ -3075,24 +3026,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                               {item.produtoNaoCadastrado && (
                                 <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-1 rounded-full" title="Produto não cadastrado (local SE)">
                                   ⚠️
-                                </div>
-                              )}
-                              
-                              {sugestoesProdutos.length > 0 && campoProdutoAtivo === index && (
-                                <div className="absolute z-[9999] w-full mt-1 bg-white border-2 border-blue-500 rounded-md shadow-2xl max-h-40 overflow-y-auto" style={{backgroundColor: 'white', border: '2px solid #3b82f6'}}>
-                                  {sugestoesProdutos.map((produto, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                                      onMouseDown={(e) => {
-                                        e.preventDefault();
-                                        handleSelecionarProduto(produto, index);
-                                      }}
-                                    >
-                                      <div className="font-medium">{produto.descricao}</div>
-                                      <div className="text-gray-600">Custo: R$ {produto.custoBruto?.toFixed(2) || '0.00'}</div>
-                                    </div>
-                                  ))}
                                 </div>
                               )}
                               </div>
@@ -4309,8 +4242,74 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
         </div>
       )}
 
+      {/* Menu flutuante dos itens */}
+      {menuItemAcoes.isOpen && (
+        <div
+          className="menu-acoes-oc fixed bg-white border border-gray-200 rounded-md shadow-lg z-[9999]"
+          style={{ top: `${menuItemAcoes.position.top}px`, left: `${menuItemAcoes.position.left}px`, width: 192 }}
+        >
+          <button
+            onClick={() => {
+              const idx = menuItemAcoes.itemIndex;
+              setMenuItemAcoes({ isOpen: false, itemIndex: null, position: { top: 0, left: 0 } });
+              abrirModalEntrada(idx);
+            }}
+            className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2"
+          >
+            <FaCheck />
+            Dar entrada
+          </button>
+          <button
+            onClick={() => {
+              const idx = menuItemAcoes.itemIndex;
+              setMenuItemAcoes({ isOpen: false, itemIndex: null, position: { top: 0, left: 0 } });
+              abrirModalEntrega(idx);
+            }}
+            className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <FaCalendarAlt />
+            Data Entrega
+          </button>
+          <button
+            onClick={() => {
+              const idx = menuItemAcoes.itemIndex;
+              setMenuItemAcoes({ isOpen: false, itemIndex: null, position: { top: 0, left: 0 } });
+              handleDeleteItem(idx);
+            }}
+            className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            <FaTrash />
+            Excluir Item
+          </button>
+        </div>
+      )}
+
+      {/* Sugestões flutuantes de produtos */}
+      {sugestoesProdutos.length > 0 && campoProdutoAtivo !== null && (
+        <div
+          className="sugestoes-oc fixed bg-white border-2 border-blue-500 rounded-md shadow-2xl z-[9999]"
+          style={{ top: `${sugestoesPosicao.top}px`, left: `${sugestoesPosicao.left}px`, width: `${sugestoesPosicao.width}px`, maxHeight: 160, overflowY: 'auto' }}
+        >
+          {sugestoesProdutos.map((produto, idx) => (
+            <div
+              key={idx}
+              className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleSelecionarProduto(produto, campoProdutoAtivo);
+              }}
+            >
+              <div className="font-medium">{produto.descricao}</div>
+              <div className="text-gray-600">Custo: R$ {produto.custoBruto?.toFixed(2) || '0.00'}</div>
+              <div className="text-gray-500 text-xs">Fornecedor: {produto.fornecedor || 'N/A'}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
     </div>
   );
 };
 
 export default NovaOrdemCompra;
+
