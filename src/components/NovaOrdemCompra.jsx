@@ -18,7 +18,8 @@ import {
   FaPrint,
   FaArrowLeft,
   FaCalendarAlt,
-  FaEllipsisV
+  FaEllipsisV,
+  FaTimes
 } from 'react-icons/fa';
 
 // Adicionar estilo global para remover o ícone de calendário
@@ -851,6 +852,26 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       entradas: entradas.filter(e => e.itemIndex === itemIndex),
       entregas: entregas.filter(e => e.itemIndex === itemIndex)
     };
+  };
+
+  // Função para excluir entrada
+  const excluirEntrada = (indexEntrada) => {
+    if (window.confirm('Deseja realmente excluir esta entrada?')) {
+      setFormData(prev => ({
+        ...prev,
+        entradas: (prev.entradas || []).filter((_, idx) => idx !== indexEntrada)
+      }));
+    }
+  };
+
+  // Função para excluir entrega
+  const excluirEntrega = (indexEntrega) => {
+    if (window.confirm('Deseja realmente excluir esta data de entrega?')) {
+      setFormData(prev => ({
+        ...prev,
+        datasEntrega: (prev.datasEntrega || []).filter((_, idx) => idx !== indexEntrega)
+      }));
+    }
   };
 
   const handleGerarOC = () => {
@@ -4059,49 +4080,65 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {entradas.map((entrada, index) => (
-                          <div 
-                            key={index}
-                            className="bg-green-50 border border-green-200 p-4 rounded-lg"
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                  Item {entrada.itemIndex + 1}
-                                </span>
-                                <span className="text-sm text-gray-600">
-                                  {formData.itens[entrada.itemIndex]?.descricao || 'Item removido'}
-                                </span>
+                        {entradas.map((entrada, index) => {
+                          // Encontrar o índice real da entrada no array completo
+                          const indexReal = (formData.entradas || []).findIndex((e, i) => 
+                            e.itemIndex === entrada.itemIndex && 
+                            e.dataEntrada === entrada.dataEntrada &&
+                            e.documentoFabrica === entrada.documentoFabrica
+                          );
+                          
+                          return (
+                            <div 
+                              key={index}
+                              className="bg-green-50 border border-green-200 p-4 rounded-lg"
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                    Item {entrada.itemIndex + 1}
+                                  </span>
+                                  <span className="text-sm text-gray-600">
+                                    {formData.itens[entrada.itemIndex]?.descricao || 'Item removido'}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => excluirEntrada(indexReal)}
+                                  className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
+                                  title="Excluir entrada"
+                                >
+                                  <FaTimes className="text-sm" />
+                                </button>
                               </div>
-                            </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                              <div>
-                                <span className="font-medium text-gray-700">Data Entrada:</span>
-                                <p className="text-gray-900 mt-1">
-                                  {entrada.dataEntrada ? new Date(entrada.dataEntrada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                </p>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                  <span className="font-medium text-gray-700">Data Entrada:</span>
+                                  <p className="text-gray-900 mt-1">
+                                    {entrada.dataEntrada ? new Date(entrada.dataEntrada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-700">Documento Fábrica:</span>
+                                  <p className="text-gray-900 mt-1">{entrada.documentoFabrica || '-'}</p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-700">Data Documento:</span>
+                                  <p className="text-gray-900 mt-1">
+                                    {entrada.dataDocumento ? new Date(entrada.dataDocumento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Documento Fábrica:</span>
-                                <p className="text-gray-900 mt-1">{entrada.documentoFabrica || '-'}</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Data Documento:</span>
-                                <p className="text-gray-900 mt-1">
-                                  {entrada.dataDocumento ? new Date(entrada.dataDocumento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                </p>
-                              </div>
-                            </div>
                             
-                            {entrada.observacao && (
-                              <div className="mt-3 pt-3 border-t border-green-200">
-                                <span className="font-medium text-gray-700">Observações:</span>
-                                <p className="text-gray-900 mt-1">{entrada.observacao}</p>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                              {entrada.observacao && (
+                                <div className="mt-3 pt-3 border-t border-green-200">
+                                  <span className="font-medium text-gray-700">Observações:</span>
+                                  <p className="text-gray-900 mt-1">{entrada.observacao}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -4125,36 +4162,52 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {entregas.map((entrega, index) => (
-                          <div 
-                            key={index}
-                            className="bg-blue-50 border border-blue-200 p-4 rounded-lg"
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                  Item {entrega.itemIndex + 1}
-                                </span>
-                                <span className="text-sm text-gray-600">
-                                  {formData.itens[entrega.itemIndex]?.descricao || 'Item removido'}
-                                </span>
+                        {entregas.map((entrega, index) => {
+                          // Encontrar o índice real da entrega no array completo
+                          const indexReal = (formData.datasEntrega || []).findIndex((e, i) => 
+                            e.itemIndex === entrega.itemIndex && 
+                            e.data === entrega.data &&
+                            e.observacao === entrega.observacao
+                          );
+                          
+                          return (
+                            <div 
+                              key={index}
+                              className="bg-blue-50 border border-blue-200 p-4 rounded-lg"
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                    Item {entrega.itemIndex + 1}
+                                  </span>
+                                  <span className="text-sm text-gray-600">
+                                    {formData.itens[entrega.itemIndex]?.descricao || 'Item removido'}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => excluirEntrega(indexReal)}
+                                  className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
+                                  title="Excluir data de entrega"
+                                >
+                                  <FaTimes className="text-sm" />
+                                </button>
                               </div>
-                            </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className="font-medium text-gray-700">Data Entrega:</span>
-                                <p className="text-gray-900 mt-1">
-                                  {entrega.data ? new Date(entrega.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Observações:</span>
-                                <p className="text-gray-900 mt-1">{entrega.observacao || '-'}</p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="font-medium text-gray-700">Data Entrega:</span>
+                                  <p className="text-gray-900 mt-1">
+                                    {entrega.data ? new Date(entrega.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-700">Observações:</span>
+                                  <p className="text-gray-900 mt-1">{entrega.observacao || '-'}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

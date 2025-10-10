@@ -680,6 +680,49 @@ const ListaOrdensCompra = () => {
     alert('Data de entrega salva com sucesso!');
   };
 
+  // Função para excluir ocorrência
+  const excluirOcorrencia = (indexOcorrencia) => {
+    if (!window.confirm('Deseja realmente excluir esta ocorrência?')) return;
+    
+    if (!ordemModalAtual) return;
+
+    // Buscar a ordem completa no localStorage
+    const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    
+    if (ordemIndex === -1) {
+      alert('Ordem não encontrada!');
+      return;
+    }
+
+    const ordem = ordensExistentes[ordemIndex];
+    
+    // Remover ocorrência
+    const ocorrenciasAtualizadas = (ordem.ocorrencias || []).filter((_, idx) => idx !== indexOcorrencia);
+
+    // Atualizar ordem
+    ordensExistentes[ordemIndex] = {
+      ...ordem,
+      ocorrencias: ocorrenciasAtualizadas,
+      dataAtualizacao: new Date().toISOString()
+    };
+
+    // Salvar no localStorage
+    localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+    
+    // Atualizar estado local
+    setOrdensCompra(ordensExistentes);
+    
+    // Atualizar ordemModalAtual
+    setOrdemModalAtual({
+      ...ordemModalAtual,
+      ocorrencias: ocorrenciasAtualizadas
+    });
+    
+    // Disparar evento para sincronizar
+    window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+  };
+
   const confirmDeleteProduct = () => {
     if (productToDelete) {
       const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
@@ -848,32 +891,32 @@ const ListaOrdensCompra = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex items-center mb-6 gap-6">
         <h1 className="text-2xl font-bold text-gray-800">Ordens de Compra</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-1 flex-wrap">
           <button
             onClick={() => setShowColumnsModal(true)}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+            className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 text-sm"
           >
             <FaColumns /> Ver Colunas
           </button>
           <button
             onClick={() => setShowFilters(true)}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+            className="bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
           >
             <FaFilter /> Filtros
           </button>
           {hasActiveFilters() && (
             <button
               onClick={limparFiltros}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+              className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 text-sm"
             >
               <FaTimes /> Limpar Filtros
             </button>
           )}
         <button
           onClick={() => navigate('/ordens-compra/novo')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
         >
             <FaPlus /> Nova Ordem de Compra
         </button>
@@ -1709,15 +1752,30 @@ const ListaOrdensCompra = () => {
                 {ordemModalAtual.ocorrencias && ordemModalAtual.ocorrencias.length > 0 ? (
                   <div className="space-y-3">
                     {ordemModalAtual.ocorrencias.map((ocorrencia, index) => (
-                      <div key={index} className="border-l-4 border-purple-500 pl-4">
-                        <div className="flex justify-between items-start">
-                          <div>
+                      <div key={index} className="border-l-4 border-purple-500 pl-4 pr-2 relative">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
                             <p className="text-sm text-gray-600">{ocorrencia.descricao}</p>
+                            {ocorrencia.detalhes?.observacao && (
+                              <div className="mt-2 pt-2 border-t border-purple-200">
+                                <p className="text-xs font-medium text-gray-700">Observações:</p>
+                                <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
+                              </div>
+                            )}
                           </div>
-                          <span className="text-xs text-gray-500">
-                            {new Date(ocorrencia.data).toLocaleDateString('pt-BR')}
-                          </span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-gray-500">
+                              {new Date(ocorrencia.data).toLocaleDateString('pt-BR')}
+                            </span>
+                            <button
+                              onClick={() => excluirOcorrencia(index)}
+                              className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
+                              title="Excluir ocorrência"
+                            >
+                              <FaTimes className="text-xs" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
