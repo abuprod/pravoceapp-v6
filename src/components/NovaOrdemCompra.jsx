@@ -2171,21 +2171,14 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
               ? 'Nova Ordem de Compra Assistência'
               : 'Nova Ordem de Compra'}
           </h1>
-          {(formData.tipo === 'cliente' || formData.tipo === 'estoque') && (
-            <div className="flex items-center gap-2">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(formData.status)}`}>
-                {getStatusLabel(formData.status)}
-              </span>
-              {hasChanges && (
-                <button
-                  onClick={() => setShowChangesAlert(true)}
-                  className="text-red-500 hover:text-red-600"
-                  title="Clique para ver as alterações"
-                >
-                  <FaExclamationCircle />
-                </button>
-              )}
-            </div>
+          {hasChanges && (
+            <button
+              onClick={() => setShowChangesAlert(true)}
+              className="text-red-500 hover:text-red-600"
+              title="Clique para ver as alterações"
+            >
+              <FaExclamationCircle />
+            </button>
           )}
         </div>
         
@@ -2258,15 +2251,15 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       {/* Formulários só aparecem quando um tipo for selecionado */}
       {(formData.tipo || id) && (
         <div className="bg-white rounded-lg shadow-md p-4">
-          {/* Seção 2 - Formulário de Cliente */}
+          {/* Seção 2 - Formulário de Cliente - SEM COLUNA STATUS */}
           {formData.tipo === 'cliente' && (
             <>
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-700 mb-4">Informações Iniciais</h2>
                 
                 <>
-                {/* Primeira linha: N. do Ped, OC e Status */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                {/* Primeira linha: N. do Ped e OC */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">N. do Ped:</label>
                     <div className="flex gap-2">
@@ -2306,28 +2299,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <FaBolt />
                       </button>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status:</label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="em_aberto">Em aberto</option>
-                      <option value="aprovado">Aprovado</option>
-                      <option value="encomendado">Encomendado</option>
-                      <option value="em_deposito">Em depósito</option>
-                      <option value="aguardando_outra_oc">Aguardando outra OC</option>
-                      <option value="agendado">Agendado</option>
-                      <option value="entregue_parcial">Entregue Parcial</option>
-                      <option value="entregue">Entregue</option>
-                      <option value="nao_entregue">Não entregue (Ter obs)</option>
-                      <option value="cancelado">Cancelado</option>
-                      <option value="outro">Outro (Ter obs)</option>
-                    </select>
                   </div>
                 </div>
 
@@ -2503,9 +2474,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.11%'}}>
                           N.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.00%'}}>
-                          Status
-                        </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '7.17%'}}>
                           Qtd.
                         </th>
@@ -2547,9 +2515,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <span className="text-sm font-medium text-gray-700">{index + 1}</span>
-                            </td>
-                            <td className="px-2 py-2 whitespace-nowrap text-center">
-                              {renderStatusItem(index)}
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input
@@ -2866,14 +2831,14 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
             </>
           )}
 
-          {/* Seção 2 - Formulário de Estoque */}
+          {/* Seção 2 - Formulário de Estoque - SEM COLUNA STATUS */}
           {formData.tipo === 'estoque' && (
             <>
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-700 mb-4">Informações Iniciais</h2>
                 
-                {/* Primeira linha: Data Encomenda, Status e Prazo */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                {/* Primeira linha: Data Encomenda e Prazo */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data Encomenda:</label>
                     <div className="flex gap-2">
@@ -2892,23 +2857,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <FaCalendarAlt />
                       </button>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status:</label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="em_aberto">Em aberto</option>
-                      <option value="aprovado">Aprovado</option>
-                      <option value="encomendado">Encomendado</option>
-                      <option value="em_deposito">Em depósito</option>
-                      <option value="cancelado">Cancelado</option>
-                      <option value="outro">Outro (Ter obs)</option>
-                    </select>
                   </div>
 
                   <div>
@@ -3058,9 +3006,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.11%'}}>
                           N.
                         </th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '1.00%'}}>
-                          Status
-                        </th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '7.17%'}}>
                           Qtd.
                         </th>
@@ -3102,9 +3047,6 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <span className="text-sm font-medium text-gray-700">{index + 1}</span>
-                            </td>
-                            <td className="px-2 py-2 whitespace-nowrap text-center">
-                              {renderStatusItem(index)}
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap text-center">
                               <input

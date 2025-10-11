@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV, FaColumns, FaGripVertical, FaCheck, FaCalendarAlt, FaClipboardList } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV, FaColumns, FaGripVertical, FaCheck, FaCalendarAlt, FaClipboardList, FaExclamationCircle, FaBell } from 'react-icons/fa';
 import { createPortal } from 'react-dom';
 
 // Componente para item arrastável
@@ -89,6 +89,14 @@ const ListaOrdensCompra = () => {
   const [entradaEditandoIndex, setEntradaEditandoIndex] = useState(null);
   const [showColumnsModal, setShowColumnsModal] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
+  
+  // Estados para Alerta
+  const [showAlertaModal, setShowAlertaModal] = useState(false);
+  const [alertaTemporario, setAlertaTemporario] = useState({
+    dataAbertura: '',
+    texto: ''
+  });
+  const [ordemAlertaAtual, setOrdemAlertaAtual] = useState(null);
   const [columnsConfig, setColumnsConfig] = useState([
     { key: 'numero', label: 'OC', visible: true },
     { key: 'tipo', label: 'Tipo', visible: true },
@@ -96,7 +104,6 @@ const ListaOrdensCompra = () => {
     { key: 'fornecedor', label: 'Fornecedor', visible: true },
     { key: 'vendedor', label: 'Vendedor', visible: true },
     { key: 'status', label: 'Status', visible: true },
-    { key: 'statusItem', label: '•', visible: true },
     { key: 'produto', label: 'Produto', visible: true },
     { key: 'valor', label: 'Valor', visible: true },
     { key: 'prazo', label: 'Prazo', visible: true },
@@ -162,25 +169,15 @@ const ListaOrdensCompra = () => {
         console.log('✅ Label da coluna atualizado para OC');
       }
       
-      // Verificar se a coluna statusItem existe, se não, adicionar
+      // Remover a coluna statusItem se ela existir (não é mais usada)
       const statusItemIndex = savedConfig.findIndex(col => col.key === 'statusItem');
       
-      if (statusItemIndex === -1) {
-        // Adicionar coluna statusItem após a coluna 'status'
-        const statusIndex = savedConfig.findIndex(col => col.key === 'status');
-        const newConfig = [...savedConfig];
-        newConfig.splice(statusIndex + 1, 0, { key: 'statusItem', label: '•', visible: true });
+      if (statusItemIndex !== -1) {
+        const newConfig = savedConfig.filter(col => col.key !== 'statusItem');
         setColumnsConfig(newConfig);
-        // Salvar a configuração atualizada
         localStorage.setItem('ordensCompraColumnsConfig', JSON.stringify(newConfig));
-        console.log('✅ Coluna de status de item adicionada automaticamente');
+        console.log('✅ Coluna de status de item removida automaticamente');
       } else {
-        // Se a coluna existe mas está oculta, torná-la visível
-        if (!savedConfig[statusItemIndex].visible) {
-          savedConfig[statusItemIndex].visible = true;
-          localStorage.setItem('ordensCompraColumnsConfig', JSON.stringify(savedConfig));
-          console.log('✅ Coluna de status de item ativada automaticamente');
-        }
         setColumnsConfig(savedConfig);
       }
     }
@@ -373,7 +370,6 @@ const ListaOrdensCompra = () => {
       { key: 'fornecedor', label: 'Fornecedor', visible: true },
       { key: 'vendedor', label: 'Vendedor', visible: true },
       { key: 'status', label: 'Status', visible: true },
-      { key: 'statusItem', label: '•', visible: true },
       { key: 'produto', label: 'Produto', visible: true },
       { key: 'valor', label: 'Valor', visible: true },
       { key: 'prazo', label: 'Prazo', visible: true },
@@ -595,6 +591,118 @@ const ListaOrdensCompra = () => {
       observacao: ''
     });
     setShowOcorrenciasModal(true);
+  };
+
+  const handleAbrirAlerta = (linha) => {
+    setMenuAberto(null);
+    setOrdemAlertaAtual(linha);
+    
+    // Se já existe um alerta no item específico, carregar os dados
+    if (linha.produtoAtual && linha.produtoAtual.alerta) {
+      setAlertaTemporario({
+        dataAbertura: linha.produtoAtual.alerta.dataAbertura,
+        texto: linha.produtoAtual.alerta.texto
+      });
+    } else {
+      // Se não existe, criar novo com data atual
+      const dataAtual = new Date().toISOString().split('T')[0];
+      setAlertaTemporario({
+        dataAbertura: dataAtual,
+        texto: ''
+      });
+    }
+    
+    setShowAlertaModal(true);
+  };
+
+  const salvarAlerta = () => {
+    if (!alertaTemporario.texto || alertaTemporario.texto.trim() === '') {
+      alert('Por favor, preencha o texto do alerta.');
+      return;
+    }
+
+    if (!ordemAlertaAtual) return;
+
+    // Buscar a ordem completa no localStorage
+    const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemAlertaAtual.id);
+    
+    if (ordemIndex === -1) {
+      alert('Ordem não encontrada!');
+      return;
+    }
+
+    // Adicionar ou atualizar o alerta no item específico
+    const indiceProduto = ordemAlertaAtual.indiceProduto || 0;
+    if (!ordensExistentes[ordemIndex].itens[indiceProduto]) {
+      alert('Item não encontrado!');
+      return;
+    }
+
+    ordensExistentes[ordemIndex].itens[indiceProduto].alerta = {
+      dataAbertura: alertaTemporario.dataAbertura,
+      texto: alertaTemporario.texto
+    };
+
+    // Salvar no localStorage
+    localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+
+    // Atualizar estado local
+    setOrdensCompra(ordensExistentes);
+
+    // Disparar evento customizado para atualizar outros componentes
+    window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+
+    // Fechar modal e limpar
+    setShowAlertaModal(false);
+    setOrdemAlertaAtual(null);
+    setAlertaTemporario({
+      dataAbertura: '',
+      texto: ''
+    });
+
+    alert('Alerta salvo com sucesso!');
+  };
+
+  const excluirAlerta = () => {
+    if (!ordemAlertaAtual) return;
+
+    // Buscar a ordem completa no localStorage
+    const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemAlertaAtual.id);
+    
+    if (ordemIndex === -1) {
+      alert('Ordem não encontrada!');
+      return;
+    }
+
+    // Remover o alerta do item específico
+    const indiceProduto = ordemAlertaAtual.indiceProduto || 0;
+    if (!ordensExistentes[ordemIndex].itens[indiceProduto]) {
+      alert('Item não encontrado!');
+      return;
+    }
+
+    delete ordensExistentes[ordemIndex].itens[indiceProduto].alerta;
+
+    // Salvar no localStorage
+    localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+
+    // Atualizar estado local
+    setOrdensCompra(ordensExistentes);
+
+    // Disparar evento customizado para atualizar outros componentes
+    window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+
+    // Fechar modal e limpar
+    setShowAlertaModal(false);
+    setOrdemAlertaAtual(null);
+    setAlertaTemporario({
+      dataAbertura: '',
+      texto: ''
+    });
+
+    alert('Alerta excluído com sucesso!');
   };
 
   const salvarEntradaLista = () => {
@@ -1879,14 +1987,12 @@ const ListaOrdensCompra = () => {
                 return (
                   <th 
                     key={column.key}
-                    className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer ${
-                      column.key === 'statusItem' ? 'text-center w-16' : 'text-left'
-                    }`}
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                     onClick={() => handleSort(sortKey)}
                   >
                     <div className="flex items-center justify-center">
                       {column.label}
-                      {column.key !== 'statusItem' && getSortIcon(sortKey)}
+                      {getSortIcon(sortKey)}
                     </div>
                   </th>
                 );
@@ -1938,12 +2044,24 @@ const ListaOrdensCompra = () => {
                         return ordem.vendedor || '-';
                       case 'status':
                         return (
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(ordem.status)}`}>
-                            {getStatusLabel(ordem.status)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(ordem.status)}`}>
+                              {getStatusLabel(ordem.status)}
+                            </span>
+                            {ordem.produtoAtual && ordem.produtoAtual.alerta && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAbrirAlerta(ordem);
+                                }}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                                title="Ver alerta"
+                              >
+                                <FaExclamationCircle className="text-lg" />
+                              </button>
+                            )}
+                          </div>
                         );
-                      case 'statusItem':
-                        return renderStatusItem(ordem, ordem.produtoAtual, ordem.indiceProduto);
                       case 'produto':
                         return ordem.produtoAtual ? (
                           <div>
@@ -1974,8 +2092,7 @@ const ListaOrdensCompra = () => {
                       key={column.key}
                       className={`px-4 py-4 whitespace-nowrap text-sm ${
                         column.key === 'numero' ? 'font-medium' : 
-                        column.key === 'status' ? '' : 
-                        column.key === 'statusItem' ? 'text-center' : 'text-gray-500'
+                        column.key === 'status' ? '' : 'text-gray-500'
                       }`}
                     >
                       {renderCell()}
@@ -2019,6 +2136,17 @@ const ListaOrdensCompra = () => {
             >
               <FaClipboardList className="mr-3 text-purple-600" />
               Ocorrências
+            </button>
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAbrirAlerta(window.linhaAtual);
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 menu-actions"
+            >
+              <FaBell className="mr-3 text-yellow-600" />
+              Alerta
             </button>
             
             {/* Mostrar opção de excluir produto apenas se há produto específico e mais de um item na ordem */}
@@ -2699,6 +2827,90 @@ const ListaOrdensCompra = () => {
                   Salvar Observação
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Alerta */}
+      {showAlertaModal && ordemAlertaAtual && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <FaBell className="text-yellow-600" />
+                Alerta - OC {ordemAlertaAtual.oc} - Item {(ordemAlertaAtual.indiceProduto || 0) + 1}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAlertaModal(false);
+                  setOrdemAlertaAtual(null);
+                  setAlertaTemporario({ dataAbertura: '', texto: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Data de Abertura do Alerta
+              </label>
+              <input
+                type="date"
+                value={alertaTemporario.dataAbertura}
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Esta data é definida automaticamente e não pode ser editada
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Texto do Alerta *
+              </label>
+              <textarea
+                value={alertaTemporario.texto}
+                onChange={(e) => setAlertaTemporario({...alertaTemporario, texto: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                rows="4"
+                placeholder="Digite o texto do alerta..."
+              />
+            </div>
+
+            <div className="flex justify-between gap-3">
+              <button
+                onClick={() => {
+                  setShowAlertaModal(false);
+                  setOrdemAlertaAtual(null);
+                  setAlertaTemporario({ dataAbertura: '', texto: '' });
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Fechar
+              </button>
+              
+              <div className="flex gap-2">
+                {ordemAlertaAtual.produtoAtual && ordemAlertaAtual.produtoAtual.alerta && (
+                  <button
+                    onClick={excluirAlerta}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  >
+                    <FaTrash />
+                    Excluir Alerta
+                  </button>
+                )}
+                <button
+                  onClick={salvarAlerta}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2"
+                >
+                  <FaCheck />
+                  Salvar Alerta
+                </button>
+              </div>
             </div>
           </div>
         </div>
