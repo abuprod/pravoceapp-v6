@@ -143,6 +143,7 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     observacao: ''
   });
   const [entradaEditandoIndex, setEntradaEditandoIndex] = useState(null);
+  const [entregaEditandoIndex, setEntregaEditandoIndex] = useState(null);
   const [observacaoTemporaria, setObservacaoTemporaria] = useState({
     data: '',
     texto: ''
@@ -778,16 +779,15 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       return;
     }
 
+    let entradasAtualizadas;
+
     // Se estiver editando uma entrada existente
     if (entradaEditandoIndex !== null) {
-      setFormData(prev => ({
-        ...prev,
-        entradas: prev.entradas.map((entrada, idx) => 
-          idx === entradaEditandoIndex 
-            ? { ...entradaTemporaria, salvo: true, editando: false, itemIndex: entrada.itemIndex }
-            : entrada
-        )
-      }));
+      entradasAtualizadas = formData.entradas.map((entrada, idx) => 
+        idx === entradaEditandoIndex 
+          ? { ...entradaTemporaria, salvo: true, editando: false, itemIndex: entrada.itemIndex }
+          : entrada
+      );
       setEntradaEditandoIndex(null);
     } else {
       // Criar nova entrada
@@ -795,13 +795,64 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
         ...entradaTemporaria,
         salvo: true,
         editando: false,
-        itemIndex: itemSelecionadoOcorrencia
+        itemIndex: itemSelecionadoOcorrencia,
+        produto: formData.itens?.[itemSelecionadoOcorrencia]?.descricao
+      };
+      entradasAtualizadas = [...(formData.entradas || []), novaEntrada];
+
+      // Adicionar ocorrência correspondente para sincronizar com a lista
+      const novaOcorrenciaEntrada = {
+        tipo: 'Entrada de Produto',
+        descricao: entradaTemporaria.observacao || '',
+        data: new Date().toISOString(),
+        detalhes: novaEntrada
       };
 
       setFormData(prev => ({
         ...prev,
-        entradas: [...(prev.entradas || []), novaEntrada]
+        entradas: entradasAtualizadas,
+        ocorrencias: [...(prev.ocorrencias || []), novaOcorrenciaEntrada]
       }));
+    }
+
+    // Se não entrou no ramo acima (edição), ainda precisamos manter o estado de ocorrências como está
+    if (entradaEditandoIndex !== null) {
+      setFormData(prev => ({
+        ...prev,
+        entradas: entradasAtualizadas
+      }));
+    }
+
+    // Salvar no localStorage se estiver editando uma ordem existente
+    if (id) {
+      const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+      const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == id);
+      
+      if (ordemIndex !== -1) {
+        const ordemAtual = ordensExistentes[ordemIndex];
+        let ocorrenciasAtualizadasLS = ordemAtual.ocorrencias || [];
+        // Se foi criação (não edição), já adicionamos uma ocorrência no estado; refletir no LS
+        if (entradaEditandoIndex === null) {
+          const novaEntradaRef = entradasAtualizadas[entradasAtualizadas.length - 1];
+          const novaOcorrenciaEntradaLS = {
+            tipo: 'Entrada de Produto',
+            descricao: entradaTemporaria.observacao || '',
+            data: new Date().toISOString(),
+            detalhes: novaEntradaRef
+          };
+          ocorrenciasAtualizadasLS = [...ocorrenciasAtualizadasLS, novaOcorrenciaEntradaLS];
+        }
+
+        ordensExistentes[ordemIndex] = {
+          ...ordemAtual,
+          entradas: entradasAtualizadas,
+          ocorrencias: ocorrenciasAtualizadasLS,
+          dataAtualizacao: new Date().toISOString()
+        };
+        
+        localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+        window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+      }
     }
 
     setEntradaTemporaria({
@@ -830,19 +881,58 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       ...entregaTemporaria,
       salvo: true,
       editando: false,
-      itemIndex: itemSelecionadoOcorrencia
+      itemIndex: itemSelecionadoOcorrencia,
+      produto: formData.itens?.[itemSelecionadoOcorrencia]?.descricao
+    };
+
+    const entregasAtualizadas = [...(formData.datasEntrega || []), novaEntrega];
+
+    // Atualizar estado local e adicionar ocorrência correspondente
+    const novaOcorrenciaEntrega = {
+      tipo: 'Atualização de Entrega',
+      descricao: entregaTemporaria.observacao || '',
+      data: new Date().toISOString(),
+      detalhes: novaEntrega
     };
 
     setFormData(prev => ({
       ...prev,
-      datasEntrega: [...(prev.datasEntrega || []), novaEntrega]
+      datasEntrega: entregasAtualizadas,
+      ocorrencias: [...(prev.ocorrencias || []), novaOcorrenciaEntrega]
     }));
+
+    // Salvar no localStorage se estiver editando uma ordem existente
+    if (id) {
+      const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+      const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == id);
+      
+      if (ordemIndex !== -1) {
+        const ordemAtual = ordensExistentes[ordemIndex];
+        const ocorrenciasAtualizadasLS = [...(ordemAtual.ocorrencias || []), {
+          tipo: 'Atualização de Entrega',
+          descricao: entregaTemporaria.observacao || '',
+          data: new Date().toISOString(),
+          detalhes: novaEntrega
+        }];
+
+        ordensExistentes[ordemIndex] = {
+          ...ordemAtual,
+          datasEntrega: entregasAtualizadas,
+          ocorrencias: ocorrenciasAtualizadasLS,
+          dataAtualizacao: new Date().toISOString()
+        };
+        
+        localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+        window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+      }
+    }
 
     setEntregaTemporaria({
       data: '',
       observacao: ''
     });
     setTipoOcorrenciaSelecionado('');
+    setItemSelecionadoOcorrencia(null);
     alert('Data de entrega salva com sucesso!');
   };
 
@@ -875,16 +965,37 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       }
     };
 
+    const ocorrenciasAtualizadas = [...(formData.ocorrencias || []), novaObservacao];
+
+    // Atualizar estado local
     setFormData(prev => ({
       ...prev,
-      ocorrencias: [...(prev.ocorrencias || []), novaObservacao]
+      ocorrencias: ocorrenciasAtualizadas
     }));
+
+    // Salvar no localStorage se estiver editando uma ordem existente
+    if (id) {
+      const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+      const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == id);
+      
+      if (ordemIndex !== -1) {
+        ordensExistentes[ordemIndex] = {
+          ...ordensExistentes[ordemIndex],
+          ocorrencias: ocorrenciasAtualizadas,
+          dataAtualizacao: new Date().toISOString()
+        };
+        
+        localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+        window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+      }
+    }
 
     setObservacaoTemporaria({
       data: '',
       texto: ''
     });
     setTipoOcorrenciaSelecionado('');
+    setItemSelecionadoOcorrencia(null);
     alert('Observação salva com sucesso!');
   };
 
@@ -948,23 +1059,265 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     );
   };
 
-  // Função para obter ocorrências filtradas
-  const obterOcorrenciasFiltradas = () => {
-    const entradas = formData.entradas || [];
-    const entregas = formData.datasEntrega || [];
+  // Função para obter ocorrências unificadas
+  const obterOcorrenciasUnificadas = () => {
+    const ocorrencias = [];
     
-    if (filtroItemOcorrencia === 'todos') {
-      return { entradas, entregas };
+    // Adicionar entradas
+    (formData.entradas || []).forEach((entrada, index) => {
+      ocorrencias.push({
+        tipo: 'Entrada de Produto',
+        descricao: `Entrada registrada. Documento: ${entrada.documentoFabrica || 'N/A'}. Data: ${entrada.dataEntrada}`,
+        data: entrada.dataEntrada || new Date().toISOString(),
+        detalhes: entrada,
+        indexReal: index,
+        tipoOriginal: 'entrada'
+      });
+    });
+    
+    // Adicionar entregas
+    (formData.datasEntrega || []).forEach((entrega, index) => {
+      ocorrencias.push({
+        tipo: 'Atualização de Entrega',
+        descricao: `Data de entrega: ${entrega.data}`,
+        data: entrega.data || new Date().toISOString(),
+        detalhes: entrega,
+        indexReal: index,
+        tipoOriginal: 'entrega'
+      });
+    });
+    
+    // Adicionar observações das ocorrências
+    (formData.ocorrencias || []).filter(o => o.tipo === 'Observação').forEach((obs, index) => {
+      ocorrencias.push({
+        ...obs,
+        indexReal: index,
+        tipoOriginal: 'observacao'
+      });
+    });
+    
+    // Ordenar por data (mais recentes primeiro)
+    ocorrencias.sort((a, b) => new Date(b.data) - new Date(a.data));
+    
+    // Filtrar por item: prioridade para itemSelecionadoOcorrencia, depois filtroItemOcorrencia
+    if (itemSelecionadoOcorrencia !== null) {
+      return ocorrencias.filter(o => o.detalhes?.itemIndex === itemSelecionadoOcorrencia);
     }
     
-    const itemIndex = parseInt(filtroItemOcorrencia);
-    return {
-      entradas: entradas.filter(e => e.itemIndex === itemIndex),
-      entregas: entregas.filter(e => e.itemIndex === itemIndex)
-    };
+    if (filtroItemOcorrencia !== 'todos') {
+      const itemIndex = parseInt(filtroItemOcorrencia);
+      return ocorrencias.filter(o => o.detalhes?.itemIndex === itemIndex);
+    }
+    
+    return ocorrencias;
   };
 
-  // Função para excluir entrada
+  // Função para excluir ocorrência do histórico unificado
+  const excluirOcorrenciaUnificada = (ocorrencia) => {
+    if (!window.confirm('Deseja realmente excluir esta ocorrência?')) return;
+    
+    let dadosAtualizados = {};
+    
+    if (ocorrencia.tipoOriginal === 'entrada') {
+      const entradaRemovida = (formData.entradas || [])[ocorrencia.indexReal];
+      const entradasAtualizadas = (formData.entradas || []).filter((_, idx) => idx !== ocorrencia.indexReal);
+      // Remover ocorrência correspondente do array de ocorrências
+      const ocorrenciasAtualizadas = (formData.ocorrencias || []).filter(o => {
+        if (o.tipo !== 'Entrada de Produto') return true;
+        const d = o.detalhes || {};
+        return !(
+          d.itemIndex === entradaRemovida?.itemIndex &&
+          d.dataEntrada === entradaRemovida?.dataEntrada &&
+          d.documentoFabrica === entradaRemovida?.documentoFabrica
+        );
+      });
+
+      dadosAtualizados = { entradas: entradasAtualizadas, ocorrencias: ocorrenciasAtualizadas };
+      
+      setFormData(prev => ({
+        ...prev,
+        entradas: entradasAtualizadas,
+        ocorrencias: ocorrenciasAtualizadas
+      }));
+    } else if (ocorrencia.tipoOriginal === 'entrega') {
+      const entregaRemovida = (formData.datasEntrega || [])[ocorrencia.indexReal];
+      const entregasAtualizadas = (formData.datasEntrega || []).filter((_, idx) => idx !== ocorrencia.indexReal);
+      // Remover ocorrência correspondente do array de ocorrências
+      const ocorrenciasAtualizadas = (formData.ocorrencias || []).filter(o => {
+        if (o.tipo !== 'Atualização de Entrega') return true;
+        const d = o.detalhes || {};
+        return !(
+          d.itemIndex === entregaRemovida?.itemIndex &&
+          d.data === entregaRemovida?.data
+        );
+      });
+
+      dadosAtualizados = { datasEntrega: entregasAtualizadas, ocorrencias: ocorrenciasAtualizadas };
+      
+      setFormData(prev => ({
+        ...prev,
+        datasEntrega: entregasAtualizadas,
+        ocorrencias: ocorrenciasAtualizadas
+      }));
+    } else if (ocorrencia.tipoOriginal === 'observacao') {
+      const ocorrenciasAtualizadas = (formData.ocorrencias || []).filter((_, idx) => idx !== ocorrencia.indexReal);
+      dadosAtualizados = { ocorrencias: ocorrenciasAtualizadas };
+      
+      setFormData(prev => ({
+        ...prev,
+        ocorrencias: ocorrenciasAtualizadas
+      }));
+    }
+
+    // Salvar no localStorage se estiver editando uma ordem existente
+    if (id && Object.keys(dadosAtualizados).length > 0) {
+      const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+      const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == id);
+      
+      if (ordemIndex !== -1) {
+        ordensExistentes[ordemIndex] = {
+          ...ordensExistentes[ordemIndex],
+          ...dadosAtualizados,
+          dataAtualizacao: new Date().toISOString()
+        };
+        
+        localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+        window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+      }
+    }
+  };
+
+  // Função para editar entrada
+  const editarOcorrenciaEntrada = (index) => {
+    setEntradaEditandoIndex(index);
+    const entrada = formData.entradas[index];
+    setEntradaTemporaria({
+      dataEntrada: entrada.dataEntrada || '',
+      documentoFabrica: entrada.documentoFabrica || '',
+      dataDocumento: entrada.dataDocumento || '',
+      observacao: entrada.observacao || ''
+    });
+  };
+  
+  // Função para editar entrega
+  const editarOcorrenciaEntrega = (index) => {
+    setEntregaEditandoIndex(index);
+    const entrega = formData.datasEntrega[index];
+    setEntregaTemporaria({
+      data: entrega.data || '',
+      observacao: entrega.observacao || ''
+    });
+  };
+  
+  // Função para salvar edição de entrada do histórico
+  const salvarEdicaoOcorrenciaEntrada = () => {
+    if (!entradaTemporaria.dataEntrada) {
+      alert('Por favor, preencha a data de entrada.');
+      return;
+    }
+    
+    const entradasAtualizadas = formData.entradas.map((entrada, idx) => 
+      idx === entradaEditandoIndex 
+        ? { ...entradaTemporaria, itemIndex: entrada.itemIndex }
+        : entrada
+    );
+
+    // Atualizar estado local
+    setFormData(prev => ({
+      ...prev,
+      entradas: entradasAtualizadas
+    }));
+
+    // Salvar no localStorage se estiver editando uma ordem existente
+    if (id) {
+      const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+      const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == id);
+      
+      if (ordemIndex !== -1) {
+        ordensExistentes[ordemIndex] = {
+          ...ordensExistentes[ordemIndex],
+          entradas: entradasAtualizadas,
+          dataAtualizacao: new Date().toISOString()
+        };
+        
+        localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+        window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+      }
+    }
+    
+    setEntradaEditandoIndex(null);
+    setEntradaTemporaria({
+      dataEntrada: '',
+      documentoFabrica: '',
+      dataDocumento: '',
+      observacao: ''
+    });
+  };
+  
+  // Função para salvar edição de entrega do histórico
+  const salvarEdicaoOcorrenciaEntrega = () => {
+    if (!entregaTemporaria.data) {
+      alert('Por favor, preencha a data de entrega.');
+      return;
+    }
+    
+    const entregasAtualizadas = formData.datasEntrega.map((entrega, idx) => 
+      idx === entregaEditandoIndex 
+        ? { ...entregaTemporaria, itemIndex: entrega.itemIndex, produto: entrega.produto }
+        : entrega
+    );
+
+    // Atualizar estado local
+    setFormData(prev => ({
+      ...prev,
+      datasEntrega: entregasAtualizadas
+    }));
+
+    // Salvar no localStorage se estiver editando uma ordem existente
+    if (id) {
+      const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+      const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == id);
+      
+      if (ordemIndex !== -1) {
+        ordensExistentes[ordemIndex] = {
+          ...ordensExistentes[ordemIndex],
+          datasEntrega: entregasAtualizadas,
+          dataAtualizacao: new Date().toISOString()
+        };
+        
+        localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+        window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+      }
+    }
+    
+    setEntregaEditandoIndex(null);
+    setEntregaTemporaria({
+      data: '',
+      observacao: ''
+    });
+  };
+  
+  // Função para cancelar edição de entrada
+  const cancelarEdicaoOcorrenciaEntrada = () => {
+    setEntradaEditandoIndex(null);
+    setEntradaTemporaria({
+      dataEntrada: '',
+      documentoFabrica: '',
+      dataDocumento: '',
+      observacao: ''
+    });
+  };
+  
+  // Função para cancelar edição de entrega
+  const cancelarEdicaoOcorrenciaEntrega = () => {
+    setEntregaEditandoIndex(null);
+    setEntregaTemporaria({
+      data: '',
+      observacao: ''
+    });
+  };
+  
+  // Função para excluir entrada (mantida para compatibilidade)
   const excluirEntrada = (indexEntrada) => {
     if (window.confirm('Deseja realmente excluir esta entrada?')) {
       setFormData(prev => ({
@@ -995,6 +1348,31 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       ...prev,
       entradas: prev.entradas.map((entrada, idx) => 
         idx === indexEntrada ? { ...entrada, [campo]: valor } : entrada
+      )
+    }));
+  };
+
+  // Função para editar entrega inline
+  const editarEntrega = (indexEntrega) => {
+    setEntregaEditandoIndex(indexEntrega);
+  };
+
+  // Função para salvar edição inline de entrega
+  const salvarEdicaoEntrega = (indexEntrega) => {
+    setEntregaEditandoIndex(null);
+  };
+
+  // Função para cancelar edição inline de entrega
+  const cancelarEdicaoEntrega = () => {
+    setEntregaEditandoIndex(null);
+  };
+
+  // Função para atualizar campo de entrega durante edição
+  const atualizarCampoEntrega = (indexEntrega, campo, valor) => {
+    setFormData(prev => ({
+      ...prev,
+      datasEntrega: prev.datasEntrega.map((entrega, idx) => 
+        idx === indexEntrega ? { ...entrega, [campo]: valor } : entrega
       )
     }));
   };
@@ -4075,75 +4453,314 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
       {/* Modal de Ocorrências */}
       {modalOcorrenciasAberto && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-5xl w-full max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-semibold text-blue-600">
-                📋 Ocorrências da Ordem de Compra
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0">
+                <FaClipboardList className="h-6 w-6 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Ocorrências - OC {formData.oc}
               </h3>
-              <button
-                onClick={() => {
-                  setModalOcorrenciasAberto(false);
-                  setItemSelecionadoOcorrencia(null);
-                  setTipoOcorrenciaSelecionado('');
-                  setEntradaEditandoIndex(null);
-                  setEntradaTemporaria({
-                    dataEntrada: '',
-                    documentoFabrica: '',
-                    dataDocumento: '',
-                    observacao: ''
-                  });
-                }}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ×
-              </button>
             </div>
+            
+            {itemSelecionadoOcorrencia !== null && (
+              <div className="mb-4">
+                <p className="text-gray-600">
+                  <strong>Item:</strong> Item {itemSelecionadoOcorrencia + 1} - {formData.itens[itemSelecionadoOcorrencia]?.descricao || 'Sem descrição'}
+                </p>
+              </div>
+            )}
+            
+            <div className="mb-6">
+              <h4 className="font-medium text-gray-700 mb-3">Histórico de Ocorrências:</h4>
+              <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                {(() => {
+                  const ocorrencias = obterOcorrenciasUnificadas();
+                  return ocorrencias.length > 0 ? (
+                    <div className="space-y-3">
+                      {ocorrencias.map((ocorrencia, index) => (
+                        <div key={index} className="border-l-4 border-purple-500 pl-4 pr-2 relative">
+                          {entradaEditandoIndex === ocorrencia.indexReal && ocorrencia.tipoOriginal === 'entrada' ? (
+                            // Modo de edição inline - Entrada
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center mb-2">
+                                <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => salvarEdicaoOcorrenciaEntrada()}
+                                    className="text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full p-1 transition-colors"
+                                    title="Salvar alterações"
+                                  >
+                                    <FaCheck className="text-xs" />
+                                  </button>
+                                  <button
+                                    onClick={() => cancelarEdicaoOcorrenciaEntrada()}
+                                    className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full p-1 transition-colors"
+                                    title="Cancelar edição"
+                                  >
+                                    <FaTimes className="text-xs" />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Data Entrada</label>
+                                  <input
+                                    type="date"
+                                    value={entradaTemporaria.dataEntrada}
+                                    onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataEntrada: e.target.value})}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Documento Fábrica</label>
+                                  <input
+                                    type="text"
+                                    value={entradaTemporaria.documentoFabrica}
+                                    onChange={(e) => setEntradaTemporaria({...entradaTemporaria, documentoFabrica: e.target.value})}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    placeholder="Número do documento"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
+                                <input
+                                  type="date"
+                                  value={entradaTemporaria.dataDocumento}
+                                  onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataDocumento: e.target.value})}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Observações</label>
+                                <textarea
+                                  value={entradaTemporaria.observacao}
+                                  onChange={(e) => setEntradaTemporaria({...entradaTemporaria, observacao: e.target.value})}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  rows="2"
+                                  placeholder="Digite as observações..."
+                                />
+                              </div>
+                            </div>
+                          ) : entregaEditandoIndex === ocorrencia.indexReal && ocorrencia.tipoOriginal === 'entrega' ? (
+                            // Modo de edição inline - Entrega
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center mb-2">
+                                <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => salvarEdicaoOcorrenciaEntrega()}
+                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
+                                    title="Salvar alterações"
+                                  >
+                                    <FaCheck className="text-xs" />
+                                  </button>
+                                  <button
+                                    onClick={() => cancelarEdicaoOcorrenciaEntrega()}
+                                    className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full p-1 transition-colors"
+                                    title="Cancelar edição"
+                                  >
+                                    <FaTimes className="text-xs" />
+                                  </button>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Data Entrega *</label>
+                                <input
+                                  type="date"
+                                  value={entregaTemporaria.data}
+                                  onChange={(e) => setEntregaTemporaria({...entregaTemporaria, data: e.target.value})}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Observações</label>
+                                <textarea
+                                  value={entregaTemporaria.observacao}
+                                  onChange={(e) => setEntregaTemporaria({...entregaTemporaria, observacao: e.target.value})}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  rows="2"
+                                  placeholder="Digite as observações..."
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            // Modo de visualização
+                            <div>
+                              <div className="flex justify-between items-center mb-2">
+                                <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {ocorrencia.tipoOriginal !== 'entrada' && (
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(ocorrencia.data).toLocaleDateString('pt-BR')}
+                                    </span>
+                                  )}
+                                  {ocorrencia.tipoOriginal === 'entrada' && (
+                                    <button
+                                      onClick={() => editarOcorrenciaEntrada(ocorrencia.indexReal)}
+                                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
+                                      title="Editar ocorrência"
+                                    >
+                                      <FaPencilAlt className="text-xs" />
+                                    </button>
+                                  )}
+                                  {ocorrencia.tipoOriginal === 'entrega' && (
+                                    <button
+                                      onClick={() => editarOcorrenciaEntrega(ocorrencia.indexReal)}
+                                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
+                                      title="Editar data de entrega"
+                                    >
+                                      <FaPencilAlt className="text-xs" />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => excluirOcorrenciaUnificada(ocorrencia)}
+                                    className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
+                                    title="Excluir ocorrência"
+                                  >
+                                    <FaTimes className="text-xs" />
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {ocorrencia.tipoOriginal === 'entrada' ? (
+                                // Visualização estruturada para Entrada de Produto
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-700">Data Entrada:</p>
+                                      <p className="text-gray-900">
+                                        {ocorrencia.detalhes?.dataEntrada ? new Date(ocorrencia.detalhes.dataEntrada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-700">Documento Nº:</p>
+                                      <p className="text-gray-900">{ocorrencia.detalhes?.documentoFabrica || '-'}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-700">Data Emissão Doc:</p>
+                                      <p className="text-gray-900">
+                                        {ocorrencia.detalhes?.dataDocumento ? new Date(ocorrencia.detalhes.dataDocumento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {ocorrencia.detalhes?.observacao && (
+                                    <div className="mt-2 pt-2 border-t border-purple-200">
+                                      <p className="text-xs font-medium text-gray-700">Observações:</p>
+                                      <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : ocorrencia.tipoOriginal === 'entrega' ? (
+                                // Visualização estruturada para Data de Entrega
+                                <div className="space-y-2">
+                                  <div className="text-sm">
+                                    <p className="text-xs font-medium text-gray-700">Data Entrega:</p>
+                                    <p className="text-gray-900">
+                                      {ocorrencia.detalhes?.data ? new Date(ocorrencia.detalhes.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                    </p>
+                                  </div>
+                                  {ocorrencia.detalhes?.observacao && (
+                                    <div className="mt-2 pt-2 border-t border-purple-200">
+                                      <p className="text-xs font-medium text-gray-700">Observações:</p>
+                                      <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                // Visualização padrão para outros tipos
+                                <div>
+                                  <p className="text-sm text-gray-600">{ocorrencia.descricao}</p>
+                                  {ocorrencia.detalhes?.observacao && (
+                                    <div className="mt-2 pt-2 border-t border-purple-200">
+                                      <p className="text-xs font-medium text-gray-700">Observações:</p>
+                                      <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">Nenhuma ocorrência registrada.</p>
+                  );
+                })()}
+              </div>
+            </div>
+            
+            {entradaEditandoIndex === null && entregaEditandoIndex === null && (
+              <div className="mb-6">
+                <h4 className="font-medium text-gray-700 mb-3">Nova Ocorrência:</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+                    <select 
+                      value={tipoOcorrenciaSelecionado}
+                      onChange={(e) => setTipoOcorrenciaSelecionado(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      disabled={itemSelecionadoOcorrencia === null}
+                    >
+                      <option value="">Selecione o tipo</option>
+                      <option value="entrada">Dar entrada</option>
+                      <option value="entrega">Data entrega</option>
+                      <option value="observacao">Observação</option>
+                    </select>
+                  </div>
 
-            {/* Seção de Nova Ocorrência */}
-            <div className="mb-6 bg-purple-50 p-4 rounded-lg border border-purple-200">
-              <h4 className="font-medium text-gray-700 mb-3">Nova Ocorrência:</h4>
-              
-              {/* Mostrar o item selecionado */}
-              {itemSelecionadoOcorrencia !== null && (
-                <div className="mb-4 bg-white p-3 rounded-lg border border-purple-300">
-                  <p className="text-sm text-gray-600">
-                    <strong>Item selecionado:</strong> Item {itemSelecionadoOcorrencia + 1} - {formData.itens[itemSelecionadoOcorrencia]?.descricao || 'Sem descrição'}
-                  </p>
-                </div>
-              )}
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Ocorrência</label>
-                  <select 
-                    value={tipoOcorrenciaSelecionado}
-                    onChange={(e) => setTipoOcorrenciaSelecionado(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    disabled={itemSelecionadoOcorrencia === null}
-                  >
-                    <option value="">Selecione o tipo</option>
-                    <option value="entrada">Dar entrada</option>
-                    <option value="entrega">Data entrega</option>
-                    <option value="observacao">Observação</option>
-                  </select>
-                </div>
 
-                {/* Campos para Dar Entrada */}
-                {tipoOcorrenciaSelecionado === 'entrada' && itemSelecionadoOcorrencia !== null && (
-                  <div className="space-y-4 bg-green-50 p-4 rounded-lg border border-green-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Campos para Dar Entrada */}
+                  {tipoOcorrenciaSelecionado === 'entrada' && (
+                    <div className="space-y-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada *</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="date"
+                              value={entradaTemporaria.dataEntrada}
+                              onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataEntrada: e.target.value})}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setEntradaTemporaria({...entradaTemporaria, dataEntrada: new Date().toISOString().split('T')[0]})}
+                              className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                              title="Definir data atual"
+                            >
+                              <FaCalendarAlt className="text-sm" />
+                              Hoje
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Documento Fábrica</label>
+                          <input
+                            type="text"
+                            value={entradaTemporaria.documentoFabrica}
+                            onChange={(e) => setEntradaTemporaria({...entradaTemporaria, documentoFabrica: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                            placeholder="Número do documento"
+                          />
+                        </div>
+                      </div>
+
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
                         <div className="flex gap-2">
                           <input
                             type="date"
-                            value={entradaTemporaria.dataEntrada}
-                            onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataEntrada: e.target.value})}
+                            value={entradaTemporaria.dataDocumento}
+                            onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataDocumento: e.target.value})}
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                           />
                           <button
                             type="button"
-                            onClick={() => setEntradaTemporaria({...entradaTemporaria, dataEntrada: new Date().toISOString().split('T')[0]})}
+                            onClick={() => setEntradaTemporaria({...entradaTemporaria, dataDocumento: new Date().toISOString().split('T')[0]})}
                             className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
                             title="Definir data atual"
                           >
@@ -4152,451 +4769,153 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                           </button>
                         </div>
                       </div>
-                      
+
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Documento Fábrica</label>
-                        <input
-                          type="text"
-                          value={entradaTemporaria.documentoFabrica}
-                          onChange={(e) => setEntradaTemporaria({...entradaTemporaria, documentoFabrica: e.target.value})}
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                        <textarea
+                          value={entradaTemporaria.observacao}
+                          onChange={(e) => setEntradaTemporaria({...entradaTemporaria, observacao: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                          placeholder="Número do documento"
+                          rows="3"
+                          placeholder="Digite as observações da entrada..."
                         />
                       </div>
                     </div>
+                  )}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="date"
-                          value={entradaTemporaria.dataDocumento}
-                          onChange={(e) => setEntradaTemporaria({...entradaTemporaria, dataDocumento: e.target.value})}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  {/* Campos para Data Entrega */}
+                  {tipoOcorrenciaSelecionado === 'entrega' && (
+                    <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrega *</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            value={entregaTemporaria.data}
+                            onChange={(e) => setEntregaTemporaria({...entregaTemporaria, data: e.target.value})}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEntregaTemporaria({...entregaTemporaria, data: new Date().toISOString().split('T')[0]})}
+                            className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                            title="Definir data atual"
+                          >
+                            <FaCalendarAlt className="text-sm" />
+                            Hoje
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                        <textarea
+                          value={entregaTemporaria.observacao}
+                          onChange={(e) => setEntregaTemporaria({...entregaTemporaria, observacao: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          rows="3"
+                          placeholder="Digite as observações da entrega..."
                         />
-                        <button
-                          type="button"
-                          onClick={() => setEntradaTemporaria({...entradaTemporaria, dataDocumento: new Date().toISOString().split('T')[0]})}
-                          className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
-                          title="Definir data atual"
-                        >
-                          <FaCalendarAlt className="text-sm" />
-                          Hoje
-                        </button>
                       </div>
                     </div>
+                  )}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-                      <textarea
-                        value={entradaTemporaria.observacao}
-                        onChange={(e) => setEntradaTemporaria({...entradaTemporaria, observacao: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                        rows="3"
-                        placeholder="Digite as observações da entrada..."
-                      />
-                    </div>
+                  {/* Campos para Observação */}
+                  {tipoOcorrenciaSelecionado === 'observacao' && (
+                    <div className="space-y-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            value={observacaoTemporaria.data}
+                            onChange={(e) => setObservacaoTemporaria({...observacaoTemporaria, data: e.target.value})}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setObservacaoTemporaria({...observacaoTemporaria, data: new Date().toISOString().split('T')[0]})}
+                            className="px-3 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors flex items-center gap-2"
+                            title="Definir data atual"
+                          >
+                            <FaCalendarAlt className="text-sm" />
+                            Hoje
+                          </button>
+                        </div>
+                      </div>
 
-                    <div className="flex justify-end">
-                      <button
-                        onClick={salvarEntradaOcorrencia}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                      >
-                        <FaCheck />
-                        Salvar Entrada
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Campos para Data Entrega */}
-                {tipoOcorrenciaSelecionado === 'entrega' && itemSelecionadoOcorrencia !== null && (
-                  <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrega *</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="date"
-                          value={entregaTemporaria.data}
-                          onChange={(e) => setEntregaTemporaria({...entregaTemporaria, data: e.target.value})}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Observação *</label>
+                        <textarea
+                          value={observacaoTemporaria.texto}
+                          onChange={(e) => setObservacaoTemporaria({...observacaoTemporaria, texto: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                          rows="4"
+                          placeholder="Digite a observação..."
                         />
-                        <button
-                          type="button"
-                          onClick={() => setEntregaTemporaria({...entregaTemporaria, data: new Date().toISOString().split('T')[0]})}
-                          className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
-                          title="Definir data atual"
-                        >
-                          <FaCalendarAlt className="text-sm" />
-                          Hoje
-                        </button>
                       </div>
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-                      <textarea
-                        value={entregaTemporaria.observacao}
-                        onChange={(e) => setEntregaTemporaria({...entregaTemporaria, observacao: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows="3"
-                        placeholder="Digite as observações da entrega..."
-                      />
-                    </div>
-
-                    <div className="flex justify-end">
-                      <button
-                        onClick={salvarEntregaOcorrencia}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                      >
-                        <FaCalendarAlt />
-                        Salvar Data Entrega
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Campos para Observação */}
-                {tipoOcorrenciaSelecionado === 'observacao' && itemSelecionadoOcorrencia !== null && (
-                  <div className="space-y-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="date"
-                          value={observacaoTemporaria.data}
-                          onChange={(e) => setObservacaoTemporaria({...observacaoTemporaria, data: e.target.value})}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setObservacaoTemporaria({...observacaoTemporaria, data: new Date().toISOString().split('T')[0]})}
-                          className="px-3 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors flex items-center gap-2"
-                          title="Definir data atual"
-                        >
-                          <FaCalendarAlt className="text-sm" />
-                          Hoje
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Observação *</label>
-                      <textarea
-                        value={observacaoTemporaria.texto}
-                        onChange={(e) => setObservacaoTemporaria({...observacaoTemporaria, texto: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                        rows="4"
-                        placeholder="Digite a observação..."
-                      />
-                    </div>
-
-                    <div className="flex justify-end">
-                      <button
-                        onClick={salvarObservacaoOcorrencia}
-                        className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2"
-                      >
-                        <FaClipboardList />
-                        Salvar Observação
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Filtro por Item para Histórico */}
-            <div className="mb-6 bg-gray-50 p-4 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filtrar Histórico por Item:
-              </label>
-              <select
-                value={filtroItemOcorrencia}
-                onChange={(e) => setFiltroItemOcorrencia(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="todos">Todos os Itens</option>
-                {formData.itens.map((item, index) => (
-                  <option key={index} value={index}>
-                    Item {index + 1} - {item.descricao || 'Sem descrição'}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {(() => {
-              const { entradas, entregas } = obterOcorrenciasFiltradas();
-              
-              return (
-                <div className="space-y-6">
-                  {/* Seção de Entradas */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <FaCheck className="text-green-600 text-xl" />
-                      <h4 className="text-xl font-semibold text-gray-700">
-                        Entradas ({entradas.length})
-                      </h4>
-                    </div>
-                    
-                    {entradas.length === 0 ? (
-                      <div className="bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                        Nenhuma entrada registrada
-                        {filtroItemOcorrencia !== 'todos' && ' para este item'}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {entradas.map((entrada, index) => {
-                          // Encontrar o índice real da entrada no array completo
-                          const indexReal = (formData.entradas || []).findIndex((e, i) => 
-                            e.itemIndex === entrada.itemIndex && 
-                            e.dataEntrada === entrada.dataEntrada &&
-                            e.documentoFabrica === entrada.documentoFabrica
-                          );
-                          
-                          return (
-                            <div 
-                              key={index}
-                              className="bg-green-50 border border-green-200 p-4 rounded-lg"
-                            >
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                  <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                    Item {entrada.itemIndex + 1}
-                                  </span>
-                                  <span className="text-sm text-gray-600">
-                                    {formData.itens[entrada.itemIndex]?.descricao || 'Item removido'}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {entradaEditandoIndex === indexReal ? (
-                                    <>
-                                      <button
-                                        onClick={() => salvarEdicaoEntrada(indexReal)}
-                                        className="text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full p-1 transition-colors"
-                                        title="Salvar alterações"
-                                      >
-                                        <FaCheck className="text-sm" />
-                                      </button>
-                                      <button
-                                        onClick={() => cancelarEdicaoEntrada()}
-                                        className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full p-1 transition-colors"
-                                        title="Cancelar edição"
-                                      >
-                                        <FaTimes className="text-sm" />
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button
-                                        onClick={() => editarEntrada(indexReal)}
-                                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
-                                        title="Editar entrada"
-                                      >
-                                        <FaPencilAlt className="text-sm" />
-                                      </button>
-                                      <button
-                                        onClick={() => excluirEntrada(indexReal)}
-                                        className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
-                                        title="Excluir entrada"
-                                      >
-                                        <FaTimes className="text-sm" />
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            
-                              {entradaEditandoIndex === indexReal ? (
-                                // Modo de edição inline
-                                <div className="space-y-3">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Entrada *</label>
-                                      <div className="flex gap-2">
-                                        <input
-                                          type="date"
-                                          value={entrada.dataEntrada}
-                                          onChange={(e) => atualizarCampoEntrada(indexReal, 'dataEntrada', e.target.value)}
-                                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => atualizarCampoEntrada(indexReal, 'dataEntrada', new Date().toISOString().split('T')[0])}
-                                          className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                                          title="Definir data atual"
-                                        >
-                                          <FaCalendarAlt className="text-sm" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">Documento Fábrica</label>
-                                      <input
-                                        type="text"
-                                        value={entrada.documentoFabrica || ''}
-                                        onChange={(e) => atualizarCampoEntrada(indexReal, 'documentoFabrica', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                        placeholder="Número do documento"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de emissão do doc.</label>
-                                    <div className="flex gap-2">
-                                      <input
-                                        type="date"
-                                        value={entrada.dataDocumento || ''}
-                                        onChange={(e) => atualizarCampoEntrada(indexReal, 'dataDocumento', e.target.value)}
-                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => atualizarCampoEntrada(indexReal, 'dataDocumento', new Date().toISOString().split('T')[0])}
-                                        className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                                        title="Definir data atual"
-                                      >
-                                        <FaCalendarAlt className="text-sm" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-                                    <textarea
-                                      value={entrada.observacao || ''}
-                                      onChange={(e) => atualizarCampoEntrada(indexReal, 'observacao', e.target.value)}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                      rows="3"
-                                      placeholder="Digite as observações..."
-                                    />
-                                  </div>
-                                </div>
-                              ) : (
-                                // Modo de visualização
-                                <>
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                    <div>
-                                      <span className="font-medium text-gray-700">Data Entrada:</span>
-                                      <p className="text-gray-900 mt-1">
-                                        {entrada.dataEntrada ? new Date(entrada.dataEntrada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-700">Documento Fábrica:</span>
-                                      <p className="text-gray-900 mt-1">{entrada.documentoFabrica || '-'}</p>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-700">Data de emissão do doc.:</span>
-                                      <p className="text-gray-900 mt-1">
-                                        {entrada.dataDocumento ? new Date(entrada.dataDocumento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                
-                                  {entrada.observacao && (
-                                    <div className="mt-3 pt-3 border-t border-green-200">
-                                      <span className="font-medium text-gray-700">Observações:</span>
-                                      <p className="text-gray-900 mt-1">{entrada.observacao}</p>
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Linha divisória */}
-                  <hr className="border-gray-300" />
-
-                  {/* Seção de Entregas */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <FaCalendarAlt className="text-blue-600 text-xl" />
-                      <h4 className="text-xl font-semibold text-gray-700">
-                        Datas de Entrega ({entregas.length})
-                      </h4>
-                    </div>
-                    
-                    {entregas.length === 0 ? (
-                      <div className="bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                        Nenhuma data de entrega registrada
-                        {filtroItemOcorrencia !== 'todos' && ' para este item'}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {entregas.map((entrega, index) => {
-                          // Encontrar o índice real da entrega no array completo
-                          const indexReal = (formData.datasEntrega || []).findIndex((e, i) => 
-                            e.itemIndex === entrega.itemIndex && 
-                            e.data === entrega.data &&
-                            e.observacao === entrega.observacao
-                          );
-                          
-                          return (
-                            <div 
-                              key={index}
-                              className="bg-blue-50 border border-blue-200 p-4 rounded-lg"
-                            >
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                  <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                    Item {entrega.itemIndex + 1}
-                                  </span>
-                                  <span className="text-sm text-gray-600">
-                                    {formData.itens[entrega.itemIndex]?.descricao || 'Item removido'}
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={() => excluirEntrega(indexReal)}
-                                  className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
-                                  title="Excluir data de entrega"
-                                >
-                                  <FaTimes className="text-sm" />
-                                </button>
-                              </div>
-                            
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className="font-medium text-gray-700">Data Entrega:</span>
-                                  <p className="text-gray-900 mt-1">
-                                    {entrega.data ? new Date(entrega.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="font-medium text-gray-700">Observações:</span>
-                                  <p className="text-gray-900 mt-1">{entrega.observacao || '-'}</p>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
-              );
-            })()}
+              </div>
+            )}
 
-            <div className="flex justify-end mt-6">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
                   setModalOcorrenciasAberto(false);
                   setItemSelecionadoOcorrencia(null);
                   setTipoOcorrenciaSelecionado('');
                   setEntradaEditandoIndex(null);
+                  setEntregaEditandoIndex(null);
                   setEntradaTemporaria({
                     dataEntrada: '',
                     documentoFabrica: '',
                     dataDocumento: '',
                     observacao: ''
                   });
+                  setEntregaTemporaria({
+                    data: '',
+                    observacao: ''
+                  });
                 }}
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Fechar
               </button>
+              {tipoOcorrenciaSelecionado === 'entrada' && (
+                <button
+                  onClick={() => {
+                    salvarEntradaOcorrencia();
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                >
+                  <FaCheck />
+                  Salvar Entrada
+                </button>
+              )}
+              {tipoOcorrenciaSelecionado === 'entrega' && (
+                <button
+                  onClick={() => {
+                    salvarEntregaOcorrencia();
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <FaCalendarAlt />
+                  Salvar Data Entrega
+                </button>
+              )}
+              {tipoOcorrenciaSelecionado === 'observacao' && (
+                <button
+                  onClick={() => {
+                    salvarObservacaoOcorrencia();
+                  }}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2"
+                >
+                  <FaClipboardList />
+                  Salvar Observação
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -4756,4 +5075,5 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
 };
 
 export default NovaOrdemCompra;
+
 

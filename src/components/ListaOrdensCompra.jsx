@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV, FaColumns, FaGripVertical, FaCheck, FaCalendarAlt, FaClipboardList, FaExclamationCircle, FaBell } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV, FaColumns, FaGripVertical, FaCheck, FaCalendarAlt, FaClipboardList, FaExclamationCircle, FaBell, FaPencilAlt } from 'react-icons/fa';
 import { createPortal } from 'react-dom';
 
 // Componente para item arrastável
@@ -87,6 +87,7 @@ const ListaOrdensCompra = () => {
     texto: ''
   });
   const [entradaEditandoIndex, setEntradaEditandoIndex] = useState(null);
+  const [entregaEditandoIndex, setEntregaEditandoIndex] = useState(null);
   const [showColumnsModal, setShowColumnsModal] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
   
@@ -625,7 +626,7 @@ const ListaOrdensCompra = () => {
 
     // Buscar a ordem completa no localStorage
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemAlertaAtual.id);
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == ordemAlertaAtual.id);
     
     if (ordemIndex === -1) {
       alert('Ordem não encontrada!');
@@ -669,7 +670,7 @@ const ListaOrdensCompra = () => {
 
     // Buscar a ordem completa no localStorage
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemAlertaAtual.id);
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == ordemAlertaAtual.id);
     
     if (ordemIndex === -1) {
       alert('Ordem não encontrada!');
@@ -713,9 +714,12 @@ const ListaOrdensCompra = () => {
 
     if (!ordemModalAtual) return;
 
+    // DEBUG
+    alert(`DEBUG ENTRADA (ListaOC):\nItem Index: ${ordemModalAtual.indiceProduto}\nProduto: ${ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao || 'N/A'}\nDoc: ${entradaTemporaria.documentoFabrica}`);
+
     // Buscar a ordem completa no localStorage
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == ordemModalAtual.id);
     
     if (ordemIndex === -1) {
       alert('Ordem não encontrada!');
@@ -833,9 +837,12 @@ const ListaOrdensCompra = () => {
 
     if (!ordemModalAtual) return;
 
+    // DEBUG
+    alert(`DEBUG ENTREGA (ListaOC):\nItem Index: ${ordemModalAtual.indiceProduto}\nProduto: ${ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao || 'N/A'}\nData: ${entregaTemporaria.data}`);
+
     // Buscar a ordem completa no localStorage
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == ordemModalAtual.id);
     
     if (ordemIndex === -1) {
       alert('Ordem não encontrada!');
@@ -844,28 +851,64 @@ const ListaOrdensCompra = () => {
 
     const ordem = ordensExistentes[ordemIndex];
     
-    // Criar nova entrega
-    const novaEntrega = {
-      ...entregaTemporaria,
-      salvo: true,
-      editando: false,
-      itemIndex: ordemModalAtual.indiceProduto || 0,
-      produto: ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao
-    };
+    let entregasAtualizadas;
+    let ocorrenciasAtualizadas;
 
-    // Adicionar às datas de entrega da ordem
-    const entregasAtualizadas = [...(ordem.datasEntrega || []), novaEntrega];
-    
-    // Criar ocorrência
-    const novaOcorrencia = {
-      tipo: 'Atualização de Entrega',
-      descricao: `Data de entrega atualizada para ${novaEntrega.produto || 'produto'}. Nova data: ${novaEntrega.data}`,
-      data: new Date().toISOString(),
-      detalhes: novaEntrega
-    };
+    // Se estiver editando uma entrega existente
+    if (entregaEditandoIndex !== null) {
+      // Atualizar entrega existente
+      const ocorrenciaAtual = ordem.ocorrencias[entregaEditandoIndex];
+      const entregaAtualizada = {
+        ...entregaTemporaria,
+        salvo: true,
+        editando: false,
+        itemIndex: ocorrenciaAtual.detalhes?.itemIndex || 0,
+        produto: ocorrenciaAtual.detalhes?.produto || ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao
+      };
 
-    // Adicionar às ocorrências
-    const ocorrenciasAtualizadas = [...(ordem.ocorrencias || []), novaOcorrencia];
+      // Atualizar ocorrência
+      ocorrenciasAtualizadas = ordem.ocorrencias.map((ocorrencia, idx) => 
+        idx === entregaEditandoIndex
+          ? {
+              ...ocorrencia,
+              descricao: `Data de entrega atualizada para ${entregaAtualizada.produto || 'produto'}. Nova data: ${entregaAtualizada.data}`,
+              data: new Date().toISOString(),
+              detalhes: entregaAtualizada
+            }
+          : ocorrencia
+      );
+
+      // Atualizar entrega se existir
+      entregasAtualizadas = ordem.datasEntrega ? ordem.datasEntrega.map((entrega, idx) => {
+        const ocorrenciaIndex = ordem.ocorrencias.findIndex(oc => oc.detalhes === entrega);
+        return ocorrenciaIndex === entregaEditandoIndex ? entregaAtualizada : entrega;
+      }) : [entregaAtualizada];
+
+      setEntregaEditandoIndex(null);
+    } else {
+      // Criar nova entrega
+      const novaEntrega = {
+        ...entregaTemporaria,
+        salvo: true,
+        editando: false,
+        itemIndex: ordemModalAtual.indiceProduto || 0,
+        produto: ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao
+      };
+
+      // Adicionar às datas de entrega da ordem
+      entregasAtualizadas = [...(ordem.datasEntrega || []), novaEntrega];
+      
+      // Criar ocorrência
+      const novaOcorrencia = {
+        tipo: 'Atualização de Entrega',
+        descricao: `Data de entrega atualizada para ${novaEntrega.produto || 'produto'}. Nova data: ${novaEntrega.data}`,
+        data: new Date().toISOString(),
+        detalhes: novaEntrega
+      };
+
+      // Adicionar às ocorrências
+      ocorrenciasAtualizadas = [...(ordem.ocorrencias || []), novaOcorrencia];
+    }
 
     // Atualizar ordem
     ordensExistentes[ordemIndex] = {
@@ -881,16 +924,28 @@ const ListaOrdensCompra = () => {
     // Atualizar estado local
     setOrdensCompra(ordensExistentes);
     
+    // Atualizar ordemModalAtual se o modal de ocorrências estiver aberto
+    if (showOcorrenciasModal) {
+      setOrdemModalAtual({
+        ...ordemModalAtual,
+        ocorrencias: ocorrenciasAtualizadas
+      });
+    }
+    
     // Disparar evento para sincronizar
     window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
 
     // Fechar modal e limpar
     setShowEntregaModal(false);
-    setOrdemModalAtual(null);
+    if (!showOcorrenciasModal) {
+      setOrdemModalAtual(null);
+    }
     setEntregaTemporaria({
       data: '',
       observacao: ''
     });
+    setTipoOcorrenciaSelecionado('');
+    setEntregaEditandoIndex(null);
 
     alert('Data de entrega salva com sucesso!');
   };
@@ -908,9 +963,12 @@ const ListaOrdensCompra = () => {
 
     if (!ordemModalAtual) return;
 
+    // DEBUG
+    alert(`DEBUG OBSERVAÇÃO (ListaOC):\nItem Index: ${ordemModalAtual.indiceProduto}\nProduto: ${ordemModalAtual.produtoAtual?.produto || ordemModalAtual.produtoAtual?.descricao || 'N/A'}\nTexto: ${observacaoTemporaria.texto}`);
+
     // Buscar a ordem completa no localStorage
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == ordemModalAtual.id);
     
     if (ordemIndex === -1) {
       alert('Ordem não encontrada!');
@@ -970,7 +1028,7 @@ const ListaOrdensCompra = () => {
 
     // Buscar a ordem completa no localStorage
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == ordemModalAtual.id);
     
     if (ordemIndex === -1) {
       alert('Ordem não encontrada!');
@@ -979,13 +1037,38 @@ const ListaOrdensCompra = () => {
 
     const ordem = ordensExistentes[ordemIndex];
     
-    // Remover ocorrência
+    // Remover ocorrência e manter consistência com entradas/datasEntrega
+    const ocorrenciaRemovida = (ordem.ocorrencias || [])[indexOcorrencia];
     const ocorrenciasAtualizadas = (ordem.ocorrencias || []).filter((_, idx) => idx !== indexOcorrencia);
+
+    let entradasAtualizadas = ordem.entradas || [];
+    let datasEntregaAtualizadas = ordem.datasEntrega || [];
+
+    if (ocorrenciaRemovida?.tipo === 'Entrada de Produto') {
+      const d = ocorrenciaRemovida.detalhes || {};
+      entradasAtualizadas = (ordem.entradas || []).filter(e => {
+        return !(
+          e.itemIndex === d.itemIndex &&
+          e.dataEntrada === d.dataEntrada &&
+          e.documentoFabrica === d.documentoFabrica
+        );
+      });
+    } else if (ocorrenciaRemovida?.tipo === 'Atualização de Entrega') {
+      const d = ocorrenciaRemovida.detalhes || {};
+      datasEntregaAtualizadas = (ordem.datasEntrega || []).filter(ent => {
+        return !(
+          ent.itemIndex === d.itemIndex &&
+          ent.data === d.data
+        );
+      });
+    }
 
     // Atualizar ordem
     ordensExistentes[ordemIndex] = {
       ...ordem,
       ocorrencias: ocorrenciasAtualizadas,
+      entradas: entradasAtualizadas,
+      datasEntrega: datasEntregaAtualizadas,
       dataAtualizacao: new Date().toISOString()
     };
 
@@ -1016,7 +1099,7 @@ const ListaOrdensCompra = () => {
 
     // Buscar a ordem completa no localStorage
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
-    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id === ordemModalAtual.id);
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == ordemModalAtual.id);
     
     if (ordemIndex === -1) {
       alert('Ordem não encontrada!');
@@ -1029,7 +1112,7 @@ const ListaOrdensCompra = () => {
       ocorrencias: ordemModalAtual.ocorrencias,
       dataAtualizacao: new Date().toISOString()
     };
-
+    
     // Salvar no localStorage
     localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
     
@@ -1053,6 +1136,75 @@ const ListaOrdensCompra = () => {
 
   // Função para atualizar campo de ocorrência durante edição
   const atualizarCampoOcorrencia = (indexOcorrencia, campo, valor) => {
+    if (!ordemModalAtual) return;
+    
+    const ocorrenciasAtualizadas = ordemModalAtual.ocorrencias.map((ocorrencia, idx) => {
+      if (idx === indexOcorrencia) {
+        return {
+          ...ocorrencia,
+          detalhes: {
+            ...ocorrencia.detalhes,
+            [campo]: valor
+          }
+        };
+      }
+      return ocorrencia;
+    });
+
+    setOrdemModalAtual({
+      ...ordemModalAtual,
+      ocorrencias: ocorrenciasAtualizadas
+    });
+  };
+
+  // Função para editar ocorrência de entrega inline
+  const editarOcorrenciaEntrega = (indexOcorrencia) => {
+    setEntregaEditandoIndex(indexOcorrencia);
+  };
+
+  // Função para salvar edição inline de entrega
+  const salvarEdicaoOcorrenciaEntrega = (indexOcorrencia) => {
+    if (!ordemModalAtual) return;
+
+    // Buscar a ordem completa no localStorage
+    const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+    const ordemIndex = ordensExistentes.findIndex(ordem => ordem.id == ordemModalAtual.id);
+    
+    if (ordemIndex === -1) {
+      alert('Ordem não encontrada!');
+      return;
+    }
+
+    // Atualizar a ordem com as ocorrências modificadas do modal
+    ordensExistentes[ordemIndex] = {
+      ...ordensExistentes[ordemIndex],
+      ocorrencias: ordemModalAtual.ocorrencias,
+      dataAtualizacao: new Date().toISOString()
+    };
+    
+    // Salvar no localStorage
+    localStorage.setItem('ordensCompra', JSON.stringify(ordensExistentes));
+    
+    // Atualizar estado local
+    setOrdensCompra(ordensExistentes);
+    
+    // Atualizar ordemModalAtual
+    setOrdemModalAtual(ordensExistentes[ordemIndex]);
+    
+    // Disparar evento para sincronizar
+    window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+    
+    setEntregaEditandoIndex(null);
+    alert('Data de entrega atualizada com sucesso!');
+  };
+
+  // Função para cancelar edição inline de entrega
+  const cancelarEdicaoOcorrenciaEntrega = () => {
+    setEntregaEditandoIndex(null);
+  };
+
+  // Função para atualizar campo de ocorrência de entrega durante edição
+  const atualizarCampoOcorrenciaEntrega = (indexOcorrencia, campo, valor) => {
     if (!ordemModalAtual) return;
     
     const ocorrenciasAtualizadas = ordemModalAtual.ocorrencias.map((ocorrencia, idx) => {
@@ -2499,16 +2651,19 @@ const ListaOrdensCompra = () => {
               <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
                 {ordemModalAtual.ocorrencias && ordemModalAtual.ocorrencias.length > 0 ? (
                   <div className="space-y-3">
-                    {ordemModalAtual.ocorrencias.map((ocorrencia, index) => (
-                      <div key={index} className="border-l-4 border-purple-500 pl-4 pr-2 relative">
-                        {entradaEditandoIndex === index && ocorrencia.tipo === 'Entrada de Produto' ? (
-                          // Modo de edição inline
+                    {(ordemModalAtual.ocorrencias || [])
+                      .map((o, idx) => ({ ocorrencia: o, indexReal: idx }))
+                      .filter(({ ocorrencia }) => ocorrencia.detalhes?.itemIndex === ordemModalAtual.indiceProduto)
+                      .map(({ ocorrencia, indexReal }) => (
+                      <div key={indexReal} className="border-l-4 border-purple-500 pl-4 pr-2 relative">
+                        {entradaEditandoIndex === indexReal && ocorrencia.tipo === 'Entrada de Produto' ? (
+                          // Modo de edição inline - Entrada
                           <div className="space-y-3">
                             <div className="flex justify-between items-center mb-2">
                               <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
                               <div className="flex items-center gap-2">
                                 <button
-                                  onClick={() => salvarEdicaoOcorrencia(index)}
+                                  onClick={() => salvarEdicaoOcorrencia(indexReal)}
                                   className="text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full p-1 transition-colors"
                                   title="Salvar alterações"
                                 >
@@ -2529,7 +2684,7 @@ const ListaOrdensCompra = () => {
                                 <input
                                   type="date"
                                   value={ocorrencia.detalhes?.dataEntrada || ''}
-                                  onChange={(e) => atualizarCampoOcorrencia(index, 'dataEntrada', e.target.value)}
+                                  onChange={(e) => atualizarCampoOcorrencia(indexReal, 'dataEntrada', e.target.value)}
                                   className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                                 />
                               </div>
@@ -2538,7 +2693,7 @@ const ListaOrdensCompra = () => {
                                 <input
                                   type="text"
                                   value={ocorrencia.detalhes?.documentoFabrica || ''}
-                                  onChange={(e) => atualizarCampoOcorrencia(index, 'documentoFabrica', e.target.value)}
+                                  onChange={(e) => atualizarCampoOcorrencia(indexReal, 'documentoFabrica', e.target.value)}
                                   className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                                   placeholder="Número do documento"
                                 />
@@ -2549,7 +2704,7 @@ const ListaOrdensCompra = () => {
                               <input
                                 type="date"
                                 value={ocorrencia.detalhes?.dataDocumento || ''}
-                                onChange={(e) => atualizarCampoOcorrencia(index, 'dataDocumento', e.target.value)}
+                                onChange={(e) => atualizarCampoOcorrencia(indexReal, 'dataDocumento', e.target.value)}
                                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                               />
                             </div>
@@ -2557,8 +2712,50 @@ const ListaOrdensCompra = () => {
                               <label className="block text-xs font-medium text-gray-700 mb-1">Observações</label>
                               <textarea
                                 value={ocorrencia.detalhes?.observacao || ''}
-                                onChange={(e) => atualizarCampoOcorrencia(index, 'observacao', e.target.value)}
+                                onChange={(e) => atualizarCampoOcorrencia(indexReal, 'observacao', e.target.value)}
                                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                rows="2"
+                                placeholder="Digite as observações..."
+                              />
+                            </div>
+                          </div>
+                        ) : entregaEditandoIndex === indexReal && ocorrencia.tipo === 'Atualização de Entrega' ? (
+                          // Modo de edição inline - Entrega
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center mb-2">
+                              <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => salvarEdicaoOcorrenciaEntrega(indexReal)}
+                                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
+                                  title="Salvar alterações"
+                                >
+                                  <FaCheck className="text-xs" />
+                                </button>
+                                <button
+                                  onClick={() => cancelarEdicaoOcorrenciaEntrega()}
+                                  className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full p-1 transition-colors"
+                                  title="Cancelar edição"
+                                >
+                                  <FaTimes className="text-xs" />
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Data Entrega *</label>
+                              <input
+                                type="date"
+                                value={ocorrencia.detalhes?.data || ''}
+                                onChange={(e) => atualizarCampoOcorrenciaEntrega(indexReal, 'data', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Observações</label>
+                              <textarea
+                                value={ocorrencia.detalhes?.observacao || ''}
+                                onChange={(e) => atualizarCampoOcorrenciaEntrega(indexReal, 'observacao', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 rows="2"
                                 placeholder="Digite as observações..."
                               />
@@ -2566,38 +2763,99 @@ const ListaOrdensCompra = () => {
                           </div>
                         ) : (
                           // Modo de visualização
-                          <div className="flex justify-between items-start gap-2">
-                            <div className="flex-1">
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
                               <p className="text-sm font-medium text-gray-900">{ocorrencia.tipo}</p>
-                              <p className="text-sm text-gray-600">{ocorrencia.descricao}</p>
-                              {ocorrencia.detalhes?.observacao && (
-                                <div className="mt-2 pt-2 border-t border-purple-200">
-                                  <p className="text-xs font-medium text-gray-700">Observações:</p>
-                                  <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <span className="text-xs text-gray-500">
-                                {new Date(ocorrencia.data).toLocaleDateString('pt-BR')}
-                              </span>
-                              {ocorrencia.tipo === 'Entrada de Produto' && (
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {ocorrencia.tipo !== 'Entrada de Produto' && (
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(ocorrencia.data).toLocaleDateString('pt-BR')}
+                                  </span>
+                                )}
+                                {ocorrencia.tipo === 'Entrada de Produto' && (
+                                  <button
+                                    onClick={() => editarOcorrencia(indexReal)}
+                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
+                                    title="Editar ocorrência"
+                                  >
+                                    <FaPencilAlt className="text-xs" />
+                                  </button>
+                                )}
+                                {ocorrencia.tipo === 'Atualização de Entrega' && (
+                                  <button
+                                    onClick={() => editarOcorrenciaEntrega(indexReal)}
+                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
+                                    title="Editar data de entrega"
+                                  >
+                                    <FaPencilAlt className="text-xs" />
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => editarOcorrencia(index)}
-                                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full p-1 transition-colors"
-                                  title="Editar ocorrência"
+                                  onClick={() => excluirOcorrencia(indexReal)}
+                                  className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
+                                  title="Excluir ocorrência"
                                 >
-                                  <FaEdit className="text-xs" />
+                                  <FaTimes className="text-xs" />
                                 </button>
-                              )}
-                              <button
-                                onClick={() => excluirOcorrencia(index)}
-                                className="text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full p-1 transition-colors"
-                                title="Excluir ocorrência"
-                              >
-                                <FaTimes className="text-xs" />
-                              </button>
+                              </div>
                             </div>
+                            
+                            {ocorrencia.tipo === 'Entrada de Produto' ? (
+                              // Visualização estruturada para Entrada de Produto
+                              <div className="space-y-2">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-700">Data Entrada:</p>
+                                    <p className="text-gray-900">
+                                      {ocorrencia.detalhes?.dataEntrada ? new Date(ocorrencia.detalhes.dataEntrada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-700">Documento Nº:</p>
+                                    <p className="text-gray-900">{ocorrencia.detalhes?.documentoFabrica || '-'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-700">Data Emissão Doc:</p>
+                                    <p className="text-gray-900">
+                                      {ocorrencia.detalhes?.dataDocumento ? new Date(ocorrencia.detalhes.dataDocumento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                    </p>
+                                  </div>
+                                </div>
+                                {ocorrencia.detalhes?.observacao && (
+                                  <div className="mt-2 pt-2 border-t border-purple-200">
+                                    <p className="text-xs font-medium text-gray-700">Observações:</p>
+                                    <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : ocorrencia.tipo === 'Atualização de Entrega' ? (
+                              // Visualização estruturada para Data de Entrega
+                              <div className="space-y-2">
+                                <div className="text-sm">
+                                  <p className="text-xs font-medium text-gray-700">Data Entrega:</p>
+                                  <p className="text-gray-900">
+                                    {ocorrencia.detalhes?.data ? new Date(ocorrencia.detalhes.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                  </p>
+                                </div>
+                                {ocorrencia.detalhes?.observacao && (
+                                  <div className="mt-2 pt-2 border-t border-purple-200">
+                                    <p className="text-xs font-medium text-gray-700">Observações:</p>
+                                    <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              // Visualização padrão para outros tipos
+                              <div>
+                                <p className="text-sm text-gray-600">{ocorrencia.descricao}</p>
+                                {ocorrencia.detalhes?.observacao && (
+                                  <div className="mt-2 pt-2 border-t border-purple-200">
+                                    <p className="text-xs font-medium text-gray-700">Observações:</p>
+                                    <p className="text-xs text-gray-600 mt-1">{ocorrencia.detalhes.observacao}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -2782,10 +3040,15 @@ const ListaOrdensCompra = () => {
                   setOrdemModalAtual(null);
                   setTipoOcorrenciaSelecionado('');
                   setEntradaEditandoIndex(null);
+                  setEntregaEditandoIndex(null);
                   setEntradaTemporaria({
                     dataEntrada: '',
                     documentoFabrica: '',
                     dataDocumento: '',
+                    observacao: ''
+                  });
+                  setEntregaTemporaria({
+                    data: '',
                     observacao: ''
                   });
                 }}
