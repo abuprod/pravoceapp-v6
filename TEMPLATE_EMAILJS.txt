@@ -1,0 +1,55 @@
+=========================================
+TEMPLATE PARA EMAILJS
+=========================================
+
+Este é o template que você deve criar no EmailJS.
+
+=========================================
+CONFIGURAÇÕES DO TEMPLATE
+=========================================
+
+Template Name: OC para Fornecedor
+
+Subject: Nova Ordem de Compra #{{oc_numero}}
+
+To Email: {{to_email}}
+
+From Name: [SEU NOME OU EMPRESA]
+
+Reply To: [SEU EMAIL]
+
+=========================================
+CONTEÚDO DO EMAIL (HTML)
+=========================================
+
+<p>Bom dia!</p>
+
+<p>Segue nova solicitação de ordem de compra em anexo!</p>
+
+<br>
+
+<p><strong>OC:</strong> {{oc_numero}}</p>
+
+<p><strong>Fornecedor:</strong> {{fornecedor}}</p>
+
+=========================================
+VARIÁVEIS DISPONÍVEIS
+=========================================
+
+As seguintes variáveis serão preenchidas automaticamente:
+
+- {{to_email}} = Email do fornecedor
+- {{oc_numero}} = Número da OC (ex: A-0001)
+- {{fornecedor}} = Nome do fornecedor
+- {{pdf_attachment}} = PDF da OC (anexo)
+- {{pdf_name}} = Nome do arquivo PDF
+
+=========================================
+IMPORTANTE
+=========================================
+
+Certifique-se de que o template está configurado para aceitar anexos (PDF).
+
+No EmailJS, isso é feito automaticamente quando você inclui a variável
+{{pdf_attachment}} no template.
+

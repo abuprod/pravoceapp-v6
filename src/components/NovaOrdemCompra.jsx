@@ -21,8 +21,13 @@ import {
   FaEllipsisV,
   FaTimes,
   FaClipboardList,
-  FaPencilAlt
+  FaPencilAlt,
+  FaTruck
 } from 'react-icons/fa';
+import emailjs from '@emailjs/browser';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { emailConfig } from '../config/emailConfig';
 
 // Adicionar estilo global para remover o ícone de calendário
 const globalStyles = `
@@ -159,6 +164,9 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
   const [showConfirmDeleteItem, setShowConfirmDeleteItem] = useState(false);
   const [itemParaExcluir, setItemParaExcluir] = useState(null);
 
+  // Estados para envio de OC para fábrica
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
+
   // Função para buscar a próxima OC disponível por tipo
   const buscarProximaOC = (tipo) => {
     const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
@@ -224,8 +232,8 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
               ? (ordemParaEditar.fornecedorId || ordemParaEditar.fornecedor || '')
               : (ordemParaEditar.fabrica || ''),
             fornecedorNome: ordemParaEditar.fornecedorNome || ordemParaEditar.fornecedor || '',
-            // Garantir que o tipo seja sempre definido
-            tipo: ordemParaEditar.tipo || 'cliente'
+            // Garantir que o tipo seja sempre definido corretamente
+            tipo: ordemParaEditar.tipo || (ordemParaEditar.fabrica ? 'cliente' : 'estoque')
           };
           
           console.log('🔍 DEBUG: Dados carregados para edição:', dadosParaEditar);
@@ -1861,6 +1869,224 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
     }
   };
 
+  // Função para gerar PDF da OC
+  const gerarPDFOrdemCompra = (itens = null) => {
+    const doc = new jsPDF();
+    const itensPDF = itens || formData.itens;
+    
+    // Título
+    doc.setFontSize(18);
+    doc.text('Ordem de Compra', 105, 15, { align: 'center' });
+    
+    // Informações da OC
+    doc.setFontSize(10);
+    doc.text(`OC: ${formData.oc}`, 20, 30);
+    doc.text(`Data: ${new Date(formData.dataEncomenda).toLocaleDateString('pt-BR')}`, 20, 37);
+    doc.text(`Tipo: ${formData.tipo === 'estoque' ? 'Estoque' : 'Cliente'}`, 20, 44);
+    
+    if (formData.tipo === 'estoque') {
+      const fornecedorObj = fornecedores.find(f => f.id === parseInt(formData.fornecedor));
+      doc.text(`Fornecedor: ${fornecedorObj?.nomeFantasia || formData.fornecedorNome || '-'}`, 20, 51);
+    }
+    
+    if (formData.tipo === 'cliente' && formData.pedidoVinculado) {
+      doc.text(`Pedido Vinculado: ${formData.pedidoVinculado}`, 20, 51);
+    }
+    
+    // Tabela de itens
+    const tableData = itensPDF.map(item => [
+      item.descricao || '-',
+      item.referencia || '-',
+      item.quantidade || '-',
+      `R$ ${parseFloat(item.valorUnitario || 0).toFixed(2)}`,
+      `R$ ${(parseFloat(item.valorUnitario || 0) * parseFloat(item.quantidade || 0)).toFixed(2)}`
+    ]);
+    
+    doc.autoTable({
+      startY: 60,
+      head: [['Descrição', 'Referência', 'Qtd', 'Valor Unit.', 'Total']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [66, 139, 202] },
+      styles: { fontSize: 8 }
+    });
+    
+    // Observações
+    if (formData.observacoes) {
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.text('Observações:', 20, finalY);
+      doc.setFontSize(8);
+      const observacoes = doc.splitTextToSize(formData.observacoes, 170);
+      doc.text(observacoes, 20, finalY + 7);
+    }
+    
+    return doc;
+  };
+
+  // Função para enviar OC para fábrica via email
+  const handleEnviarParaFabrica = async () => {
+    if (enviandoEmail) return;
+    
+    try {
+      setEnviandoEmail(true);
+      
+      if (formData.tipo === 'estoque') {
+        // OC de Estoque - enviar tudo para um fornecedor
+        console.log('🔍 DEBUG ENVIO - formData.fornecedor:', formData.fornecedor);
+        console.log('🔍 DEBUG ENVIO - fornecedores disponíveis:', fornecedores);
+        
+        const fornecedorObj = fornecedores.find(f => f.id === parseInt(formData.fornecedor));
+        
+        console.log('🔍 DEBUG ENVIO - fornecedor encontrado:', fornecedorObj);
+        
+        if (!fornecedorObj) {
+          alert('Fornecedor não encontrado!');
+          return;
+        }
+        
+        console.log('🔍 DEBUG ENVIO - emailEncomendas:', fornecedorObj.emailEncomendas);
+        
+        if (!fornecedorObj.emailEncomendas) {
+          alert(`O fornecedor ${fornecedorObj.nomeFantasia} não possui email de encomendas cadastrado!\n\nPor favor, vá em Cadastros > Fornecedores e preencha o campo "Email (encomendas)".`);
+          return;
+        }
+        
+        // Gerar PDF
+        const doc = gerarPDFOrdemCompra();
+        const pdfBase64 = doc.output('dataurlstring').split(',')[1];
+        
+        // Enviar email
+        const templateParams = {
+          to_email: fornecedorObj.emailEncomendas,
+          oc_numero: formData.oc,
+          fornecedor: fornecedorObj.nomeFantasia,
+          pdf_attachment: pdfBase64,
+          pdf_name: `OC_${formData.oc}.pdf`
+        };
+        
+        await emailjs.send(emailConfig.serviceID, emailConfig.templateID, templateParams, emailConfig.publicKey);
+        
+        // Atualizar formData com data de envio
+        const dataEnvio = new Date().toISOString().split('T')[0];
+        const ordemAtualizada = {
+          ...formData,
+          dataEnvioFabrica: dataEnvio,
+          emailEnviadoPara: fornecedorObj.emailEncomendas,
+          status: 'Encomendado'
+        };
+        
+        // Salvar no localStorage
+        const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+        const novasOrdens = ordensExistentes.map(ordem => 
+          ordem.id === parseInt(id) ? ordemAtualizada : ordem
+        );
+        localStorage.setItem('ordensCompra', JSON.stringify(novasOrdens));
+        
+        setFormData(ordemAtualizada);
+        window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+        
+        alert('Email enviado com sucesso!');
+        
+      } else if (formData.tipo === 'cliente') {
+        // OC de Cliente - enviar itens selecionados
+        const itensSelecionadosArray = formData.itens.filter((_, index) => itensSelecionados[index]);
+        
+        if (itensSelecionadosArray.length === 0) {
+          alert('Selecione pelo menos um item para enviar!');
+          return;
+        }
+        
+        // Agrupar por fornecedor
+        const itensPorFornecedor = {};
+        itensSelecionadosArray.forEach((item, originalIndex) => {
+          const fornecedorId = item.fornecedorId || item.fornecedor;
+          if (!itensPorFornecedor[fornecedorId]) {
+            itensPorFornecedor[fornecedorId] = [];
+          }
+          itensPorFornecedor[fornecedorId].push({ ...item, originalIndex });
+        });
+        
+        // Enviar para cada fornecedor
+        for (const [fornecedorId, itens] of Object.entries(itensPorFornecedor)) {
+          console.log('🔍 DEBUG ENVIO CLIENTE - fornecedorId:', fornecedorId);
+          console.log('🔍 DEBUG ENVIO CLIENTE - fornecedores disponíveis:', fornecedores);
+          
+          // Buscar fornecedor pelo ID ou nome
+          let fornecedorObj = fornecedores.find(f => f.id === parseInt(fornecedorId));
+          if (!fornecedorObj) {
+            fornecedorObj = fornecedores.find(f => f.nomeFantasia === fornecedorId);
+          }
+          
+          console.log('🔍 DEBUG ENVIO CLIENTE - fornecedor encontrado:', fornecedorObj);
+          
+          if (!fornecedorObj) {
+            alert(`Fornecedor ${fornecedorId} não encontrado!`);
+            continue;
+          }
+          
+          console.log('🔍 DEBUG ENVIO CLIENTE - emailEncomendas:', fornecedorObj.emailEncomendas);
+          
+          if (!fornecedorObj.emailEncomendas) {
+            alert(`Fornecedor ${fornecedorObj.nomeFantasia} não possui email de encomendas cadastrado!\n\nPor favor, vá em Cadastros > Fornecedores e preencha o campo "Email (encomendas)".`);
+            continue;
+          }
+          
+          // Gerar PDF para esses itens
+          const doc = gerarPDFOrdemCompra(itens);
+          const pdfBase64 = doc.output('dataurlstring').split(',')[1];
+          
+          const templateParams = {
+            to_email: fornecedorObj.emailEncomendas,
+            oc_numero: formData.oc,
+            fornecedor: fornecedorObj.nomeFantasia,
+            pdf_attachment: pdfBase64,
+            pdf_name: `OC_${formData.oc}_${fornecedorObj.nomeFantasia}.pdf`
+          };
+          
+          await emailjs.send(emailConfig.serviceID, emailConfig.templateID, templateParams, emailConfig.publicKey);
+          
+          // Marcar itens como encomendados
+          const dataEnvio = new Date().toISOString().split('T')[0];
+          itens.forEach(item => {
+            const indexOriginal = formData.itens.findIndex(i => 
+              i.descricao === item.descricao && i.referencia === item.referencia
+            );
+            if (indexOriginal !== -1) {
+              formData.itens[indexOriginal].encomendado = true;
+              formData.itens[indexOriginal].dataEnvioFabrica = dataEnvio;
+              formData.itens[indexOriginal].emailEnviadoPara = fornecedorObj.emailEncomendas;
+            }
+          });
+        }
+        
+        // Atualizar status da OC se todos itens foram encomendados
+        const todosEncomendados = formData.itens.every(item => item.encomendado);
+        if (todosEncomendados) {
+          formData.status = 'Encomendado';
+        }
+        
+        // Salvar no localStorage
+        const ordensExistentes = JSON.parse(localStorage.getItem('ordensCompra') || '[]');
+        const novasOrdens = ordensExistentes.map(ordem => 
+          ordem.id === parseInt(id) ? formData : ordem
+        );
+        localStorage.setItem('ordensCompra', JSON.stringify(novasOrdens));
+        
+        setFormData({ ...formData });
+        setItensSelecionados({});
+        window.dispatchEvent(new CustomEvent('ordensCompraChanged'));
+        
+        alert('Emails enviados com sucesso!');
+      }
+      
+    } catch (error) {
+      console.error('Erro ao enviar email:', error);
+      alert('Erro ao enviar email. Verifique as configurações do EmailJS.');
+    } finally {
+      setEnviandoEmail(false);
+    }
+  };
+
   const handleSalvar = () => {
     console.log('=== INICIANDO SALVAMENTO ===');
     console.log('formData atual:', formData);
@@ -3193,13 +3419,39 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   className={`px-4 py-2 rounded flex items-center gap-2 ${
                     formData.salvo 
                       ? 'bg-green-500 text-white hover:bg-green-600' 
-                      : 'bg-gray-500 text-white hover:bg-gray-600'
+                      : 'bg-gray-500 text-white hover:bg-blue-600'
                   }`}
                 >
                   {formData.salvo ? <FaCheck /> : <FaSave />}
                   {formData.salvo ? 'Salvo' : 'Salvar'}
                 </button>
+                <button
+                  onClick={handleEnviarParaFabrica}
+                  disabled={enviandoEmail || !formData.fornecedor || (formData.itens?.length || 0) === 0}
+                  className={`px-4 py-2 rounded flex items-center gap-2 ${
+                    enviandoEmail || !formData.fornecedor || (formData.itens?.length || 0) === 0
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  <FaTruck />
+                  {enviandoEmail ? 'Enviando...' : `(${Object.values(itensSelecionados).filter(Boolean).length || 0}) Enviar para a Fábrica`}
+                </button>
               </div>
+
+              {/* Exibir datas de envio por produto */}
+              {formData.itens.some(item => item.dataEnvioFabrica) && (
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-sm font-medium text-gray-700">Datas de Envio:</h3>
+                  {formData.itens.map((item, index) => (
+                    item.dataEnvioFabrica && (
+                      <div key={index} className="text-sm text-green-600">
+                        <strong>{item.descricao}:</strong> {new Date(item.dataEnvioFabrica).toLocaleDateString('pt-BR')}
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
 
               {formData.enviado && formData.dataEnvio && (
                 <div className="mt-4 text-sm text-gray-600">
@@ -3513,6 +3765,22 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                             </td>
                             <td className="px-2 py-2 whitespace-nowrap">
                               <div className="flex items-center gap-1">
+                                {itensEnviados[index]?.enviado ? (
+                                  <button
+                                    onClick={() => setShowObservacaoPopup(index)}
+                                    className="p-1 text-green-600 hover:text-green-800"
+                                    title={`Enviado em: ${new Date(itensEnviados[index].dataEnvio).toLocaleString('pt-BR')}`}
+                                  >
+                                    <FaCheck />
+                                  </button>
+                                ) : (
+                                  <input
+                                    type="checkbox"
+                                    checked={itensSelecionados[index] || false}
+                                    onChange={() => handleSelecionarItem(index)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                )}
                                 <button
                                   onClick={() => toggleExpandItem(index)}
                                   className="p-1 text-gray-600 hover:text-gray-800"
@@ -3671,11 +3939,23 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   className={`px-4 py-2 rounded flex items-center gap-2 ${
                     formData.salvo 
                       ? 'bg-green-500 text-white hover:bg-green-600' 
-                      : 'bg-gray-500 text-white hover:bg-gray-600'
+                      : 'bg-gray-500 text-white hover:bg-blue-600'
                   }`}
                 >
                   {formData.salvo ? <FaCheck /> : <FaSave />}
                   {formData.salvo ? 'Salvo' : 'Salvar'}
+                </button>
+                <button
+                  onClick={handleEnviarParaFabrica}
+                  disabled={enviandoEmail || !formData.fornecedor || (formData.itens?.length || 0) === 0}
+                  className={`px-4 py-2 rounded flex items-center gap-2 ${
+                    enviandoEmail || !formData.fornecedor || (formData.itens?.length || 0) === 0
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  <FaTruck />
+                  {enviandoEmail ? 'Enviando...' : `(${Object.values(itensSelecionados).filter(Boolean).length || 0}) Enviar para a Fábrica`}
                 </button>
               </div>
 
@@ -4004,7 +4284,25 @@ const NovaOrdemCompra = ({ tipoPreSelecionado }) => {
                   {formData.salvo ? <FaCheck /> : <FaSave />}
                   {formData.salvo ? 'Salvo' : 'Salvar'}
                 </button>
+                <button
+                  onClick={handleEnviarParaFabrica}
+                  disabled={enviandoEmail || !formData.fornecedor}
+                  className={`px-4 py-2 rounded flex items-center gap-2 ${
+                    enviandoEmail || !formData.fornecedor
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  <FaTruck />
+                  {enviandoEmail ? 'Enviando...' : 'Enviar para a Fábrica'}
+                </button>
               </div>
+
+              {formData.dataEnvioFabrica && (
+                <div className="mt-4 text-sm text-green-600 font-medium">
+                  Data de envio: {new Date(formData.dataEnvioFabrica).toLocaleDateString('pt-BR')}
+                </div>
+              )}
 
               {formData.enviado && formData.dataEnvio && (
                 <div className="mt-4 text-sm text-gray-600">
