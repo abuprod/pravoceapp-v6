@@ -179,6 +179,9 @@ const Estoque = () => {
     };
   }, []);
 
+  // Estado para ordenação do fornecedor (padrão: A→Z)
+  const [ordenacaoFornecedor, setOrdenacaoFornecedor] = useState('asc');
+
   // Filtragem dos produtos baseada na busca global
   const produtosFiltradosGlobal = produtos.filter(produto => {
     const termoBusca = buscaGlobal.toLowerCase();
@@ -192,6 +195,17 @@ const Estoque = () => {
     });
     
     return matchBusca && temEstoque;
+  });
+
+  // Aplicar ordenação por fornecedor (sempre aplicada)
+  const produtosOrdenados = [...produtosFiltradosGlobal].sort((a, b) => {
+    const fornecedorA = (a.fornecedor || '').toLowerCase();
+    const fornecedorB = (b.fornecedor || '').toLowerCase();
+    if (ordenacaoFornecedor === 'asc') {
+      return fornecedorA.localeCompare(fornecedorB);
+    } else {
+      return fornecedorB.localeCompare(fornecedorA);
+    }
   });
 
   // Função para filtrar produtos para sugestões
@@ -611,9 +625,6 @@ const Estoque = () => {
         {/* Campo de Busca Global */}
         <div className="mb-6">
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FaSearch className="text-gray-400" />
-            </div>
             <input
               type="text"
               placeholder="Buscar por descrição ou fornecedor..."
@@ -649,7 +660,21 @@ const Estoque = () => {
             <table className="min-w-full bg-white border-2 border-gray-400">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="px-4 py-2 border-2 border-gray-400">Fornecedor</th>
+                  <th className="px-4 py-2 border-2 border-gray-400">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrdenacaoFornecedor(ordenacaoFornecedor === 'asc' ? 'desc' : 'asc');
+                      }}
+                      className="flex items-center gap-1 w-full text-left"
+                      title="Ordenar por Fornecedor"
+                    >
+                      Fornecedor
+                      <span className="text-[10px]">
+                        {ordenacaoFornecedor === 'asc' ? '▲' : '▼'}
+                      </span>
+                    </button>
+                  </th>
                   <th className="px-4 py-2 border-2 border-gray-400">Descrição</th>
                   {locais.map(local => (
                     <th key={local} className="px-4 py-2 border-2 border-gray-400 bg-amber-50">{local}</th>
@@ -658,7 +683,7 @@ const Estoque = () => {
                 </tr>
               </thead>
               <tbody>
-                {produtosFiltradosGlobal.map((produto, index) => (
+                {produtosOrdenados.map((produto, index) => (
                   <tr key={index}>
                     <td className="px-4 py-2 border-2 border-gray-400">{produto.fornecedor}</td>
                     <td className="px-4 py-2 border-2 border-gray-400">

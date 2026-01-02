@@ -85,12 +85,14 @@ const NovoPedidoVenda = () => {
   const [buscaCliente, setBuscaCliente] = useState('');
   const [clienteSelecionado, setClienteSelecionado] = useState(null);
   const [mostrarSugestoesCliente, setMostrarSugestoesCliente] = useState(false);
+  const [indiceClienteDestacado, setIndiceClienteDestacado] = useState(-1);
 
   // Estados para produtos cadastrados
   const [produtosCadastrados, setProdutosCadastrados] = useState([]);
   const [buscaProduto, setBuscaProduto] = useState('');
   const [mostrarSugestoesProduto, setMostrarSugestoesProduto] = useState(false);
   const [produtoIndexAtual, setProdutoIndexAtual] = useState(null);
+  const [indiceProdutoDestacado, setIndiceProdutoDestacado] = useState(-1);
 
   // Estados para fornecedores (sugestões no campo Fábrica)
   const [fornecedoresCadastrados, setFornecedoresCadastrados] = useState([]);
@@ -102,6 +104,7 @@ const NovoPedidoVenda = () => {
   const [vendedoresAtivos, setVendedoresAtivos] = useState([]);
   const [buscaVendedor, setBuscaVendedor] = useState('');
   const [mostrarSugestoesVendedor, setMostrarSugestoesVendedor] = useState(false);
+  const [indiceVendedorDestacado, setIndiceVendedorDestacado] = useState(-1);
 
   // Estados para locais ativos
   const [locaisAtivos, setLocaisAtivos] = useState([]);
@@ -468,11 +471,98 @@ const NovoPedidoVenda = () => {
     return match;
   });
 
+  // Resetar índice destacado quando sugestões forem fechadas
+  useEffect(() => {
+    if (!mostrarSugestoesCliente) {
+      setIndiceClienteDestacado(-1);
+    }
+  }, [mostrarSugestoesCliente]);
+
+  // Resetar índice destacado do vendedor quando sugestões forem fechadas
+  useEffect(() => {
+    if (!mostrarSugestoesVendedor) {
+      setIndiceVendedorDestacado(-1);
+    }
+  }, [mostrarSugestoesVendedor]);
+
+  // Resetar índice destacado do produto quando sugestões forem fechadas
+  useEffect(() => {
+    if (!mostrarSugestoesProduto) {
+      setIndiceProdutoDestacado(-1);
+    }
+  }, [mostrarSugestoesProduto]);
+
   // Função para selecionar cliente
   const selecionarCliente = (cliente) => {
     setClienteSelecionado(cliente);
     setBuscaCliente('');
     setMostrarSugestoesCliente(false);
+    setIndiceClienteDestacado(-1);
+  };
+
+  // Handler para navegação por teclado nas sugestões de cliente
+  const handleKeyDownCliente = (e) => {
+    if (!mostrarSugestoesCliente || clientesFiltrados.length === 0) {
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setIndiceClienteDestacado((prev) => {
+          if (prev === -1) {
+            // Se não há item destacado, destacar o primeiro
+            return 0;
+          }
+          const nextIndex = prev < clientesFiltrados.length - 1 ? prev + 1 : 0;
+          return nextIndex;
+        });
+        break;
+      
+      case 'ArrowUp':
+        e.preventDefault();
+        setIndiceClienteDestacado((prev) => {
+          const nextIndex = prev > 0 ? prev - 1 : clientesFiltrados.length - 1;
+          return nextIndex;
+        });
+        break;
+      
+      case 'Enter':
+        e.preventDefault();
+        if (indiceClienteDestacado >= 0 && indiceClienteDestacado < clientesFiltrados.length) {
+          selecionarCliente(clientesFiltrados[indiceClienteDestacado]);
+        }
+        break;
+      
+      case 'Escape':
+        e.preventDefault();
+        setMostrarSugestoesCliente(false);
+        setIndiceClienteDestacado(-1);
+        break;
+      
+      case 'Tab':
+        // Ao pressionar Tab, se houver item destacado, selecionar
+        if (indiceClienteDestacado >= 0 && indiceClienteDestacado < clientesFiltrados.length) {
+          e.preventDefault();
+          selecionarCliente(clientesFiltrados[indiceClienteDestacado]);
+        } else if (indiceClienteDestacado === -1 && clientesFiltrados.length > 0) {
+          // Se não houver item destacado mas houver sugestões, destacar o primeiro
+          e.preventDefault();
+          setIndiceClienteDestacado(0);
+        } else {
+          // Se não houver sugestões, apenas fechar
+          setMostrarSugestoesCliente(false);
+          setIndiceClienteDestacado(-1);
+        }
+        break;
+      
+      default:
+        // Resetar índice quando digitar algo
+        if (e.key.length === 1) {
+          setIndiceClienteDestacado(-1);
+        }
+        break;
+    }
   };
 
   // Função para selecionar produto cadastrado
@@ -501,6 +591,158 @@ const NovoPedidoVenda = () => {
     setFormData(prev => ({ ...prev, vendedor: vendedor.nome }));
     setBuscaVendedor('');
     setMostrarSugestoesVendedor(false);
+    setIndiceVendedorDestacado(-1);
+  };
+
+  // Handler para navegação por teclado nas sugestões de vendedor
+  const handleKeyDownVendedor = (e) => {
+    if (!mostrarSugestoesVendedor || vendedoresFiltrados.length === 0) {
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setIndiceVendedorDestacado((prev) => {
+          if (prev === -1) {
+            // Se não há item destacado, destacar o primeiro
+            return 0;
+          }
+          const nextIndex = prev < vendedoresFiltrados.length - 1 ? prev + 1 : 0;
+          return nextIndex;
+        });
+        break;
+      
+      case 'ArrowUp':
+        e.preventDefault();
+        setIndiceVendedorDestacado((prev) => {
+          const nextIndex = prev > 0 ? prev - 1 : vendedoresFiltrados.length - 1;
+          return nextIndex;
+        });
+        break;
+      
+      case 'Enter':
+        e.preventDefault();
+        if (indiceVendedorDestacado >= 0 && indiceVendedorDestacado < vendedoresFiltrados.length) {
+          selecionarVendedor(vendedoresFiltrados[indiceVendedorDestacado]);
+        }
+        break;
+      
+      case 'Escape':
+        e.preventDefault();
+        setMostrarSugestoesVendedor(false);
+        setIndiceVendedorDestacado(-1);
+        break;
+      
+      case 'Tab':
+        // Ao pressionar Tab, se houver item destacado, selecionar
+        if (indiceVendedorDestacado >= 0 && indiceVendedorDestacado < vendedoresFiltrados.length) {
+          e.preventDefault();
+          selecionarVendedor(vendedoresFiltrados[indiceVendedorDestacado]);
+        } else if (indiceVendedorDestacado === -1 && vendedoresFiltrados.length > 0) {
+          // Se não houver item destacado mas houver sugestões, destacar o primeiro
+          e.preventDefault();
+          setIndiceVendedorDestacado(0);
+        } else {
+          // Se não houver sugestões, apenas fechar
+          setMostrarSugestoesVendedor(false);
+          setIndiceVendedorDestacado(-1);
+        }
+        break;
+      
+      default:
+        // Resetar índice quando digitar algo
+        if (e.key.length === 1) {
+          setIndiceVendedorDestacado(-1);
+        }
+        break;
+    }
+  };
+
+  // Função para selecionar produto no modal
+  const selecionarProdutoModal = (produtoCadastrado) => {
+    setModalProduto(prev => ({
+      ...prev,
+      produto: {
+        ...prev.produto,
+        produto: produtoCadastrado.descricao,
+        fabrica: produtoCadastrado.fornecedor,
+        produtoId: produtoCadastrado.id,
+        sku: produtoCadastrado.sku,
+        precoLista: produtoCadastrado.tabc ? Number(produtoCadastrado.tabc).toFixed(2) : '',
+        descontoLista: '0%',
+        precoFinal: produtoCadastrado.tabc ? Number(produtoCadastrado.tabc).toFixed(2) : ''
+      }
+    }));
+    setBuscaProduto('');
+    setMostrarSugestoesProduto(false);
+    setProdutoIndexAtual(null);
+    setIndiceProdutoDestacado(-1);
+  };
+
+  // Handler para navegação por teclado nas sugestões de produto no modal
+  const handleKeyDownProdutoModal = (e) => {
+    if (!mostrarSugestoesProduto || produtoIndexAtual !== modalProduto.produtoIndex || produtosFiltrados.length === 0) {
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setIndiceProdutoDestacado((prev) => {
+          if (prev === -1) {
+            // Se não há item destacado, destacar o primeiro
+            return 0;
+          }
+          const nextIndex = prev < produtosFiltrados.length - 1 ? prev + 1 : 0;
+          return nextIndex;
+        });
+        break;
+      
+      case 'ArrowUp':
+        e.preventDefault();
+        setIndiceProdutoDestacado((prev) => {
+          const nextIndex = prev > 0 ? prev - 1 : produtosFiltrados.length - 1;
+          return nextIndex;
+        });
+        break;
+      
+      case 'Enter':
+        e.preventDefault();
+        if (indiceProdutoDestacado >= 0 && indiceProdutoDestacado < produtosFiltrados.length) {
+          selecionarProdutoModal(produtosFiltrados[indiceProdutoDestacado]);
+        }
+        break;
+      
+      case 'Escape':
+        e.preventDefault();
+        setMostrarSugestoesProduto(false);
+        setIndiceProdutoDestacado(-1);
+        break;
+      
+      case 'Tab':
+        // Ao pressionar Tab, se houver item destacado, selecionar
+        if (indiceProdutoDestacado >= 0 && indiceProdutoDestacado < produtosFiltrados.length) {
+          e.preventDefault();
+          selecionarProdutoModal(produtosFiltrados[indiceProdutoDestacado]);
+        } else if (indiceProdutoDestacado === -1 && produtosFiltrados.length > 0) {
+          // Se não houver item destacado mas houver sugestões, destacar o primeiro
+          e.preventDefault();
+          setIndiceProdutoDestacado(0);
+        } else {
+          // Se não houver sugestões, apenas fechar
+          setMostrarSugestoesProduto(false);
+          setIndiceProdutoDestacado(-1);
+        }
+        break;
+      
+      default:
+        // Resetar índice quando digitar algo
+        if (e.key.length === 1) {
+          setIndiceProdutoDestacado(-1);
+        }
+        break;
+    }
   };
 
   const handleChange = (e) => {
@@ -1970,19 +2212,31 @@ const NovoPedidoVenda = () => {
                         setBuscaVendedor(e.target.value);
                         setFormData(prev => ({ ...prev, vendedor: e.target.value }));
                         setMostrarSugestoesVendedor(true);
+                        setIndiceVendedorDestacado(-1);
                       }}
                       onFocus={() => setMostrarSugestoesVendedor(true)}
+                      onKeyDown={handleKeyDownVendedor}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     
                     {/* Sugestões de vendedores */}
                     {mostrarSugestoesVendedor && buscaVendedor && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                        {vendedoresFiltrados.map(vendedor => (
+                        {vendedoresFiltrados.map((vendedor, index) => (
                           <div
                             key={vendedor.id}
+                            ref={(el) => {
+                              // Scroll automático para manter o item destacado visível
+                              if (el && index === indiceVendedorDestacado) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                              }
+                            }}
                             onClick={() => selecionarVendedor(vendedor)}
-                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                            className={`px-4 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+                              index === indiceVendedorDestacado
+                                ? 'bg-blue-100 hover:bg-blue-200'
+                                : 'hover:bg-gray-100'
+                            }`}
                           >
                             <div className="font-medium">{vendedor.nome}</div>
                             <div className="text-sm text-gray-500">
@@ -2090,19 +2344,31 @@ const NovoPedidoVenda = () => {
                         onChange={(e) => {
                           setBuscaCliente(e.target.value);
                           setMostrarSugestoesCliente(true);
+                          setIndiceClienteDestacado(-1);
                         }}
                         onFocus={() => setMostrarSugestoesCliente(true)}
+                        onKeyDown={handleKeyDownCliente}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                       
                       {/* Sugestões de clientes */}
                       {mostrarSugestoesCliente && buscaCliente && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                          {clientesFiltrados.map(cliente => (
+                          {clientesFiltrados.map((cliente, index) => (
                             <div
                               key={cliente.id}
+                              ref={(el) => {
+                                // Scroll automático para manter o item destacado visível
+                                if (el && index === indiceClienteDestacado) {
+                                  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+                              }}
                               onClick={() => selecionarCliente(cliente)}
-                              className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              className={`px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+                                index === indiceClienteDestacado
+                                  ? 'bg-blue-100 hover:bg-blue-200'
+                                  : 'hover:bg-gray-100'
+                              }`}
                             >
                               <div className="font-medium text-gray-900">{cliente.nome}</div>
                               <div className="text-sm text-gray-600">
@@ -3000,11 +3266,13 @@ const NovoPedidoVenda = () => {
                           setBuscaProduto(e.target.value);
                           setMostrarSugestoesProduto(true);
                           setProdutoIndexAtual(modalProduto.produtoIndex);
+                          setIndiceProdutoDestacado(-1);
                         }}
                         onFocus={() => {
                           setMostrarSugestoesProduto(true);
                           setProdutoIndexAtual(modalProduto.produtoIndex);
                         }}
+                        onKeyDown={handleKeyDownProdutoModal}
                         required
                         className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
                         placeholder="Digite para buscar produtos..."
@@ -3018,29 +3286,22 @@ const NovoPedidoVenda = () => {
                       {/* Dropdown de sugestões de produtos */}
                       {mostrarSugestoesProduto && produtoIndexAtual === modalProduto.produtoIndex && buscaProduto && (
                         <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
-                          {produtosFiltrados.map((produtoCadastrado) => (
+                          {produtosFiltrados.map((produtoCadastrado, index) => (
                             <button
                               key={produtoCadastrado.id}
                               type="button"
-                              onClick={() => {
-                                setModalProduto(prev => ({
-                                  ...prev,
-                                  produto: {
-                                    ...prev.produto,
-                                    produto: produtoCadastrado.descricao,
-                                    fabrica: produtoCadastrado.fornecedor,
-                                    produtoId: produtoCadastrado.id,
-                                    sku: produtoCadastrado.sku,
-                                    precoLista: produtoCadastrado.tabc ? Number(produtoCadastrado.tabc).toFixed(2) : '',
-                                    descontoLista: '0%',
-                                    precoFinal: produtoCadastrado.tabc ? Number(produtoCadastrado.tabc).toFixed(2) : ''
-                                  }
-                                }));
-                                setBuscaProduto('');
-                                setMostrarSugestoesProduto(false);
-                                setProdutoIndexAtual(null);
+                              ref={(el) => {
+                                // Scroll automático para manter o item destacado visível
+                                if (el && index === indiceProdutoDestacado) {
+                                  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
                               }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none border-b border-gray-100"
+                              onClick={() => selecionarProdutoModal(produtoCadastrado)}
+                              className={`w-full text-left px-4 py-2 focus:outline-none border-b border-gray-100 last:border-b-0 ${
+                                index === indiceProdutoDestacado
+                                  ? 'bg-blue-100 hover:bg-blue-200 focus:bg-blue-200'
+                                  : 'hover:bg-gray-100 focus:bg-gray-100'
+                              }`}
                             >
                               <div className="font-medium">{produtoCadastrado.descricao}</div>
                               <div className="text-sm text-gray-500">
