@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilter, FaSort, FaSortUp, FaSortDown, FaTimes, FaExclamationTriangle, FaEllipsisV, FaColumns, FaGripVertical, FaCheck, FaCalendarAlt, FaClipboardList, FaExclamationCircle, FaBell, FaPencilAlt } from 'react-icons/fa';
 import { createPortal } from 'react-dom';
+import { pedidosVendaService } from '../services/database';
 
 // Componente para item arrastável
 const DraggableColumnItem = ({ column, index, onToggle, onDragStart, onDragEnd, onDragOver, onDrop }) => {
@@ -126,6 +127,7 @@ const ListaOrdensCompra = () => {
   const [itensSelecionados, setItensSelecionados] = useState([]);
   const [showBulkActionsMenu, setShowBulkActionsMenu] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [pedidosVendaMap, setPedidosVendaMap] = useState({}); // Mapeia numeroPedido -> id
 
   // Função para converter data sem problemas de timezone
   const formatarDataSemTimezone = (dataString) => {
@@ -181,6 +183,25 @@ const ListaOrdensCompra = () => {
         setColumnsConfig(savedConfig);
       }
     }
+  }, []);
+
+  // Carregar mapeamento de pedidos de venda (numeroPedido -> id)
+  useEffect(() => {
+    const carregarPedidosVenda = async () => {
+      try {
+        const pedidos = await pedidosVendaService.buscarTodos();
+        const mapa = {};
+        pedidos.forEach(pedido => {
+          if (pedido.numeroPedido && pedido.id) {
+            mapa[pedido.numeroPedido] = pedido.id;
+          }
+        });
+        setPedidosVendaMap(mapa);
+      } catch (error) {
+        console.error('Erro ao carregar pedidos de venda:', error);
+      }
+    };
+    carregarPedidosVenda();
   }, []);
 
   // Carregar ordens do localStorage ao montar o componente
@@ -2232,7 +2253,21 @@ const ListaOrdensCompra = () => {
                           </div>
                         );
                       case 'pedido':
-                        return ordem.pedidoVinculado || '-';
+                        const numeroPedido = ordem.pedidoVinculado;
+                        if (!numeroPedido) return '-';
+                        const pedidoVendaId = pedidosVendaMap[numeroPedido];
+                        if (pedidoVendaId) {
+                          return (
+                            <Link
+                              to={`/pedidos-venda/editar/${pedidoVendaId}`}
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {numeroPedido}
+                            </Link>
+                          );
+                        }
+                        return numeroPedido;
                       default:
                         return '-';
                     }
