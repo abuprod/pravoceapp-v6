@@ -8,6 +8,7 @@ import { pedidosVendaService } from '../services/database';
 const colunasPadrao = [
   { id: 'situacao', label: 'Status' },
   { id: 'numeroPedido', label: 'Pedido' },
+  { id: 'ocVinculada', label: 'OC' },
   { id: 'dataCriacao', label: 'Data' },
   { id: 'cliente', label: 'Cliente' },
   { id: 'vendedor', label: 'Vendedor' },
@@ -39,6 +40,7 @@ const PedidosVenda = () => {
   const [itensSelecionados, setItensSelecionados] = useState([]);
   const [showBulkActionsMenu, setShowBulkActionsMenu] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [ordensCompraMap, setOrdensCompraMap] = useState({}); // Mapeia numeroPedido -> { numeroOC, id }
 
   // Carregar pedidos do Firestore
   useEffect(() => {
@@ -56,6 +58,51 @@ const PedidosVenda = () => {
     };
 
     carregarPedidos();
+  }, []);
+
+  // Carregar mapeamento de ordens de compra (numeroPedido -> { numeroOC, id })
+  useEffect(() => {
+    const carregarOrdensCompra = () => {
+      try {
+        const ordensSalvas = localStorage.getItem('ordensCompra');
+        if (ordensSalvas) {
+          const ordens = JSON.parse(ordensSalvas);
+          const mapa = {};
+          ordens.forEach(ordem => {
+            if (ordem.pedidoVinculado && (ordem.numero || ordem.oc)) {
+              mapa[ordem.pedidoVinculado] = {
+                numeroOC: ordem.numero || ordem.oc,
+                id: ordem.id
+              };
+            }
+          });
+          setOrdensCompraMap(mapa);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar ordens de compra:', error);
+      }
+    };
+
+    carregarOrdensCompra();
+
+    // Listener para mudanças no localStorage
+    const handleStorageChange = (e) => {
+      if (e.key === 'ordensCompra') {
+        carregarOrdensCompra();
+      }
+    };
+
+    const handleCustomStorageChange = () => {
+      carregarOrdensCompra();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('ordensCompraChanged', handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('ordensCompraChanged', handleCustomStorageChange);
+    };
   }, []);
 
   // Fechar menu quando clicar fora
@@ -978,13 +1025,13 @@ const PedidosVenda = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={colunas.length + 1} className="w-full text-center p-8 text-gray-500">
+                <td colSpan={colunas.length + 2} className="w-full text-center p-8 text-gray-500">
                   <p className="text-lg">Carregando pedidos...</p>
                 </td>
               </tr>
             ) : filteredAndSortedPedidos.length === 0 ? (
               <tr>
-                <td colSpan={colunas.length + 1} className="w-full text-center p-8 text-gray-500">
+                <td colSpan={colunas.length + 2} className="w-full text-center p-8 text-gray-500">
                   <p className="text-lg">
                     {pedidos.length === 0 ? 'Nenhum pedido encontrado' : 'Nenhum pedido corresponde aos filtros aplicados'}
                   </p>
@@ -1040,6 +1087,27 @@ const PedidosVenda = () => {
                               {pedido[col.id] || '-'}
                             </button>
                           )
+                        : col.id === 'ocVinculada'
+                        ? (() => {
+                            const ocInfo = ordensCompraMap[pedido.numeroPedido];
+                            const numeroOC = ocInfo?.numeroOC || pedido.ocVinculada;
+                            if (!numeroOC) return '-';
+                            
+                            const ocId = ocInfo?.id;
+                            if (ocId) {
+                              return (
+                                <Link
+                                  to={`/ordens-compra/editar/${ocId}`}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                  onClick={(e) => e.stopPropagation()}
+                                  title="Clique para editar esta ordem de compra"
+                                >
+                                  {numeroOC}
+                                </Link>
+                              );
+                            }
+                            return numeroOC;
+                          })()
                         : pedido[col.id] || '-'}
                     </td>
                   ))}

@@ -247,9 +247,47 @@ const ListaProdutos = () => {
     } else {
       console.log('Abrindo menu para produtoId:', produtoId);
       const rect = event.currentTarget.getBoundingClientRect();
+      
+      // Altura aproximada do menu (3 botões + padding)
+      const menuHeight = 132; // aproximadamente 44px por botão * 3
+      const menuWidth = 192; // minWidth definido no menu
+      const spacing = 5; // espaçamento entre botão e menu
+      
+      // Verificar se há espaço abaixo
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      // Verificar se há espaço à direita
+      const spaceRight = window.innerWidth - rect.left;
+      const spaceLeft = rect.left;
+      
+      // Calcular posição Y
+      let y;
+      if (spaceBelow >= menuHeight + spacing) {
+        // Tem espaço abaixo, posicionar abaixo
+        y = rect.bottom + spacing;
+      } else if (spaceAbove >= menuHeight + spacing) {
+        // Não tem espaço abaixo, mas tem acima, posicionar acima
+        y = rect.top - menuHeight - spacing;
+      } else {
+        // Não tem espaço suficiente nem acima nem abaixo, 
+        // posicionar abaixo mesmo e deixar o scrollbar lidar
+        y = rect.bottom + spacing;
+      }
+      
+      // Calcular posição X (ajustar se necessário para não sair da tela)
+      let x = rect.left;
+      if (spaceRight < menuWidth && spaceLeft >= menuWidth) {
+        // Alinhar à direita do botão se não há espaço à direita
+        x = rect.right - menuWidth;
+      } else if (x + menuWidth > window.innerWidth) {
+        // Garantir que não ultrapasse a largura da tela
+        x = window.innerWidth - menuWidth - 10; // 10px de margem
+      }
+      
       setMenuPosition({
-        x: rect.left,
-        y: rect.bottom + 5
+        x: Math.max(10, x), // Mínimo 10px da borda esquerda
+        y: Math.max(10, y)  // Mínimo 10px da borda superior
       });
       setMenuAberto(produtoId);
     }
@@ -294,20 +332,21 @@ const ListaProdutos = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">SKU</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Descrição</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">Fornecedor</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Categoria</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Est. Disp.</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Est. Fís.</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">TABC</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto', paddingBottom: '150px' }}>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">SKU</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Descrição</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">Fornecedor</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Categoria</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Est. Disp.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Est. Fís.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">TABC</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
             {filteredProdutos.map((produto) => (
               <tr key={produto.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 whitespace-nowrap text-sm relative">
@@ -347,6 +386,7 @@ const ListaProdutos = () => {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Menu Dropdown Global */}
