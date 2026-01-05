@@ -300,6 +300,8 @@ const NovoPedidoVenda = () => {
       const clienteCriado = localStorage.getItem('clienteRecemCriado');
       const clienteEditado = localStorage.getItem('clienteEditado');
       
+      console.log('🔍 Verificando retorno do cliente:', { dadosRetorno: !!dadosRetorno, clienteCriado: !!clienteCriado, clienteEditado: !!clienteEditado });
+      
       if (dadosRetorno) {
         try {
           const dadosSalvos = JSON.parse(dadosRetorno);
@@ -312,7 +314,42 @@ const NovoPedidoVenda = () => {
             // Cliente foi salvo - usar o cliente novo/editado
             const cliente = clienteCriado ? JSON.parse(clienteCriado) : JSON.parse(clienteEditado);
             const isNovoCliente = !!clienteCriado;
-            setClienteSelecionado(cliente);
+            
+            console.log('📝 Processando cliente:', isNovoCliente ? 'NOVO' : 'EDITADO', cliente);
+            
+            // Recarregar clientes do localStorage para garantir que temos a versão mais recente
+            const clientesSalvos = localStorage.getItem('clientes');
+            if (clientesSalvos) {
+              try {
+                const clientesAtualizados = JSON.parse(clientesSalvos);
+                setClientes(clientesAtualizados);
+                
+                // Buscar o cliente atualizado na lista usando o ID do cliente salvo
+                const clienteAtualizado = clientesAtualizados.find(c => c.id === cliente.id);
+                if (clienteAtualizado) {
+                  // Usar o cliente atualizado da lista (pode ter dados mais recentes)
+                  setClienteSelecionado(clienteAtualizado);
+                  console.log('✅ Cliente atualizado no pedido:', clienteAtualizado);
+                } else {
+                  // Se não encontrou, usar o cliente que foi salvo
+                  setClienteSelecionado(cliente);
+                  console.log('⚠️ Cliente não encontrado na lista, usando cliente salvo:', cliente);
+                }
+              } catch (error) {
+                console.error('Erro ao recarregar clientes:', error);
+                setClienteSelecionado(cliente);
+              }
+            } else {
+              // Se não há clientes no localStorage, apenas atualizar o selecionado
+              setClienteSelecionado(cliente);
+              console.log('⚠️ Nenhum cliente no localStorage, usando cliente salvo:', cliente);
+            }
+            
+            // Forçar re-render imediato
+            setTimeout(() => {
+              setClienteSelecionado(prev => ({ ...prev }));
+              console.log('🔄 Forçando atualização do card do cliente');
+            }, 100);
             
             // Mostrar confirmação
             const mensagem = isNovoCliente 
@@ -322,6 +359,7 @@ const NovoPedidoVenda = () => {
           } else {
             // Voltou sem salvar - restaurar cliente original
             setClienteSelecionado(dadosSalvos.clienteSelecionado);
+            console.log('↩️ Restaurando cliente original:', dadosSalvos.clienteSelecionado);
           }
           
           // Limpar dados temporários
@@ -329,7 +367,7 @@ const NovoPedidoVenda = () => {
           localStorage.removeItem('clienteRecemCriado');
           localStorage.removeItem('clienteEditado');
         } catch (error) {
-          console.error('Erro ao restaurar dados do pedido:', error);
+          console.error('❌ Erro ao restaurar dados do pedido:', error);
           localStorage.removeItem('pedidoTempParaRetorno');
           localStorage.removeItem('clienteRecemCriado');
           localStorage.removeItem('clienteEditado');
@@ -341,13 +379,51 @@ const NovoPedidoVenda = () => {
     verificarRetornoCliente();
 
     // Verificar quando a janela ganha foco (útil quando volta de outra aba)
-    const handleFocus = () => verificarRetornoCliente();
+    const handleFocus = () => {
+      console.log('👁️ Janela ganhou foco, verificando retorno...');
+      verificarRetornoCliente();
+    };
     window.addEventListener('focus', handleFocus);
+    
+    // ⚡ Polling inteligente: verificar periodicamente APENAS se houver dados de retorno pendentes
+    const intervalId = setInterval(() => {
+      const temDadosRetorno = localStorage.getItem('pedidoTempParaRetorno');
+      const temClienteCriado = localStorage.getItem('clienteRecemCriado');
+      const temClienteEditado = localStorage.getItem('clienteEditado');
+      
+      if (temDadosRetorno || temClienteCriado || temClienteEditado) {
+        console.log('🔄 Polling detectou dados pendentes, processando...');
+        verificarRetornoCliente();
+      }
+    }, 500);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
     };
   }, []);
+
+  // ⚡ Efeito separado para sincronizar cliente selecionado com localStorage
+  // Este efeito roda sempre que o array de clientes mudar
+  useEffect(() => {
+    if (clienteSelecionado && clienteSelecionado.id) {
+      const clientesSalvos = localStorage.getItem('clientes');
+      if (clientesSalvos) {
+        try {
+          const clientesAtualizados = JSON.parse(clientesSalvos);
+          const clienteAtualizado = clientesAtualizados.find(c => c.id === clienteSelecionado.id);
+          
+          // Se encontrou o cliente atualizado e ele é diferente do atual, atualizar
+          if (clienteAtualizado && JSON.stringify(clienteAtualizado) !== JSON.stringify(clienteSelecionado)) {
+            setClienteSelecionado(clienteAtualizado);
+            console.log('✅ Card do cliente sincronizado com dados atualizados:', clienteAtualizado);
+          }
+        } catch (error) {
+          console.error('Erro ao sincronizar cliente:', error);
+        }
+      }
+    }
+  }, [clientes]);
 
   // Carregar clientes do banco de dados
   useEffect(() => {

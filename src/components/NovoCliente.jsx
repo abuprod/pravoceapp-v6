@@ -44,6 +44,21 @@ const NovoCliente = () => {
     observacoes: ''
   });
 
+  // Estados para busca e sugestões de clientes
+  const [clientesCadastrados, setClientesCadastrados] = useState([]);
+  const [mostrarSugestoesCliente, setMostrarSugestoesCliente] = useState(false);
+  const [buscaNomeCliente, setBuscaNomeCliente] = useState('');
+  const [clienteSelecionadoId, setClienteSelecionadoId] = useState(null);
+
+  // Carregar clientes cadastrados
+  useEffect(() => {
+    const clientesSalvos = localStorage.getItem('clientes');
+    if (clientesSalvos) {
+      const clientes = JSON.parse(clientesSalvos);
+      setClientesCadastrados(clientes);
+    }
+  }, []);
+
   // Carregar dados do cliente se estiver editando
   useEffect(() => {
     if (id) {
@@ -68,18 +83,79 @@ const NovoCliente = () => {
             estado: clienteParaEditar.estado || '',
             observacoes: clienteParaEditar.observacoes || ''
           });
+          setClienteSelecionadoId(parseInt(id));
         }
       }
     }
   }, [id]);
 
+  // Filtrar clientes para sugestões
+  const clientesFiltrados = clientesCadastrados.filter(cliente => {
+    // Excluir o cliente atual se estiver editando
+    if (id && cliente.id === parseInt(id)) {
+      return false;
+    }
+    
+    const match = cliente.nome?.toLowerCase().includes(buscaNomeCliente.toLowerCase()) ||
+      cliente.cpfCnpj?.includes(buscaNomeCliente) ||
+      cliente.telefone1?.includes(buscaNomeCliente) ||
+      cliente.telefone2?.includes(buscaNomeCliente);
+    
+    return match && buscaNomeCliente.trim().length > 0;
+  });
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Se o campo alterado for "nome", também atualizar a busca
+    if (name === 'nome') {
+      setBuscaNomeCliente(value);
+      setMostrarSugestoesCliente(value.trim().length > 0);
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
+
+  // Função para selecionar cliente das sugestões
+  const selecionarCliente = (cliente) => {
+    setFormData({
+      tipoPessoa: cliente.tipoPessoa || 'pf',
+      nome: cliente.nome || '',
+      cpfCnpj: cliente.cpfCnpj || '',
+      telefone1: cliente.telefone1 || '',
+      telefone2: cliente.telefone2 || '',
+      email: cliente.email || '',
+      cep: cliente.cep || '',
+      logradouro: cliente.logradouro || '',
+      numero: cliente.numero || '',
+      complemento: cliente.complemento || '',
+      bairro: cliente.bairro || '',
+      cidade: cliente.cidade || '',
+      estado: cliente.estado || '',
+      observacoes: cliente.observacoes || ''
+    });
+    // Se selecionou um cliente existente, usar o ID dele
+    setClienteSelecionadoId(cliente.id);
+    setBuscaNomeCliente('');
+    setMostrarSugestoesCliente(false);
+  };
+
+  // Fechar sugestões quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.sugestoes-cliente-container')) {
+        setMostrarSugestoesCliente(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -88,16 +164,30 @@ const NovoCliente = () => {
     const clientesSalvos = localStorage.getItem('clientes');
     let clientes = clientesSalvos ? JSON.parse(clientesSalvos) : [];
     
+    // Se selecionou um cliente nas sugestões, usar o ID dele (mesmo se estiver editando)
+    // Se estiver editando (tem id no URL) e não selecionou outro cliente, usar o ID do URL
+    // Senão, criar novo ID
+    const idParaUsar = clienteSelecionadoId || (id ? parseInt(id) : Date.now());
+    
     const clienteAtualizado = {
       ...formData,
-      id: id ? parseInt(id) : Date.now() // Mantém o ID se estiver editando, ou cria um novo
+      id: idParaUsar
     };
 
-    if (id) {
-      // Atualizar cliente existente
-      clientes = clientes.map(c => 
-        c.id === parseInt(id) ? clienteAtualizado : c
-      );
+    // Se está editando ou selecionou um cliente existente, atualizar
+    if (id || clienteSelecionadoId) {
+      // Verificar se o cliente já existe (pode não existir se for novo ID)
+      const clienteExiste = clientes.some(c => c.id === idParaUsar);
+      
+      if (clienteExiste) {
+        // Atualizar cliente existente
+        clientes = clientes.map(c => 
+          c.id === idParaUsar ? clienteAtualizado : c
+        );
+      } else {
+        // Adicionar novo cliente (não deveria acontecer, mas por segurança)
+        clientes.push(clienteAtualizado);
+      }
     } else {
       // Adicionar novo cliente
       clientes.push(clienteAtualizado);
@@ -177,18 +267,54 @@ const NovoCliente = () => {
           </div>
 
           {/* Nome/Razão Social */}
-          <div className="col-span-2">
+          <div className="col-span-2 sugestoes-cliente-container">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {formData.tipoPessoa === 'pf' ? 'Nome Completo' : 'Razão Social'}
             </label>
-            <input
-              type="text"
-              name="nome"
-              value={formData.nome}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
+            <div className="relative">
+              <input
+                type="text"
+                name="nome"
+                value={formData.nome}
+                onChange={handleChange}
+                onFocus={() => {
+                  if (formData.nome.trim().length > 0) {
+                    setMostrarSugestoesCliente(true);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              
+              {/* Sugestões de clientes */}
+              {mostrarSugestoesCliente && buscaNomeCliente && clientesFiltrados.length > 0 && (
+                <div 
+                  className="absolute z-[9999] w-full mt-1 bg-white border-2 border-blue-500 rounded-md shadow-2xl max-h-40 overflow-y-auto"
+                  style={{backgroundColor: 'white', border: '2px solid #3b82f6'}}
+                >
+                  {clientesFiltrados.map((cliente, idx) => (
+                    <div
+                      key={cliente.id}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selecionarCliente(cliente);
+                      }}
+                    >
+                      <div className="font-medium">{cliente.nome}</div>
+                      <div className="text-gray-600">
+                        {cliente.tipoPessoa === 'pf' ? 'CPF: ' : 'CNPJ: '}{cliente.cpfCnpj}
+                      </div>
+                      <div className="text-gray-500 text-xs">
+                        Tel: {cliente.telefone1}
+                        {cliente.telefone2 && ` / ${cliente.telefone2}`}
+                        {cliente.email && ` | Email: ${cliente.email}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* CPF/CNPJ */}
